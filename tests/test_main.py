@@ -19,6 +19,12 @@ class MainTests(unittest.TestCase):
         delays = []
         events = [SimpleNamespace(type=1)]
 
+        def draw_rectangle(x1, y1, x2, y2, r=255, g=0, b=0, a=255, filled=False):
+            pass
+
+        def draw_line(x1, y1, x2, y2, r=0, g=0, b=0, a=255):
+            pass
+
         def load_image(path):
             loaded_images.append(path)
             return FakeImage()
@@ -46,8 +52,8 @@ class MainTests(unittest.TestCase):
             clear_canvas=lambda: None,
             update_canvas=lambda: None,
             delay=lambda duration: delays.append(duration),
-            draw_line=lambda *args: None,
-            set_color=lambda *args: None,
+            draw_line=draw_line,
+            draw_rectangle=draw_rectangle,
         )
 
         with patch.dict(sys.modules, {"pico2d": pico2d}):

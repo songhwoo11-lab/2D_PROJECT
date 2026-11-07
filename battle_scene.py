@@ -90,7 +90,7 @@ class BattleScene:
         screen_x, screen_y = self.camera.world_to_screen(self.player.x, self.player.y)
         self.player.set_screen_position(screen_x, screen_y)
 
-    def draw(self, draw_line, set_color):
+    def draw(self, draw_rectangle, draw_line):
         first_column = int(self.camera.x // SCREEN_WIDTH)
         last_column = int((self.camera.x + SCREEN_WIDTH) // SCREEN_WIDTH)
         first_row = int(self.camera.y // SCREEN_HEIGHT)
@@ -103,7 +103,6 @@ class BattleScene:
                 self.background.draw(screen_x, screen_y, SCREEN_WIDTH, SCREEN_HEIGHT)
 
         game_world.render()
-        set_color(245, 220, 120)
         target_x = self.mouse_screen_x
         target_y = SCREEN_HEIGHT - self.mouse_screen_y
         draw_line(
@@ -111,8 +110,17 @@ class BattleScene:
             self.player.screen_position[1],
             target_x,
             target_y,
+            245,
+            220,
+            120,
         )
         result_text = None
         if self.last_shot_result is not None and self.result_display_time > 0:
             result_text = "SHOT {}".format(self.last_shot_result.value.upper())
-        draw_hud(self.player, self.gun, result_text, draw_line, set_color)
+        draw_hud(
+            self.player,
+            self.gun,
+            result_text,
+            draw_rectangle,
+            draw_line,
+        )

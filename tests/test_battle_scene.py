@@ -78,18 +78,27 @@ class BattleSceneTests(unittest.TestCase):
 
     def test_draw_renders_background_player_aim_and_hud(self):
         lines = []
-        colors = []
+        rectangles = []
         self.scene.mouse_move(500, 300)
         self.scene.update(1 / 60)
 
+        def draw_rectangle(x1, y1, x2, y2, r=255, g=0, b=0, a=255, filled=False):
+            rectangles.append((x1, y1, x2, y2, r, g, b, a, filled))
+
+        def draw_line(x1, y1, x2, y2, r=0, g=0, b=0, a=255):
+            lines.append((x1, y1, x2, y2, r, g, b, a))
+
         self.scene.draw(
-            lambda *line: lines.append(line),
-            lambda *color: colors.append(color),
+            draw_rectangle,
+            draw_line,
         )
 
         self.assertTrue(self.background.calls)
+        self.assertTrue(rectangles)
         self.assertTrue(lines)
-        self.assertIn((255, 255, 255), colors)
+        self.assertIn((20, 570, 220, 580, 55, 45, 45, 255, True), rectangles)
+        self.assertIn((20, 570, 220, 580, 220, 45, 45, 255, True), rectangles)
+        self.assertTrue(any(line[-3:] == (255, 255, 255) for line in lines))
 
 
 if __name__ == "__main__":
