@@ -47,6 +47,10 @@ class PlayerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "loaded player image"):
             Player(0, 0).draw()
 
+    def test_player_requires_positive_maximum_health(self):
+        with self.assertRaisesRegex(ValueError, "max_hp"):
+            Player(0, 0, max_hp=0)
+
     def test_player_moves_from_horizontal_input(self):
         player = Player(100, 200, speed=120)
         player.set_movement(1, 0, 0.5)

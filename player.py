@@ -21,6 +21,8 @@ class Player:
         speed=PLAYER_SPEED,
         radius=PLAYER_RADIUS,
     ):
+        if max_hp <= 0:
+            raise ValueError("max_hp must be positive")
         self.x = float(x)
         self.y = float(y)
         self.image = image
@@ -32,6 +34,7 @@ class Player:
         self._move_x = 0.0
         self._move_y = 0.0
         self._delta_time = 0.0
+        self._screen_position = None
 
     def set_movement(self, move_x, move_y, delta_time):
         if not math.isfinite(delta_time) or delta_time < 0:
@@ -47,6 +50,15 @@ class Player:
             return self.aim_angle
         self.aim_angle = math.atan2(direction_y, direction_x)
         return self.aim_angle
+
+    def set_screen_position(self, screen_x, screen_y):
+        self._screen_position = (screen_x, screen_y)
+
+    @property
+    def screen_position(self):
+        if self._screen_position is None:
+            return self.x, self.y
+        return self._screen_position
 
     def update(self):
         direction_length = math.hypot(self._move_x, self._move_y)
@@ -64,6 +76,9 @@ class Player:
     def draw(self, screen_x=None, screen_y=None):
         if self.image is None:
             raise RuntimeError("Player.draw requires a loaded player image")
-        x = self.x if screen_x is None else screen_x
-        y = self.y if screen_y is None else screen_y
+        if screen_x is None and self._screen_position is not None:
+            x, y = self.screen_position
+        else:
+            x = self.x if screen_x is None else screen_x
+            y = self.y if screen_y is None else screen_y
         self.image.draw(x, y, self.radius * 2, self.radius * 2)
