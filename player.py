@@ -1,5 +1,7 @@
 """Player state and rendering for the first playable battle stage."""
 
+import math
+
 from game_config import PLAYER_MAX_HP, PLAYER_RADIUS, PLAYER_SPEED
 
 
@@ -25,8 +27,16 @@ class Player:
         self._move_y = 0.0
         self._delta_time = 0.0
 
+    def set_movement(self, move_x, move_y, delta_time):
+        if not math.isfinite(delta_time) or delta_time < 0:
+            raise ValueError("delta_time must be a finite non-negative number")
+        self._move_x = float(move_x)
+        self._move_y = float(move_y)
+        self._delta_time = float(delta_time)
+
     def update(self):
-        pass
+        self.x += self._move_x * self.speed * self._delta_time
+        self.y += self._move_y * self.speed * self._delta_time
 
     def draw(self, screen_x=None, screen_y=None):
         if self.image is None:

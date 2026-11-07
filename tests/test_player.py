@@ -32,6 +32,18 @@ class PlayerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "loaded player image"):
             Player(0, 0).draw()
 
+    def test_player_moves_from_horizontal_and_vertical_input(self):
+        player = Player(100, 200, speed=120)
+        player.set_movement(1, -1, 0.5)
+
+        player.update()
+
+        self.assertEqual((player.x, player.y), (160.0, 140.0))
+
+    def test_player_rejects_negative_delta_time(self):
+        with self.assertRaisesRegex(ValueError, "delta_time"):
+            Player(0, 0).set_movement(1, 0, -0.1)
+
 
 if __name__ == "__main__":
     unittest.main()
