@@ -21,6 +21,20 @@ class PlayerTests(unittest.TestCase):
         self.assertEqual(player.max_hp, 100)
         self.assertEqual(player.aim_angle, 0.0)
 
+    def test_aim_angle_tracks_mouse_direction(self):
+        player = Player(100, 100)
+
+        self.assertAlmostEqual(player.aim_at(200, 100), 0.0)
+        self.assertAlmostEqual(player.aim_at(100, 200), math.pi / 2)
+        self.assertAlmostEqual(player.aim_at(0, 100), math.pi)
+        self.assertAlmostEqual(player.aim_at(100, 0), -math.pi / 2)
+
+    def test_aim_at_player_position_keeps_last_direction(self):
+        player = Player(100, 100)
+        player.aim_at(100, 200)
+
+        self.assertAlmostEqual(player.aim_at(100, 100), math.pi / 2)
+
     def test_player_draws_injected_image_at_scaled_size(self):
         image = FakeImage()
         player = Player(100, 200, image=image, radius=12)

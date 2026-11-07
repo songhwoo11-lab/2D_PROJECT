@@ -40,6 +40,14 @@ class Player:
         self._move_y = float(move_y)
         self._delta_time = float(delta_time)
 
+    def aim_at(self, world_x, world_y):
+        direction_x = world_x - self.x
+        direction_y = world_y - self.y
+        if direction_x == 0 and direction_y == 0:
+            return self.aim_angle
+        self.aim_angle = math.atan2(direction_y, direction_x)
+        return self.aim_angle
+
     def update(self):
         direction_length = math.hypot(self._move_x, self._move_y)
         if direction_length > 1:
