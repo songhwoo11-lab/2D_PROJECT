@@ -1,6 +1,7 @@
 """Weapon data and state used by the first-stage pistol."""
 
 from dataclasses import dataclass
+import math
 
 from game_config import (
     FPS,
@@ -46,7 +47,23 @@ class Gun:
         self.spec = spec
         self.magazine_ammo = min(spec.magazine_size, spec.starting_ammo)
         self.reserve_ammo = spec.starting_ammo - self.magazine_ammo
+        self.cooldown_remaining = 0.0
+        self.reloading = False
 
     @property
     def total_ammo(self):
         return self.magazine_ammo + self.reserve_ammo
+
+    def update(self, delta_time):
+        if not math.isfinite(delta_time) or delta_time < 0:
+            raise ValueError("delta_time must be a finite non-negative number")
+        self.cooldown_remaining = max(0.0, self.cooldown_remaining - delta_time)
+
+    def try_fire(self):
+        if self.reloading or self.magazine_ammo <= 0:
+            return False
+        if self.cooldown_remaining > 1e-9:
+            return False
+        self.magazine_ammo -= 1
+        self.cooldown_remaining = self.spec.fire_interval_seconds
+        return True

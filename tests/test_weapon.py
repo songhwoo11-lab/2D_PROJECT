@@ -28,6 +28,23 @@ class GunTests(unittest.TestCase):
 
         self.assertEqual((gun.magazine_ammo, gun.reserve_ammo), (4, 0))
 
+    def test_single_shot_consumes_ammo_and_obeys_ten_frame_interval(self):
+        gun = Gun()
+
+        self.assertTrue(gun.try_fire())
+        self.assertEqual(gun.magazine_ammo, 9)
+        self.assertFalse(gun.try_fire())
+
+        gun.update(9 / 60)
+        self.assertFalse(gun.try_fire())
+        gun.update(1 / 60)
+        self.assertTrue(gun.try_fire())
+        self.assertEqual(gun.magazine_ammo, 8)
+
+    def test_firing_rejects_invalid_delta_time(self):
+        with self.assertRaisesRegex(ValueError, "delta_time"):
+            Gun().update(-0.1)
+
 
 if __name__ == "__main__":
     unittest.main()
