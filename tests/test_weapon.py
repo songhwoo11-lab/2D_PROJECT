@@ -88,6 +88,17 @@ class GunTests(unittest.TestCase):
         self.assertFalse(gun.handle_fire_input(mouse_held=False))
         self.assertEqual(gun.magazine_ammo, 10)
 
+    def test_empty_magazine_blocks_single_and_auto_fire(self):
+        gun = Gun()
+        gun.magazine_ammo = 0
+        gun.toggle_mode()
+
+        self.assertFalse(gun.can_fire)
+        self.assertFalse(gun.handle_fire_input(mouse_held=True))
+        self.assertFalse(gun.handle_fire_input(mouse_held=True, mouse_pressed=True))
+        self.assertEqual(gun.magazine_ammo, 0)
+        self.assertEqual(gun.reserve_ammo, 90)
+
 
 if __name__ == "__main__":
     unittest.main()
