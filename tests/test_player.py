@@ -1,4 +1,5 @@
 import unittest
+import math
 
 from player import Player
 
@@ -32,17 +33,37 @@ class PlayerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "loaded player image"):
             Player(0, 0).draw()
 
-    def test_player_moves_from_horizontal_and_vertical_input(self):
+    def test_player_moves_from_horizontal_input(self):
         player = Player(100, 200, speed=120)
-        player.set_movement(1, -1, 0.5)
+        player.set_movement(1, 0, 0.5)
 
         player.update()
 
-        self.assertEqual((player.x, player.y), (160.0, 140.0))
+        self.assertEqual((player.x, player.y), (160.0, 200.0))
+
+    def test_player_moves_from_vertical_input(self):
+        player = Player(100, 200, speed=120)
+        player.set_movement(0, -1, 0.5)
+
+        player.update()
+
+        self.assertEqual((player.x, player.y), (100.0, 140.0))
 
     def test_player_rejects_negative_delta_time(self):
         with self.assertRaisesRegex(ValueError, "delta_time"):
             Player(0, 0).set_movement(1, 0, -0.1)
+
+    def test_diagonal_movement_is_normalized(self):
+        horizontal = Player(0, 0, speed=120)
+        diagonal = Player(0, 0, speed=120)
+        horizontal.set_movement(1, 0, 1)
+        diagonal.set_movement(1, 1, 1)
+
+        horizontal.update()
+        diagonal.update()
+
+        self.assertAlmostEqual(math.hypot(horizontal.x, horizontal.y), 120)
+        self.assertAlmostEqual(math.hypot(diagonal.x, diagonal.y), 120)
 
 
 if __name__ == "__main__":

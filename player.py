@@ -35,8 +35,15 @@ class Player:
         self._delta_time = float(delta_time)
 
     def update(self):
-        self.x += self._move_x * self.speed * self._delta_time
-        self.y += self._move_y * self.speed * self._delta_time
+        direction_length = math.hypot(self._move_x, self._move_y)
+        if direction_length > 1:
+            move_x = self._move_x / direction_length
+            move_y = self._move_y / direction_length
+        else:
+            move_x = self._move_x
+            move_y = self._move_y
+        self.x += move_x * self.speed * self._delta_time
+        self.y += move_y * self.speed * self._delta_time
 
     def draw(self, screen_x=None, screen_y=None):
         if self.image is None:
