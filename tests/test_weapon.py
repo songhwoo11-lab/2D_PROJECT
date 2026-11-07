@@ -99,6 +99,38 @@ class GunTests(unittest.TestCase):
         self.assertEqual(gun.magazine_ammo, 0)
         self.assertEqual(gun.reserve_ammo, 90)
 
+    def test_manual_reload_transfers_reserve_after_prd_duration(self):
+        gun = Gun()
+        gun.magazine_ammo = 0
+
+        self.assertTrue(gun.start_reload())
+        self.assertTrue(gun.reloading)
+        self.assertFalse(gun.try_fire())
+        gun.update(119 / 60)
+        self.assertEqual(gun.magazine_ammo, 0)
+        gun.update(1 / 60)
+
+        self.assertFalse(gun.reloading)
+        self.assertEqual(gun.magazine_ammo, 10)
+        self.assertEqual(gun.reserve_ammo, 80)
+
+    def test_empty_click_starts_automatic_reload(self):
+        gun = Gun()
+        gun.magazine_ammo = 0
+
+        self.assertFalse(gun.handle_fire_input(mouse_held=True, mouse_pressed=True))
+        self.assertTrue(gun.reloading)
+        self.assertEqual(gun.reserve_ammo, 90)
+
+    def test_reload_does_not_overfill_or_start_without_reserve(self):
+        gun = Gun()
+        gun.magazine_ammo = 9
+        gun.reserve_ammo = 1
+        self.assertTrue(gun.start_reload())
+        gun.update(gun.spec.reload_seconds)
+        self.assertEqual((gun.magazine_ammo, gun.reserve_ammo), (10, 0))
+        self.assertFalse(gun.start_reload())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -54,8 +54,12 @@ class Gun:
         self.magazine_ammo = min(spec.magazine_size, spec.starting_ammo)
         self.reserve_ammo = spec.starting_ammo - self.magazine_ammo
         self.cooldown_remaining = 0.0
-        self.reloading = False
+        self.reload_remaining = 0.0
         self.fire_mode = FireMode.SINGLE
+
+    @property
+    def reloading(self):
+        return self.reload_remaining > 0.0
 
     @property
     def total_ammo(self):
@@ -73,6 +77,27 @@ class Gun:
         if not math.isfinite(delta_time) or delta_time < 0:
             raise ValueError("delta_time must be a finite non-negative number")
         self.cooldown_remaining = max(0.0, self.cooldown_remaining - delta_time)
+        if self.reloading:
+            self.reload_remaining = max(0.0, self.reload_remaining - delta_time)
+            if self.reload_remaining <= 1e-9:
+                self._finish_reload()
+
+    def start_reload(self):
+        if self.reloading:
+            return False
+        if self.magazine_ammo >= self.spec.magazine_size or self.reserve_ammo <= 0:
+            return False
+        self.reload_remaining = self.spec.reload_seconds
+        if self.reload_remaining <= 0:
+            self._finish_reload()
+        return True
+
+    def _finish_reload(self):
+        needed = self.spec.magazine_size - self.magazine_ammo
+        loaded = min(needed, self.reserve_ammo)
+        self.magazine_ammo += loaded
+        self.reserve_ammo -= loaded
+        self.reload_remaining = 0.0
 
     def try_fire(self):
         if not self.can_fire:
@@ -90,6 +115,14 @@ class Gun:
         return self.fire_mode
 
     def handle_fire_input(self, mouse_held, mouse_pressed=False):
+        should_reload = (
+            mouse_pressed
+            if self.fire_mode is FireMode.SINGLE
+            else mouse_held
+        )
+        if should_reload and self.magazine_ammo <= 0:
+            self.start_reload()
+            return False
         if self.fire_mode is FireMode.SINGLE:
             return self.try_fire() if mouse_pressed else False
         return self.try_fire() if mouse_held else False
