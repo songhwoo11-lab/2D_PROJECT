@@ -47,7 +47,6 @@ class MainTests(unittest.TestCase):
             update_canvas=lambda: None,
             delay=lambda duration: delays.append(duration),
             draw_line=lambda *args: None,
-            draw_filled_rectangle=lambda *args: None,
             set_color=lambda *args: None,
         )
 

@@ -32,7 +32,7 @@ _GLYPHS = {
 }
 
 
-def draw_text(text, x, y, draw_rectangle, scale=2):
+def draw_text(text, x, y, draw_line, scale=2):
     cursor_x = x
     for character in text:
         try:
@@ -43,13 +43,13 @@ def draw_text(text, x, y, draw_rectangle, scale=2):
             for column, pixel in enumerate(pixels):
                 if pixel == "1":
                     left = cursor_x + column * scale
-                    bottom = y + (4 - row) * scale
-                    draw_rectangle(left, bottom, left + scale, bottom + scale)
+                    line_y = y + (4 - row) * scale
+                    draw_line(left, line_y, left + scale, line_y)
         cursor_x += 4 * scale
     return cursor_x - x
 
 
-def draw_hud(player, gun, result_text, draw_rectangle, set_color):
+def draw_hud(player, gun, result_text, draw_line, set_color):
     bar_left = 20
     bar_bottom = 570
     bar_width = 200
@@ -57,26 +57,37 @@ def draw_hud(player, gun, result_text, draw_rectangle, set_color):
     hp_ratio = min(max(player.hp / player.max_hp, 0.0), 1.0)
 
     set_color(55, 45, 45)
-    draw_rectangle(bar_left, bar_bottom, bar_left + bar_width, bar_bottom + bar_height)
+    draw_line(bar_left, bar_bottom, bar_left + bar_width, bar_bottom)
+    draw_line(
+        bar_left,
+        bar_bottom + bar_height,
+        bar_left + bar_width,
+        bar_bottom + bar_height,
+    )
+    draw_line(bar_left, bar_bottom, bar_left, bar_bottom + bar_height)
+    draw_line(
+        bar_left + bar_width,
+        bar_bottom,
+        bar_left + bar_width,
+        bar_bottom + bar_height,
+    )
     if hp_ratio:
         set_color(220, 45, 45)
-        draw_rectangle(
-            bar_left,
-            bar_bottom,
-            bar_left + bar_width * hp_ratio,
-            bar_bottom + bar_height,
-        )
+        fill_right = bar_left + bar_width * hp_ratio
+        if fill_right > bar_left + 1:
+            for y in range(bar_bottom + 1, bar_bottom + bar_height):
+                draw_line(bar_left + 1, y, fill_right - 1, y)
 
     set_color(255, 255, 255)
-    draw_text("HP {}/{}".format(player.hp, player.max_hp), 20, 550, draw_rectangle)
-    draw_text("MODE: {}".format(gun.fire_mode.value.upper()), 20, 530, draw_rectangle)
+    draw_text("HP {}/{}".format(player.hp, player.max_hp), 20, 550, draw_line)
+    draw_text("MODE: {}".format(gun.fire_mode.value.upper()), 20, 530, draw_line)
     draw_text(
         "AMMO {}/{}".format(gun.magazine_ammo, gun.reserve_ammo),
         20,
         510,
-        draw_rectangle,
+        draw_line,
     )
     if gun.reloading:
-        draw_text("RELOAD", 20, 490, draw_rectangle)
+        draw_text("RELOAD", 20, 490, draw_line)
     if result_text:
-        draw_text(result_text, 20, 470, draw_rectangle)
+        draw_text(result_text, 20, 470, draw_line)

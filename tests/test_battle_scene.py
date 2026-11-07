@@ -78,20 +78,17 @@ class BattleSceneTests(unittest.TestCase):
 
     def test_draw_renders_background_player_aim_and_hud(self):
         lines = []
-        rectangles = []
         colors = []
         self.scene.mouse_move(500, 300)
         self.scene.update(1 / 60)
 
         self.scene.draw(
             lambda *line: lines.append(line),
-            lambda *rect: rectangles.append(rect),
             lambda *color: colors.append(color),
         )
 
         self.assertTrue(self.background.calls)
         self.assertTrue(lines)
-        self.assertTrue(rectangles)
         self.assertIn((255, 255, 255), colors)
 
 

@@ -70,7 +70,6 @@ def main():
             pico2d.clear_canvas()
             scene.draw(
                 pico2d.draw_line,
-                pico2d.draw_filled_rectangle,
                 pico2d.set_color,
             )
             pico2d.update_canvas()
