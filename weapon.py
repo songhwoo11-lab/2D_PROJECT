@@ -1,6 +1,7 @@
 """Weapon data and state used by the first-stage pistol."""
 
 from dataclasses import dataclass
+from enum import Enum
 import math
 
 from game_config import (
@@ -40,6 +41,11 @@ PISTOL = WeaponSpec(
 )
 
 
+class FireMode(Enum):
+    SINGLE = "single"
+    AUTO = "auto"
+
+
 class Gun:
     def __init__(self, spec=PISTOL):
         if spec.magazine_size <= 0 or spec.starting_ammo < 0:
@@ -49,6 +55,7 @@ class Gun:
         self.reserve_ammo = spec.starting_ammo - self.magazine_ammo
         self.cooldown_remaining = 0.0
         self.reloading = False
+        self.fire_mode = FireMode.SINGLE
 
     @property
     def total_ammo(self):
@@ -67,3 +74,11 @@ class Gun:
         self.magazine_ammo -= 1
         self.cooldown_remaining = self.spec.fire_interval_seconds
         return True
+
+    def toggle_mode(self):
+        self.fire_mode = (
+            FireMode.AUTO
+            if self.fire_mode is FireMode.SINGLE
+            else FireMode.SINGLE
+        )
+        return self.fire_mode

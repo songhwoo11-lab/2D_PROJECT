@@ -1,6 +1,6 @@
 import unittest
 
-from weapon import Gun, PISTOL
+from weapon import FireMode, Gun, PISTOL
 
 
 class GunTests(unittest.TestCase):
@@ -44,6 +44,24 @@ class GunTests(unittest.TestCase):
     def test_firing_rejects_invalid_delta_time(self):
         with self.assertRaisesRegex(ValueError, "delta_time"):
             Gun().update(-0.1)
+
+    def test_fire_mode_toggles_between_single_and_auto(self):
+        gun = Gun()
+
+        self.assertIs(gun.fire_mode, FireMode.SINGLE)
+        self.assertIs(gun.toggle_mode(), FireMode.AUTO)
+        self.assertIs(gun.toggle_mode(), FireMode.SINGLE)
+
+    def test_toggling_mode_preserves_ammunition_and_cooldown(self):
+        gun = Gun()
+        gun.try_fire()
+        ammo = gun.magazine_ammo
+        cooldown = gun.cooldown_remaining
+
+        gun.toggle_mode()
+
+        self.assertEqual(gun.magazine_ammo, ammo)
+        self.assertEqual(gun.cooldown_remaining, cooldown)
 
 
 if __name__ == "__main__":
