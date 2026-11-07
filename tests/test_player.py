@@ -54,16 +54,28 @@ class PlayerTests(unittest.TestCase):
             Player(0, 0).set_movement(1, 0, -0.1)
 
     def test_diagonal_movement_is_normalized(self):
-        horizontal = Player(0, 0, speed=120)
-        diagonal = Player(0, 0, speed=120)
+        horizontal = Player(1000, 1000, speed=120)
+        diagonal = Player(1000, 1000, speed=120)
         horizontal.set_movement(1, 0, 1)
         diagonal.set_movement(1, 1, 1)
 
         horizontal.update()
         diagonal.update()
 
-        self.assertAlmostEqual(math.hypot(horizontal.x, horizontal.y), 120)
-        self.assertAlmostEqual(math.hypot(diagonal.x, diagonal.y), 120)
+        self.assertAlmostEqual(math.hypot(horizontal.x - 1000, horizontal.y - 1000), 120)
+        self.assertAlmostEqual(math.hypot(diagonal.x - 1000, diagonal.y - 1000), 120)
+
+    def test_player_stays_inside_world_bounds(self):
+        player = Player(20, 20, speed=1000, radius=10)
+        player.set_movement(-1, -1, 1)
+        player.update()
+        self.assertEqual((player.x, player.y), (10, 10))
+
+        player.x = 3180
+        player.y = 2380
+        player.set_movement(1, 1, 1)
+        player.update()
+        self.assertEqual((player.x, player.y), (3190, 2390))
 
 
 if __name__ == "__main__":

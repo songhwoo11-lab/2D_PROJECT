@@ -2,7 +2,13 @@
 
 import math
 
-from game_config import PLAYER_MAX_HP, PLAYER_RADIUS, PLAYER_SPEED
+from game_config import (
+    PLAYER_MAX_HP,
+    PLAYER_RADIUS,
+    PLAYER_SPEED,
+    WORLD_HEIGHT,
+    WORLD_WIDTH,
+)
 
 
 class Player:
@@ -44,6 +50,8 @@ class Player:
             move_y = self._move_y
         self.x += move_x * self.speed * self._delta_time
         self.y += move_y * self.speed * self._delta_time
+        self.x = min(max(self.x, self.radius), WORLD_WIDTH - self.radius)
+        self.y = min(max(self.y, self.radius), WORLD_HEIGHT - self.radius)
 
     def draw(self, screen_x=None, screen_y=None):
         if self.image is None:
