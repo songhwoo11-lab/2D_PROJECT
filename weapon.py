@@ -82,3 +82,8 @@ class Gun:
             else FireMode.SINGLE
         )
         return self.fire_mode
+
+    def handle_fire_input(self, mouse_held, mouse_pressed=False):
+        if self.fire_mode is FireMode.SINGLE:
+            return self.try_fire() if mouse_pressed else False
+        return self.try_fire() if mouse_held else False

@@ -63,6 +63,31 @@ class GunTests(unittest.TestCase):
         self.assertEqual(gun.magazine_ammo, ammo)
         self.assertEqual(gun.cooldown_remaining, cooldown)
 
+    def test_single_mode_uses_click_edge_not_held_state(self):
+        gun = Gun()
+
+        self.assertFalse(gun.handle_fire_input(mouse_held=True))
+        self.assertTrue(gun.handle_fire_input(mouse_held=True, mouse_pressed=True))
+        self.assertFalse(gun.handle_fire_input(mouse_held=True))
+        self.assertEqual(gun.magazine_ammo, 9)
+
+    def test_auto_mode_fires_while_held_at_configured_interval(self):
+        gun = Gun()
+        gun.toggle_mode()
+
+        self.assertTrue(gun.handle_fire_input(mouse_held=True))
+        self.assertFalse(gun.handle_fire_input(mouse_held=True))
+        gun.update(10 / 60)
+        self.assertTrue(gun.handle_fire_input(mouse_held=True))
+        self.assertEqual(gun.magazine_ammo, 8)
+
+    def test_auto_mode_does_not_fire_when_released(self):
+        gun = Gun()
+        gun.toggle_mode()
+
+        self.assertFalse(gun.handle_fire_input(mouse_held=False))
+        self.assertEqual(gun.magazine_ammo, 10)
+
 
 if __name__ == "__main__":
     unittest.main()
