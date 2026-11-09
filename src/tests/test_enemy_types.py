@@ -1,7 +1,7 @@
 import unittest
 
 from enemy import ENEMY_STATS, EnemyType
-from enemy_types import BasicEnemy, TankerEnemy
+from enemy_types import AssassinEnemy, BasicEnemy, TankerEnemy
 from player import Player
 
 
@@ -27,6 +27,16 @@ class TankerEnemyTests(unittest.TestCase):
         self.assertFalse(enemy.take_damage(100))
         self.assertEqual(enemy.hp, 20)
         self.assertTrue(enemy.take_damage(20))
+
+
+class AssassinEnemyTests(unittest.TestCase):
+    def test_assassin_enemy_uses_low_health_high_damage_stats(self):
+        enemy = AssassinEnemy(0, 0)
+
+        self.assertEqual(enemy.stats, ENEMY_STATS[EnemyType.ASSASSIN])
+        self.assertEqual((enemy.max_hp, enemy.attack_damage), (10, 10))
+        self.assertEqual(enemy.attack_interval, 0.5)
+        self.assertTrue(enemy.take_damage(10))
 
 
 if __name__ == "__main__":
