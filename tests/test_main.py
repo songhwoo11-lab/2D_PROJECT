@@ -17,12 +17,18 @@ class FakeImage:
         pass
 
 
+class FakeFont:
+    def draw(self, *args):
+        pass
+
+
 class MainTests(unittest.TestCase):
     def test_main_initializes_loads_assets_renders_and_closes(self):
         loaded_images = []
         opened_canvases = []
         closed = []
         delays = []
+        loaded_fonts = []
         events = [SimpleNamespace(type=1)]
 
         def draw_rectangle(x1, y1, x2, y2, r=255, g=0, b=0, a=255, filled=False):
@@ -34,6 +40,10 @@ class MainTests(unittest.TestCase):
         def load_image(path):
             loaded_images.append(path)
             return FakeImage()
+
+        def load_font(path, size):
+            loaded_fonts.append((path, size))
+            return FakeFont()
 
         pico2d = SimpleNamespace(
             SDL_QUIT=1,
@@ -53,6 +63,7 @@ class MainTests(unittest.TestCase):
             open_canvas=lambda *args: opened_canvases.append(args),
             close_canvas=lambda: closed.append(True),
             load_image=load_image,
+            load_font=load_font,
             get_time=lambda: 0.0,
             get_events=lambda: events,
             clear_canvas=lambda: None,
@@ -63,12 +74,17 @@ class MainTests(unittest.TestCase):
         )
 
         with patch.dict(sys.modules, {"pico2d": pico2d}):
-            main.main()
+            with patch("hud._measure_text_width", return_value=100):
+                main.main()
 
         self.assertEqual(opened_canvases, [(800, 600)])
         self.assertEqual(
             [path.rsplit("\\", 1)[-1] for path in loaded_images],
             ["in_game.png", "boy.png", "gun.png", "bullet.png"],
+        )
+        self.assertEqual(
+            [(path.rsplit("\\", 2)[-2:], size) for path, size in loaded_fonts],
+            [(["font", "PuzzleSansSuper.ttf"], 20)],
         )
         self.assertEqual(closed, [True])
         self.assertEqual(len(delays), 1)

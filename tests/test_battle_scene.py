@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import game_world
 from battle_scene import BattleScene
@@ -23,6 +24,14 @@ class FakeImage:
         self.composite_calls.append(args)
 
 
+class FakeFont:
+    def __init__(self):
+        self.draw_calls = []
+
+    def draw(self, *args):
+        self.draw_calls.append(args)
+
+
 class FakeBackground:
     def __init__(self):
         self.calls = []
@@ -33,6 +42,11 @@ class FakeBackground:
 
 class BattleSceneTests(unittest.TestCase):
     def setUp(self):
+        self.font_measure_patch = patch(
+            "hud._measure_text_width",
+            side_effect=lambda font, text: len(text) * 10,
+        )
+        self.font_measure_patch.start()
         self.player = Player(
             WORLD_WIDTH / 2,
             WORLD_HEIGHT / 2,
@@ -40,10 +54,17 @@ class BattleSceneTests(unittest.TestCase):
         )
         self.gun = Gun()
         self.background = FakeBackground()
-        self.scene = BattleScene(self.player, self.gun, self.background)
+        self.hud_font = FakeFont()
+        self.scene = BattleScene(
+            self.player,
+            self.gun,
+            self.background,
+            hud_font=self.hud_font,
+        )
 
     def tearDown(self):
         self.scene.close()
+        self.font_measure_patch.stop()
 
     def test_wasd_input_moves_player_and_releases_cleanly(self):
         start_x = self.player.x
@@ -62,13 +83,14 @@ class BattleSceneTests(unittest.TestCase):
 
         self.assertAlmostEqual(self.player.aim_angle, 0.0)
 
-    def test_single_click_fires_once_and_shows_result(self):
+    def test_single_click_fires_once_without_shot_miss_text(self):
         self.scene.mouse_down("left")
         self.scene.update(1 / 60)
         self.scene.update(1 / 60)
 
         self.assertEqual(self.gun.magazine_ammo, 9)
-        self.assertEqual(self.scene.last_shot_result.value, "miss")
+        self.scene.draw(lambda *args: None, lambda *args: None)
+        self.assertFalse(any("SHOT MISS" in call[2] for call in self.hud_font.draw_calls))
         self.scene.mouse_up("left")
 
     def test_firing_spawns_bullet_from_muzzle_in_aim_direction(self):
@@ -153,9 +175,44 @@ class BattleSceneTests(unittest.TestCase):
         self.assertTrue(self.background.calls)
         self.assertTrue(rectangles)
         self.assertTrue(lines)
-        self.assertIn((20, 570, 220, 580, 55, 45, 45, 255, True), rectangles)
-        self.assertIn((20, 570, 220, 580, 220, 45, 45, 255, True), rectangles)
-        self.assertTrue(any(line[-3:] == (255, 255, 255) for line in lines))
+        self.assertIn((20, 20, 220, 30, 55, 45, 45, 255, True), rectangles)
+        self.assertIn((20, 20, 220, 30, 220, 45, 45, 255, True), rectangles)
+        self.assertIn((20, 45, "HP 100/100", (255, 255, 255)), self.hud_font.draw_calls)
+        self.assertIn(
+            (
+                (SCREEN_WIDTH - len("AMMO 10/90") * 10) / 2,
+                60,
+                "AMMO 10/90",
+                (255, 255, 255),
+            ),
+            self.hud_font.draw_calls,
+        )
+        self.assertIn(
+            (
+                (SCREEN_WIDTH - len("MODE: SINGLE") * 10) / 2,
+                35,
+                "MODE: SINGLE",
+                (255, 255, 255),
+            ),
+            self.hud_font.draw_calls,
+        )
+        self.assertTrue(self.hud_font.draw_calls)
+
+    def test_reload_status_is_centered_at_bottom(self):
+        self.gun.magazine_ammo = 0
+        self.gun.start_reload()
+
+        self.scene.draw(lambda *args: None, lambda *args: None)
+
+        self.assertIn(
+            (
+                (SCREEN_WIDTH - len("RELOAD") * 10) / 2,
+                10,
+                "RELOAD",
+                (255, 255, 255),
+            ),
+            self.hud_font.draw_calls,
+        )
 
 
 if __name__ == "__main__":

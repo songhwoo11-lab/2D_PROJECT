@@ -34,6 +34,10 @@ def main():
         player_image = pico2d.load_image(str(ASSET_DIRECTORY / "boy.png"))
         gun_image = pico2d.load_image(str(ASSET_DIRECTORY / "gun.png"))
         bullet_image = pico2d.load_image(str(ASSET_DIRECTORY / "bullet.png"))
+        hud_font = pico2d.load_font(
+            str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
+            20,
+        )
         player = Player(
             WORLD_WIDTH / 2,
             WORLD_HEIGHT / 2,
@@ -45,6 +49,7 @@ def main():
             background,
             gun_image=gun_image,
             bullet_image=bullet_image,
+            hud_font=hud_font,
         )
         key_map = {
             pico2d.SDLK_w: "w",

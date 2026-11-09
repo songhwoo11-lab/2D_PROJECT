@@ -8,7 +8,6 @@ from game_camera import Camera
 from game_config import PLAYER_RADIUS, SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import draw_hud
 from player import Player
-from shot_result import HitResult
 from weapon import Gun
 
 
@@ -21,6 +20,7 @@ class BattleScene:
         camera=None,
         gun_image=None,
         bullet_image=None,
+        hud_font=None,
     ):
         self.player = player
         self.gun = gun
@@ -28,13 +28,12 @@ class BattleScene:
         self.camera = camera or Camera()
         self.gun_image = gun_image
         self.bullet_image = bullet_image
+        self.hud_font = hud_font
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.mouse_held = False
         self._mouse_pressed = False
-        self.last_shot_result = None
-        self.result_display_time = 0.0
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
@@ -105,12 +104,6 @@ class BattleScene:
                     ),
                     depth=2,
                 )
-            self.last_shot_result = HitResult.MISS
-            self.result_display_time = 1.0
-        else:
-            self.result_display_time = max(0.0, self.result_display_time - delta_time)
-            if self.result_display_time == 0:
-                self.last_shot_result = None
 
     def _update_player_view(self):
         screen_x, screen_y = self.camera.world_to_screen(self.player.x, self.player.y)
@@ -171,13 +164,11 @@ class BattleScene:
             220,
             120,
         )
-        result_text = None
-        if self.last_shot_result is not None and self.result_display_time > 0:
-            result_text = "SHOT {}".format(self.last_shot_result.value.upper())
+        if self.hud_font is None:
+            raise RuntimeError("BattleScene.draw requires a loaded HUD font")
         draw_hud(
             self.player,
             self.gun,
-            result_text,
+            self.hud_font,
             draw_rectangle,
-            draw_line,
         )
