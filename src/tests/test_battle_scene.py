@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 import game_world
 from battle_scene import BattleScene
+from enemy import EnemyType
+from enemy_types import BasicEnemy
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, WORLD_HEIGHT, WORLD_WIDTH
 from player import Player
 from weapon import FireMode, Gun
@@ -61,6 +63,11 @@ class BattleSceneTests(unittest.TestCase):
             self.background,
             hud_font=self.hud_font,
         )
+        self.enemy_images = {
+            enemy_type: FakeImage() for enemy_type in EnemyType
+        }
+        self.scene.enemy_images = self.enemy_images
+        self.scene.enemy_draw_rectangle = lambda *args: None
 
     def tearDown(self):
         self.scene.close()
@@ -205,6 +212,75 @@ class BattleSceneTests(unittest.TestCase):
             ),
             self.hud_font.draw_calls,
         )
+
+    def test_test_spawn_creates_each_enemy_type_tracking_player(self):
+        enemies = self.scene.spawn_test_enemies()
+
+        self.assertEqual(len(enemies), len(EnemyType))
+        self.assertTrue(all(enemy.player is self.player for enemy in enemies))
+        self.assertEqual(
+            {enemy.stats.name for enemy in enemies},
+            {enemy_type.value for enemy_type in EnemyType},
+        )
+        for enemy in enemies:
+            start_distance = ((enemy.x - self.player.x) ** 2 + (enemy.y - self.player.y) ** 2) ** 0.5
+            enemy.update()
+            next_distance = ((enemy.x - self.player.x) ** 2 + (enemy.y - self.player.y) ** 2) ** 0.5
+            self.assertLessEqual(next_distance, start_distance)
+
+    def test_scene_removes_defeated_enemies_after_updates(self):
+        enemy = self.scene.spawn_enemy(
+            EnemyType.BASIC,
+            self.player.x + 100,
+            self.player.y,
+        )
+        enemy.take_damage(enemy.max_hp)
+
+        self.scene.update(1 / 60)
+
+        self.assertFalse(any(enemy in layer for layer in game_world.world))
+
+    def test_scene_updates_and_removes_multiple_enemies_safely(self):
+        enemies = self.scene.spawn_test_enemies()
+        enemies[0].take_damage(enemies[0].max_hp)
+        enemies[2].take_damage(enemies[2].max_hp)
+
+        self.scene.update(1 / 60)
+
+        remaining = [
+            obj
+            for layer in game_world.world
+            for obj in layer
+            if isinstance(obj, BasicEnemy)
+        ]
+        self.assertEqual(len(remaining), 0)
+        self.assertTrue(all(enemy.is_alive for enemy in enemies[1:2] + enemies[3:]))
+
+    def test_scene_renders_spawned_enemy_with_camera_coordinates(self):
+        enemy = self.scene.spawn_enemy(
+            EnemyType.BASIC,
+            self.player.x + 100,
+            self.player.y,
+        )
+        rectangle_calls = []
+
+        self.scene.draw(lambda *args: rectangle_calls.append(args))
+
+        self.assertTrue(self.enemy_images[EnemyType.BASIC].draw_calls)
+        self.assertTrue(rectangle_calls)
+        self.assertEqual(
+            self.enemy_images[EnemyType.BASIC].draw_calls[0][:2],
+            self.scene.camera.world_to_screen(enemy.x, enemy.y),
+        )
+
+    def test_spawn_rejects_missing_image_or_draw_function(self):
+        self.scene.enemy_images = {}
+        with self.assertRaisesRegex(KeyError, "missing image"):
+            self.scene.spawn_enemy(EnemyType.BASIC, 0, 0)
+        self.scene.enemy_images = self.enemy_images
+        self.scene.enemy_draw_rectangle = None
+        with self.assertRaisesRegex(RuntimeError, "rectangle drawing"):
+            self.scene.spawn_enemy(EnemyType.BASIC, 0, 0)
 
 
 if __name__ == "__main__":

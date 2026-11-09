@@ -3,6 +3,8 @@
 import math
 
 from bullet import Bullet
+from enemy import Enemy, EnemyType
+from enemy_types import create_enemy
 import game_world
 from game_camera import Camera
 from game_config import PLAYER_RADIUS, SCREEN_HEIGHT, SCREEN_WIDTH
@@ -21,6 +23,8 @@ class BattleScene:
         gun_image=None,
         bullet_image=None,
         hud_font=None,
+        enemy_images=None,
+        enemy_draw_rectangle=None,
     ):
         self.player = player
         self.gun = gun
@@ -29,6 +33,8 @@ class BattleScene:
         self.gun_image = gun_image
         self.bullet_image = bullet_image
         self.hud_font = hud_font
+        self.enemy_images = dict(enemy_images or {})
+        self.enemy_draw_rectangle = enemy_draw_rectangle
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -42,6 +48,39 @@ class BattleScene:
 
     def close(self):
         game_world.clear()
+
+    def spawn_enemy(self, enemy_type, x, y):
+        if enemy_type not in self.enemy_images:
+            raise KeyError("missing image for enemy type: {}".format(enemy_type.value))
+        if self.enemy_draw_rectangle is None:
+            raise RuntimeError("BattleScene requires an enemy rectangle drawing function")
+        enemy = create_enemy(
+            enemy_type,
+            x,
+            y,
+            self.enemy_images[enemy_type],
+            self.player,
+            self.enemy_draw_rectangle,
+        )
+        game_world.add_object(enemy, depth=1)
+        return enemy
+
+    def spawn_test_enemies(self):
+        offsets = {
+            EnemyType.BASIC: (-220, 0),
+            EnemyType.EXPLOSIVE: (220, 0),
+            EnemyType.TANKER: (0, 220),
+            EnemyType.ASSASSIN: (0, -220),
+            EnemyType.ARCHER: (220, 220),
+        }
+        return tuple(
+            self.spawn_enemy(
+                enemy_type,
+                self.player.x + offset_x,
+                self.player.y + offset_y,
+            )
+            for enemy_type, (offset_x, offset_y) in offsets.items()
+        )
 
     def key_down(self, key):
         key = key.lower()
@@ -105,6 +144,17 @@ class BattleScene:
                     ),
                     depth=2,
                 )
+        self._remove_defeated_enemies()
+
+    def _remove_defeated_enemies(self):
+        defeated = [
+            obj
+            for layer in game_world.world
+            for obj in tuple(layer)
+            if isinstance(obj, Enemy) and not obj.is_alive
+        ]
+        for enemy in defeated:
+            game_world.remove_object(enemy)
 
     def _update_player_view(self):
         screen_x, screen_y = self.camera.world_to_screen(self.player.x, self.player.y)
@@ -124,7 +174,7 @@ class BattleScene:
 
         for layer in game_world.world:
             for obj in layer:
-                if isinstance(obj, Bullet):
+                if isinstance(obj, (Bullet, Enemy)):
                     screen_x, screen_y = self.camera.world_to_screen(obj.x, obj.y)
                     obj.set_screen_position(screen_x, screen_y)
         game_world.render()

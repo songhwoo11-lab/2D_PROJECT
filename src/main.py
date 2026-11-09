@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from battle_scene import BattleScene
+from enemy import EnemyType
 from game_config import (
     FRAME_TIME,
     SCREEN_HEIGHT,
@@ -38,6 +39,23 @@ def main():
             str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
             20,
         )
+        enemy_images = {
+            EnemyType.BASIC: pico2d.load_image(
+                str(ASSET_DIRECTORY / "common_skel.png")
+            ),
+            EnemyType.EXPLOSIVE: pico2d.load_image(
+                str(ASSET_DIRECTORY / "boom skel.png")
+            ),
+            EnemyType.TANKER: pico2d.load_image(
+                str(ASSET_DIRECTORY / "tanker_skel.png")
+            ),
+            EnemyType.ASSASSIN: pico2d.load_image(
+                str(ASSET_DIRECTORY / "assassin_skel.png")
+            ),
+            EnemyType.ARCHER: pico2d.load_image(
+                str(ASSET_DIRECTORY / "bow_skel.png")
+            ),
+        }
         player = Player(
             WORLD_WIDTH / 2,
             WORLD_HEIGHT / 2,
@@ -50,7 +68,10 @@ def main():
             gun_image=gun_image,
             bullet_image=bullet_image,
             hud_font=hud_font,
+            enemy_images=enemy_images,
+            enemy_draw_rectangle=pico2d.draw_rectangle,
         )
+        scene.spawn_test_enemies()
         key_map = {
             pico2d.SDLK_w: "w",
             pico2d.SDLK_a: "a",

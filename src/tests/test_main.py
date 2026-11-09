@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import main
+from enemy import EnemyType
 
 
 class FakeImage:
@@ -85,7 +86,17 @@ class MainTests(unittest.TestCase):
         )
         self.assertEqual(
             [path.rsplit("\\", 1)[-1] for path in loaded_images],
-            ["in_game.png", "boy.png", "gun.png", "bullet.png"],
+            [
+                "in_game.png",
+                "boy.png",
+                "gun.png",
+                "bullet.png",
+                "common_skel.png",
+                "boom skel.png",
+                "tanker_skel.png",
+                "assassin_skel.png",
+                "bow_skel.png",
+            ],
         )
         self.assertTrue(
             all(Path(path).parent == main.ASSET_DIRECTORY for path in loaded_images)

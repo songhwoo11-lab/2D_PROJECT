@@ -180,3 +180,33 @@ class ExplosiveEnemy(Enemy):
                 owner=self,
             ).apply(enemies=enemies)
         return defeated
+
+
+ENEMY_CLASSES = {
+    EnemyType.BASIC: BasicEnemy,
+    EnemyType.EXPLOSIVE: ExplosiveEnemy,
+    EnemyType.TANKER: TankerEnemy,
+    EnemyType.ASSASSIN: AssassinEnemy,
+    EnemyType.ARCHER: ArcherEnemy,
+}
+
+
+def create_enemy(
+    enemy_type,
+    x,
+    y,
+    image,
+    player,
+    draw_rectangle,
+):
+    try:
+        enemy_class = ENEMY_CLASSES[enemy_type]
+    except KeyError as error:
+        raise ValueError("unsupported enemy type: {!r}".format(enemy_type)) from error
+    return enemy_class(
+        x,
+        y,
+        image=image,
+        player=player,
+        draw_rectangle=draw_rectangle,
+    )
