@@ -32,12 +32,20 @@ def main():
     try:
         background = pico2d.load_image(str(ASSET_DIRECTORY / "in_game.png"))
         player_image = pico2d.load_image(str(ASSET_DIRECTORY / "boy.png"))
+        gun_image = pico2d.load_image(str(ASSET_DIRECTORY / "gun.png"))
+        bullet_image = pico2d.load_image(str(ASSET_DIRECTORY / "bullet.png"))
         player = Player(
             WORLD_WIDTH / 2,
             WORLD_HEIGHT / 2,
             image=player_image,
         )
-        scene = BattleScene(player, Gun(), background)
+        scene = BattleScene(
+            player,
+            Gun(),
+            background,
+            gun_image=gun_image,
+            bullet_image=bullet_image,
+        )
         key_map = {
             pico2d.SDLK_w: "w",
             pico2d.SDLK_a: "a",

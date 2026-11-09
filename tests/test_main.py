@@ -10,6 +10,9 @@ class FakeImage:
     def draw(self, *args):
         pass
 
+    def rotate_draw(self, *args):
+        pass
+
 
 class MainTests(unittest.TestCase):
     def test_main_initializes_loads_assets_renders_and_closes(self):
@@ -62,7 +65,7 @@ class MainTests(unittest.TestCase):
         self.assertEqual(opened_canvases, [(800, 600)])
         self.assertEqual(
             [path.rsplit("\\", 1)[-1] for path in loaded_images],
-            ["in_game.png", "boy.png"],
+            ["in_game.png", "boy.png", "gun.png", "bullet.png"],
         )
         self.assertEqual(closed, [True])
         self.assertEqual(len(delays), 1)

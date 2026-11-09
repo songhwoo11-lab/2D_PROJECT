@@ -1,5 +1,6 @@
 import unittest
 
+import game_world
 from battle_scene import BattleScene
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, WORLD_HEIGHT, WORLD_WIDTH
 from player import Player
@@ -7,8 +8,15 @@ from weapon import FireMode, Gun
 
 
 class FakeImage:
+    def __init__(self):
+        self.draw_calls = []
+        self.rotate_calls = []
+
     def draw(self, *args):
-        pass
+        self.draw_calls.append(args)
+
+    def rotate_draw(self, *args):
+        self.rotate_calls.append(args)
 
 
 class FakeBackground:
@@ -58,6 +66,29 @@ class BattleSceneTests(unittest.TestCase):
         self.assertEqual(self.gun.magazine_ammo, 9)
         self.assertEqual(self.scene.last_shot_result.value, "miss")
         self.scene.mouse_up("left")
+
+    def test_firing_spawns_bullet_from_muzzle_in_aim_direction(self):
+        self.scene.bullet_image = FakeImage()
+        self.scene.mouse_move(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 100)
+        self.scene.mouse_down("left")
+
+        self.scene.update(1 / 60)
+
+        bullet = game_world.world[2][0]
+        self.assertAlmostEqual(bullet.angle, 3.141592653589793 / 2)
+        self.assertAlmostEqual(bullet.x, self.player.x)
+        self.assertAlmostEqual(bullet.y, self.player.y + self.player.radius + 14)
+        self.scene.draw(lambda *args: None, lambda *args: None)
+        self.assertEqual(self.scene.bullet_image.rotate_calls[0][1:3], (400, 330))
+
+    def test_gun_image_rotates_to_face_aim_direction(self):
+        self.scene.gun_image = FakeImage()
+        self.scene.mouse_move(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 100)
+        self.scene.update(1 / 60)
+
+        self.scene.draw(lambda *args: None, lambda *args: None)
+
+        self.assertAlmostEqual(self.scene.gun_image.rotate_calls[0][0], 3.141592653589793 / 2)
 
     def test_mode_toggle_and_empty_click_reload(self):
         self.scene.key_down("e")
