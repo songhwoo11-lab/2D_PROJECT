@@ -4,6 +4,7 @@ import unittest
 import game_world
 from bullet import Bullet
 from game_config import BULLET_SIZE, WORLD_WIDTH
+from enemy import ENEMY_STATS, Enemy, EnemyType
 
 
 class FakeImage:
@@ -44,6 +45,29 @@ class BulletTests(unittest.TestCase):
         bullet.update()
 
         self.assertNotIn(bullet, game_world.world[0])
+
+    def test_bullet_detects_and_removes_on_enemy_collision(self):
+        enemy = Enemy(20, 100, ENEMY_STATS[EnemyType.BASIC])
+        bullet = Bullet(0, 100, 0, FakeImage(), speed=600)
+        game_world.add_object(enemy, depth=1)
+        game_world.add_object(bullet, depth=2)
+
+        bullet.update()
+
+        self.assertIs(bullet.hit_target, enemy)
+        self.assertNotIn(bullet, game_world.world[2])
+        self.assertEqual(enemy.hp, enemy.max_hp)
+
+    def test_bullet_does_not_hit_enemy_outside_collision_radius(self):
+        enemy = Enemy(100, 100, ENEMY_STATS[EnemyType.BASIC])
+        bullet = Bullet(0, 100, 0, FakeImage(), speed=600)
+        game_world.add_object(enemy, depth=1)
+        game_world.add_object(bullet, depth=2)
+
+        bullet.update()
+
+        self.assertIsNone(bullet.hit_target)
+        self.assertIn(bullet, game_world.world[2])
 
 
 if __name__ == "__main__":
