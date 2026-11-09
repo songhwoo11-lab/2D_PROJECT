@@ -11,12 +11,16 @@ class FakeImage:
     def __init__(self):
         self.draw_calls = []
         self.rotate_calls = []
+        self.composite_calls = []
 
     def draw(self, *args):
         self.draw_calls.append(args)
 
     def rotate_draw(self, *args):
         self.rotate_calls.append(args)
+
+    def composite_draw(self, *args):
+        self.composite_calls.append(args)
 
 
 class FakeBackground:
@@ -81,14 +85,36 @@ class BattleSceneTests(unittest.TestCase):
         self.scene.draw(lambda *args: None, lambda *args: None)
         self.assertEqual(self.scene.bullet_image.rotate_calls[0][1:3], (400, 330))
 
-    def test_gun_image_rotates_to_face_aim_direction(self):
+    def test_gun_image_faces_right_without_flipping(self):
         self.scene.gun_image = FakeImage()
-        self.scene.mouse_move(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 100)
+        self.scene.mouse_move(SCREEN_WIDTH / 2 + 100, SCREEN_HEIGHT / 2 - 50)
         self.scene.update(1 / 60)
 
         self.scene.draw(lambda *args: None, lambda *args: None)
 
-        self.assertAlmostEqual(self.scene.gun_image.rotate_calls[0][0], 3.141592653589793 / 2)
+        angle, flip = self.scene.gun_image.composite_calls[0][:2]
+        self.assertAlmostEqual(angle, 0.4636476090008061)
+        self.assertEqual(flip, "")
+
+    def test_gun_image_flips_horizontally_while_aiming_left(self):
+        self.scene.gun_image = FakeImage()
+        self.scene.mouse_move(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 50)
+        self.scene.update(1 / 60)
+
+        self.scene.draw(lambda *args: None, lambda *args: None)
+
+        angle, flip = self.scene.gun_image.composite_calls[0][:2]
+        self.assertAlmostEqual(angle, -0.4636476090008061)
+        self.assertEqual(flip, "h")
+        self.assertTrue(-3.141592653589793 / 2 <= angle <= 3.141592653589793 / 2)
+
+        self.scene.bullet_image = FakeImage()
+        self.scene.mouse_down("left")
+        self.scene.update(1 / 60)
+        bullet = game_world.world[2][0]
+        self.assertAlmostEqual(bullet.angle, self.player.aim_angle)
+        self.assertLess(bullet.x, self.player.x)
+        self.assertGreater(bullet.y, self.player.y)
 
     def test_mode_toggle_and_empty_click_reload(self):
         self.scene.key_down("e")

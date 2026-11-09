@@ -13,6 +13,9 @@ class FakeImage:
     def rotate_draw(self, *args):
         pass
 
+    def composite_draw(self, *args):
+        pass
+
 
 class MainTests(unittest.TestCase):
     def test_main_initializes_loads_assets_renders_and_closes(self):

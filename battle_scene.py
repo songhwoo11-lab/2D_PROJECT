@@ -144,8 +144,17 @@ class BattleScene:
                 self.player.screen_position[1]
                 + math.sin(self.player.aim_angle) * gun_offset
             )
-            self.gun_image.rotate_draw(
-                self.player.aim_angle,
+            gun_angle = self.player.aim_angle
+            flip = ""
+            if gun_angle > math.pi / 2:
+                gun_angle -= math.pi
+                flip = "h"
+            elif gun_angle < -math.pi / 2:
+                gun_angle += math.pi
+                flip = "h"
+            self.gun_image.composite_draw(
+                gun_angle,
+                flip,
                 gun_x,
                 gun_y,
                 42,
