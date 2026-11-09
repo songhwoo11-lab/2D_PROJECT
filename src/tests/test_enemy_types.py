@@ -188,8 +188,8 @@ class ExplosiveEnemyTests(unittest.TestCase):
     def test_explosive_enemy_attacks_at_floating_point_range_boundary(self):
         angle = 0.0023
         player = Player(
-            math.cos(angle) * 20.5,
-            math.sin(angle) * 20.5,
+            math.cos(angle) * 50.5,
+            math.sin(angle) * 50.5,
         )
         explosive = ExplosiveEnemy(0, 0, player=player)
 
@@ -198,6 +198,29 @@ class ExplosiveEnemyTests(unittest.TestCase):
         explosive.update()
 
         self.assertEqual(player.hp, player.max_hp - explosive.EXPLOSION_DAMAGE)
+
+    def test_explosive_enemy_player_attack_has_50_unit_range(self):
+        player = Player(50, 0)
+        explosive = ExplosiveEnemy(0, 0, player=player)
+
+        explosive.update()
+
+        self.assertEqual(player.hp, player.max_hp - explosive.EXPLOSION_DAMAGE)
+
+    def test_explosive_death_blast_has_50_unit_range(self):
+        player = Player(0, 0)
+        inside = BasicEnemy(49, 0)
+        outside = BasicEnemy(50.01, 0)
+        explosive = ExplosiveEnemy(0, 0, player=player)
+        game_world.add_object(inside, depth=1)
+        game_world.add_object(outside, depth=1)
+        game_world.add_object(explosive, depth=1)
+
+        explosive.take_damage(explosive.max_hp)
+
+        self.assertEqual(inside.hp, inside.max_hp - explosive.EXPLOSION_DAMAGE)
+        self.assertEqual(outside.hp, outside.max_hp)
+        self.assertEqual(player.hp, player.max_hp)
 
     def test_explosive_enemy_death_only_damages_nearby_enemies(self):
         player = Player(0, 0)

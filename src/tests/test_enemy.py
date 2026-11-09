@@ -25,7 +25,7 @@ class EnemyTests(unittest.TestCase):
     def test_enemy_type_stats_match_prd(self):
         expected = {
             EnemyType.BASIC: (20, 8, 0.8, 0),
-            EnemyType.EXPLOSIVE: (80, 15, 1.5, 20),
+            EnemyType.EXPLOSIVE: (80, 15, 1.5, 50),
             EnemyType.TANKER: (120, 5, 2.0, 0),
             EnemyType.ASSASSIN: (10, 10, 0.5, 0),
             EnemyType.ARCHER: (50, 10, 1.2, 300),
