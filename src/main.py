@@ -14,7 +14,7 @@ from player import Player
 from weapon import Gun
 
 
-ASSET_DIRECTORY = Path(__file__).resolve().parent
+ASSET_DIRECTORY = Path(__file__).resolve().parent.parent / "image"
 
 
 def main():

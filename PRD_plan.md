@@ -15,9 +15,11 @@
 ### 공통 기반
 
 - Pico2D 초기화, 800 × 600 화면, 60 FPS 게임 루프를 구성한다.
-- `game_world.py`의 레이어별 객체 추가·제거·업데이트·렌더링 기능을 사용하고, 게임 객체는 기본적으로 생성자, `update()`, `draw()` 인터페이스를 제공한다.
+- `src/game_world.py`의 레이어별 객체 추가·제거·업데이트·렌더링 기능을 사용하고, 게임 객체는 기본적으로 생성자, `update()`, `draw()` 인터페이스를 제공한다.
 - 화면 좌표와 월드 좌표의 변환, 입력 처리, 충돌 판정의 기준을 정해 관련 기능에서 일관되게 사용한다.
 - 상수와 게임 상태는 역할에 맞게 분리하고, 테스트하기 쉬운 작은 단위로 구현한다.
+- 게임용 Python 파일과 테스트는 `src/` 아래에 두고, 이미지 및 글꼴 자산은 `image/` 아래에 둔다.
+- 프로젝트 루트에서 `python src/main.py`로 게임을 실행하고 `python -m unittest discover -s src`로 테스트를 실행한다.
 
 ### 이미지 자산 기준
 
@@ -25,22 +27,22 @@
 
 | 용도 | 이미지 파일 |
 | ---- | ----------- |
-| 기본 적 | `common_skel.png` |
-| 폭발 적 | `boom skel.png` |
-| 탱커 적 | `tanker_skel.png` |
-| 암살 적 | `assassin_skel.png` |
-| 궁수 적 | `bow_skel.png` |
-| 궁수의 화살 | `arrow.png` |
-| 플레이어 | `boy.png` |
-| 권총 | `gun.png` |
-| 소총 | `rifle.png` |
-| 기관총 | `machineGun.png` |
-| 총알 | `bullet.png` |
-| 게임 시작 화면 | `game_start.png` |
-| 게임 로비 화면 | `game_lobby.png` |
-| 인-게임 화면 | `in_game.png` |
+| 기본 적 | `image/common_skel.png` |
+| 폭발 적 | `image/boom skel.png` |
+| 탱커 적 | `image/tanker_skel.png` |
+| 암살 적 | `image/assassin_skel.png` |
+| 궁수 적 | `image/bow_skel.png` |
+| 궁수의 화살 | `image/arrow.png` |
+| 플레이어 | `image/boy.png` |
+| 권총 | `image/gun.png` |
+| 소총 | `image/rifle.png` |
+| 기관총 | `image/machineGun.png` |
+| 총알 | `image/bullet.png` |
+| 게임 시작 화면 | `image/game_start.png` |
+| 게임 로비 화면 | `image/game_lobby.png` |
+| 인-게임 화면 | `image/in_game.png` |
 
-모든 총기에서 발사하는 총알은 `bullet.png`를 공통으로 사용한다.
+모든 총기에서 발사하는 총알은 `image/bullet.png`를 공통으로 사용한다. 게임 글꼴은 `image/font/PuzzleSansSuper.ttf`를 사용한다.
 
 9단계의 애니메이션 적용은 위의 정적 이미지가 애니메이션 이미지라는 뜻이 아니다. 별도의 애니메이션 리소스가 준비되기 전까지는 해당 이미지를 정적으로 표시하고, 애니메이션을 적용할 때도 게임 진행 로직이 특정 이미지나 애니메이션 리소스에 종속되지 않게 한다.
 
@@ -277,7 +279,7 @@
 ### 1단계 — 캐릭터와 총의 기본 조작 (15개)
 
 1. `feat(1단계): 전투 화면 크기와 게임 상수 정의` — 화면 크기, FPS, 플레이어 최대 체력 등 기본 상수를 분리한다.
-2. `feat(1단계): 전투 장면의 진입과 종료 연결` — 기존 게임 루프와 `game_world.py`를 이용해 전투 장면의 생명주기를 만든다.
+2. `feat(1단계): 전투 장면의 진입과 종료 연결` — 기존 게임 루프와 `src/game_world.py`를 이용해 전투 장면의 생명주기를 만든다.
 3. `feat(1단계): 플레이어 기본 객체 추가` — 위치, 체력, `update()` 및 `draw()` 인터페이스를 갖춘다.
 4. `feat(1단계): 키 입력 기반 플레이어 이동` — WASD 입력에 따른 상하좌우 이동을 구현한다.
 5. `fix(1단계): 대각선 이동 속도 정규화` — 두 방향을 함께 눌러도 이동 속도가 증가하지 않게 한다.

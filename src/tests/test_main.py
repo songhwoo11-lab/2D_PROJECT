@@ -1,5 +1,6 @@
 import sys
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -79,13 +80,22 @@ class MainTests(unittest.TestCase):
 
         self.assertEqual(opened_canvases, [(800, 600)])
         self.assertEqual(
+            main.ASSET_DIRECTORY,
+            Path(main.__file__).resolve().parent.parent / "image",
+        )
+        self.assertEqual(
             [path.rsplit("\\", 1)[-1] for path in loaded_images],
             ["in_game.png", "boy.png", "gun.png", "bullet.png"],
         )
+        self.assertTrue(
+            all(Path(path).parent == main.ASSET_DIRECTORY for path in loaded_images)
+        )
+        self.assertTrue(all(Path(path).is_file() for path in loaded_images))
         self.assertEqual(
             [(path.rsplit("\\", 2)[-2:], size) for path, size in loaded_fonts],
             [(["font", "PuzzleSansSuper.ttf"], 20)],
         )
+        self.assertTrue(Path(loaded_fonts[0][0]).is_file())
         self.assertEqual(closed, [True])
         self.assertEqual(len(delays), 1)
 
