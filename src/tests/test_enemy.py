@@ -81,6 +81,20 @@ class EnemyTests(unittest.TestCase):
         self.assertEqual(enemy.velocity_x, 1)
         self.assertEqual(enemy.velocity_y, 0)
 
+    def test_player_collision_uses_combined_circular_radii(self):
+        player = Player(0, 0, radius=10)
+        enemy = Enemy(
+            0,
+            0,
+            EnemyStats("test", 20, 8, 1, 0, radius=5),
+            player=player,
+        )
+
+        enemy.x = 15
+        self.assertTrue(enemy.collides_with(player))
+        enemy.x = 15.01
+        self.assertFalse(enemy.collides_with(player))
+
     def test_enemy_stops_at_contact_distance_and_without_target(self):
         player = Player(25, 0, radius=10)
         enemy = Enemy(

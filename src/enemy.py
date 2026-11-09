@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
+import math
 
 from game_config import FPS
 
@@ -93,6 +94,10 @@ class Enemy:
             raise ValueError("damage must be non-negative")
         self.hp = max(0.0, self.hp - amount)
         return not self.is_alive
+
+    def collides_with(self, other):
+        distance = math.hypot(other.x - self.x, other.y - self.y)
+        return distance <= self.radius + other.radius
 
     def set_screen_position(self, screen_x, screen_y):
         self._screen_position = (screen_x, screen_y)
