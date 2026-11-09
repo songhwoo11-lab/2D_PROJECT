@@ -135,13 +135,7 @@ class Enemy:
         self._attack_cooldown_frames = self.attack_interval * FPS
         return True
 
-    def draw(self):
-        if self.image is None:
-            raise RuntimeError("Enemy.draw requires a loaded enemy image")
-        if self.draw_rectangle is None:
-            raise RuntimeError("Enemy.draw requires a rectangle drawing function")
-        x, y = self._screen_position or (self.x, self.y)
-        self.image.draw(x, y, self.radius * 2, self.radius * 2)
+    def draw_health_bar(self, x, y):
         bar_width = self.radius * 2
         bar_height = 4
         bar_left = x - self.radius
@@ -157,3 +151,12 @@ class Enemy:
             255,
             True,
         )
+
+    def draw(self):
+        if self.image is None:
+            raise RuntimeError("Enemy.draw requires a loaded enemy image")
+        if self.draw_rectangle is None:
+            raise RuntimeError("Enemy.draw requires a rectangle drawing function")
+        x, y = self._screen_position or (self.x, self.y)
+        self.image.draw(x, y, self.radius * 2, self.radius * 2)
+        self.draw_health_bar(x, y)
