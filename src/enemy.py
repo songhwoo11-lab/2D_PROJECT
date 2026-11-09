@@ -84,6 +84,7 @@ class Enemy:
         self.velocity_y = 0.0
         self._screen_position = None
         self._movement_per_frame = self.move_speed / FPS
+        self._attack_cooldown_frames = 0.0
 
     @property
     def is_alive(self):
@@ -105,6 +106,7 @@ class Enemy:
     def update(self):
         if self.player is None or not self.is_alive:
             return
+        self._update_attack_cooldown()
         direction_x = self.player.x - self.x
         direction_y = self.player.y - self.y
         distance = (direction_x**2 + direction_y**2) ** 0.5
@@ -112,12 +114,25 @@ class Enemy:
         if distance <= contact_distance or distance == 0:
             self.velocity_x = 0.0
             self.velocity_y = 0.0
+            self._attack_if_ready()
             return
         self.velocity_x = direction_x / distance
         self.velocity_y = direction_y / distance
         travel_distance = min(self._movement_per_frame, distance - contact_distance)
         self.x += self.velocity_x * travel_distance
         self.y += self.velocity_y * travel_distance
+        if self.collides_with(self.player):
+            self._attack_if_ready()
+
+    def _update_attack_cooldown(self):
+        self._attack_cooldown_frames = max(0.0, self._attack_cooldown_frames - 1.0)
+
+    def _attack_if_ready(self):
+        if self._attack_cooldown_frames > 0 or self.attack_damage <= 0:
+            return False
+        self.player.hp = max(0, self.player.hp - self.attack_damage)
+        self._attack_cooldown_frames = self.attack_interval * FPS
+        return True
 
     def draw(self):
         if self.image is None:

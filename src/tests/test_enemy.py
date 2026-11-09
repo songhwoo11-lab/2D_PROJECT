@@ -95,6 +95,38 @@ class EnemyTests(unittest.TestCase):
         enemy.x = 15.01
         self.assertFalse(enemy.collides_with(player))
 
+    def test_contact_attack_applies_damage_on_interval(self):
+        player = Player(0, 0, radius=10)
+        enemy = Enemy(
+            20,
+            0,
+            EnemyStats("test", 20, 8, 0.8, 60, radius=10),
+            player=player,
+        )
+
+        enemy.update()
+        self.assertEqual(player.hp, 92)
+
+        for _ in range(47):
+            enemy.update()
+        self.assertEqual(player.hp, 92)
+
+        enemy.update()
+        self.assertEqual(player.hp, 84)
+
+    def test_attacker_does_not_damage_outside_contact(self):
+        player = Player(100, 0)
+        enemy = Enemy(
+            0,
+            0,
+            EnemyStats("test", 20, 8, 1, 0),
+            player=player,
+        )
+
+        enemy.update()
+
+        self.assertEqual(player.hp, player.max_hp)
+
     def test_enemy_stops_at_contact_distance_and_without_target(self):
         player = Player(25, 0, radius=10)
         enemy = Enemy(
