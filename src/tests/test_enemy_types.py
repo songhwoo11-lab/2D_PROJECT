@@ -1,7 +1,15 @@
 import unittest
 
 from enemy import ENEMY_STATS, EnemyType
-from enemy_types import ArcherEnemy, AssassinEnemy, BasicEnemy, TankerEnemy
+from enemy_types import (
+    ArcherEnemy,
+    AssassinEnemy,
+    BasicEnemy,
+    ExplosiveEnemy,
+    TankerEnemy,
+)
+from explosion import Explosion, ExplosionTarget
+import game_world
 from player import Player
 
 
@@ -96,6 +104,62 @@ class ArcherEnemyTests(unittest.TestCase):
 
         self.assertEqual(len(rectangles), 2)
         self.assertLess(rectangles[0][1], rectangles[1][1])
+
+
+class ExplosiveEnemyTests(unittest.TestCase):
+    def tearDown(self):
+        game_world.clear()
+
+    def test_explosive_enemy_uses_prd_stats_and_player_only_attack(self):
+        player = Player(20, 0)
+        nearby_enemy = BasicEnemy(0, 0)
+        explosive = ExplosiveEnemy(0, 0, player=player)
+        game_world.add_object(nearby_enemy, depth=1)
+
+        explosive.update()
+
+        self.assertEqual(player.hp, 85)
+        self.assertEqual(nearby_enemy.hp, nearby_enemy.max_hp)
+        self.assertEqual((explosive.max_hp, explosive.attack_damage), (80, 15))
+        self.assertEqual(explosive.attack_interval, 1.5)
+
+    def test_explosive_enemy_death_only_damages_nearby_enemies(self):
+        player = Player(0, 0)
+        victim = BasicEnemy(15, 0)
+        distant = BasicEnemy(100, 0)
+        explosive = ExplosiveEnemy(0, 0, player=player)
+        game_world.add_object(victim, depth=1)
+        game_world.add_object(distant, depth=1)
+        game_world.add_object(explosive, depth=1)
+
+        self.assertTrue(explosive.take_damage(explosive.max_hp))
+        self.assertEqual(victim.hp, victim.max_hp - 15)
+        self.assertEqual(distant.hp, distant.max_hp)
+        self.assertEqual(player.hp, player.max_hp)
+
+    def test_explosion_hits_only_selected_targets_once_with_fixed_radius(self):
+        player = Player(20, 0)
+        enemy = BasicEnemy(20, 0)
+        player_explosion = Explosion(
+            0,
+            0,
+            20,
+            15,
+            ExplosionTarget.PLAYER_ONLY,
+        )
+        self.assertEqual(player_explosion.apply(player, [enemy]), (player,))
+        self.assertEqual(player_explosion.apply(player, [enemy]), ())
+        self.assertEqual((player.hp, enemy.hp), (85, enemy.max_hp))
+
+        enemy_explosion = Explosion(
+            0,
+            0,
+            20,
+            15,
+            ExplosionTarget.ENEMIES_ONLY,
+        )
+        self.assertEqual(enemy_explosion.apply(player, [enemy]), (enemy,))
+        self.assertEqual((player.hp, enemy.hp), (85, enemy.max_hp - 15))
 
 
 if __name__ == "__main__":

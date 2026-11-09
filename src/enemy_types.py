@@ -2,7 +2,9 @@
 
 import math
 
+import game_world
 from enemy import ENEMY_STATS, Enemy, EnemyType
+from explosion import Explosion, ExplosionTarget
 from game_config import FPS
 
 
@@ -115,3 +117,66 @@ class ArcherEnemy(Enemy):
             255,
             True,
         )
+
+
+class ExplosiveEnemy(Enemy):
+    EXPLOSION_RADIUS = 20.0
+    EXPLOSION_DAMAGE = 15.0
+
+    def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
+        super().__init__(
+            x,
+            y,
+            ENEMY_STATS[EnemyType.EXPLOSIVE],
+            image=image,
+            player=player,
+            draw_rectangle=draw_rectangle,
+        )
+
+    def update(self):
+        if self.player is None or not self.is_alive or self.player.is_defeated:
+            return
+        self._update_attack_cooldown()
+        distance_x = self.player.x - self.x
+        distance_y = self.player.y - self.y
+        distance = math.hypot(distance_x, distance_y)
+        attack_range = self.stats.attack_range
+        if distance > attack_range:
+            if distance > 0:
+                travel = min(
+                    self._movement_per_frame,
+                    distance - attack_range,
+                )
+                self.x += distance_x / distance * travel
+                self.y += distance_y / distance * travel
+            return
+        if self._attack_cooldown_frames <= 0:
+            Explosion(
+                self.x,
+                self.y,
+                self.EXPLOSION_RADIUS,
+                self.EXPLOSION_DAMAGE,
+                ExplosionTarget.PLAYER_ONLY,
+                owner=self,
+            ).apply(player=self.player)
+            self._attack_cooldown_frames = self.attack_interval * FPS
+
+    def take_damage(self, amount):
+        was_alive = self.is_alive
+        defeated = super().take_damage(amount)
+        if was_alive and defeated:
+            enemies = (
+                obj
+                for layer in game_world.world
+                for obj in layer
+                if isinstance(obj, Enemy) and obj is not self
+            )
+            Explosion(
+                self.x,
+                self.y,
+                self.EXPLOSION_RADIUS,
+                self.EXPLOSION_DAMAGE,
+                ExplosionTarget.ENEMIES_ONLY,
+                owner=self,
+            ).apply(enemies=enemies)
+        return defeated
