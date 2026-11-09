@@ -105,7 +105,7 @@ class Gun:
         self.magazine_ammo -= 1
         fire_interval_frames = self.spec.fire_interval_frames
         if self.fire_mode is FireMode.SINGLE:
-            fire_interval_frames = max(1, fire_interval_frames * 0.5)
+            fire_interval_frames *= 2
         self.cooldown_remaining = fire_interval_frames / FPS
         return True
 
