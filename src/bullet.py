@@ -3,19 +3,33 @@
 import math
 
 import game_world
-from game_config import BULLET_SIZE, BULLET_SPEED, FPS, WORLD_HEIGHT, WORLD_WIDTH
+from game_config import BULLET_SIZE, BULLET_SPEED, FPS, PISTOL_DAMAGE, WORLD_HEIGHT, WORLD_WIDTH
 from enemy import Enemy
+from shot_result import HitResult, damage_for_result, roll_hit_result
 
 
 class Bullet:
-    def __init__(self, x, y, angle, image, speed=BULLET_SPEED):
+    def __init__(
+        self,
+        x,
+        y,
+        angle,
+        image,
+        speed=BULLET_SPEED,
+        damage=PISTOL_DAMAGE,
+        result_resolver=None,
+    ):
         self.x = float(x)
         self.y = float(y)
         self.angle = float(angle)
         self.image = image
         self.speed = float(speed)
+        self.damage = damage
+        self.result_resolver = result_resolver or roll_hit_result
         self.radius = BULLET_SIZE / 2
         self.hit_target = None
+        self.hit_result = None
+        self.damage_dealt = 0
         self._screen_position = None
 
     def set_screen_position(self, screen_x, screen_y):
@@ -29,6 +43,12 @@ class Bullet:
             for obj in tuple(layer):
                 if isinstance(obj, Enemy) and self.collides_with(obj):
                     self.hit_target = obj
+                    self.hit_result = self.result_resolver()
+                    self.damage_dealt = damage_for_result(
+                        self.damage,
+                        self.hit_result,
+                    )
+                    obj.take_damage(self.damage_dealt)
                     game_world.remove_object(self)
                     return
         if not (0 <= self.x <= WORLD_WIDTH and 0 <= self.y <= WORLD_HEIGHT):
