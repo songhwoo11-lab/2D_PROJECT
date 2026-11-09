@@ -103,7 +103,10 @@ class Gun:
         if not self.can_fire:
             return False
         self.magazine_ammo -= 1
-        self.cooldown_remaining = self.spec.fire_interval_seconds
+        fire_interval_frames = self.spec.fire_interval_frames
+        if self.fire_mode is FireMode.SINGLE:
+            fire_interval_frames *= 2
+        self.cooldown_remaining = fire_interval_frames / FPS
         return True
 
     def toggle_mode(self):
