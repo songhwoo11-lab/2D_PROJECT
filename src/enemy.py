@@ -1,6 +1,21 @@
 """Shared state and lifecycle for enemy entities."""
 
 from dataclasses import dataclass
+from enum import Enum
+
+from game_config import FPS
+
+
+ENEMY_DEFAULT_MOVE_SPEED = 60.0
+ENEMY_DEFAULT_RADIUS = 16.0
+
+
+class EnemyType(Enum):
+    BASIC = "basic"
+    EXPLOSIVE = "explosive"
+    TANKER = "tanker"
+    ASSASSIN = "assassin"
+    ARCHER = "archer"
 
 
 @dataclass(frozen=True)
@@ -12,6 +27,37 @@ class EnemyStats:
     move_speed: float
     radius: float = 16.0
     attack_range: float = 0.0
+
+
+ENEMY_STATS = {
+    EnemyType.BASIC: EnemyStats(
+        "basic", 20, 8, 0.8, ENEMY_DEFAULT_MOVE_SPEED, ENEMY_DEFAULT_RADIUS
+    ),
+    EnemyType.EXPLOSIVE: EnemyStats(
+        "explosive",
+        80,
+        15,
+        1.5,
+        ENEMY_DEFAULT_MOVE_SPEED,
+        ENEMY_DEFAULT_RADIUS,
+        attack_range=20,
+    ),
+    EnemyType.TANKER: EnemyStats(
+        "tanker", 120, 5, 2.0, ENEMY_DEFAULT_MOVE_SPEED, ENEMY_DEFAULT_RADIUS
+    ),
+    EnemyType.ASSASSIN: EnemyStats(
+        "assassin", 10, 10, 0.5, ENEMY_DEFAULT_MOVE_SPEED, ENEMY_DEFAULT_RADIUS
+    ),
+    EnemyType.ARCHER: EnemyStats(
+        "archer",
+        50,
+        10,
+        1.2,
+        ENEMY_DEFAULT_MOVE_SPEED,
+        ENEMY_DEFAULT_RADIUS,
+        attack_range=150,
+    ),
+}
 
 
 class Enemy:
@@ -36,6 +82,7 @@ class Enemy:
         self.velocity_x = 0.0
         self.velocity_y = 0.0
         self._screen_position = None
+        self._movement_per_frame = self.move_speed / FPS
 
     @property
     def is_alive(self):

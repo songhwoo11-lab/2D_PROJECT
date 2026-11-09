@@ -1,6 +1,6 @@
 import unittest
 
-from enemy import Enemy, EnemyStats
+from enemy import ENEMY_STATS, Enemy, EnemyStats, EnemyType
 
 
 class FakeImage:
@@ -12,6 +12,23 @@ class FakeImage:
 
 
 class EnemyTests(unittest.TestCase):
+    def test_enemy_type_stats_match_prd(self):
+        expected = {
+            EnemyType.BASIC: (20, 8, 0.8, 0),
+            EnemyType.EXPLOSIVE: (80, 15, 1.5, 20),
+            EnemyType.TANKER: (120, 5, 2.0, 0),
+            EnemyType.ASSASSIN: (10, 10, 0.5, 0),
+            EnemyType.ARCHER: (50, 10, 1.2, 150),
+        }
+
+        for enemy_type, (hp, damage, interval, attack_range) in expected.items():
+            with self.subTest(enemy_type=enemy_type):
+                stats = ENEMY_STATS[enemy_type]
+                self.assertEqual(stats.max_hp, hp)
+                self.assertEqual(stats.attack_damage, damage)
+                self.assertEqual(stats.attack_interval, interval)
+                self.assertEqual(stats.attack_range, attack_range)
+
     def test_enemy_initializes_shared_combat_state(self):
         stats = EnemyStats("test", 20, 8, 0.8, 60, radius=12)
         enemy = Enemy(10, 20, stats)
