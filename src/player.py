@@ -36,6 +36,20 @@ class Player:
         self._delta_time = 0.0
         self._screen_position = None
 
+    @property
+    def is_alive(self):
+        return self.hp > 0
+
+    @property
+    def is_defeated(self):
+        return not self.is_alive
+
+    def take_damage(self, amount):
+        if amount < 0:
+            raise ValueError("damage must be non-negative")
+        self.hp = max(0, self.hp - amount)
+        return self.is_defeated
+
     def set_movement(self, move_x, move_y, delta_time):
         if not math.isfinite(delta_time) or delta_time < 0:
             raise ValueError("delta_time must be a finite non-negative number")

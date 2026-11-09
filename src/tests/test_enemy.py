@@ -127,6 +127,21 @@ class EnemyTests(unittest.TestCase):
 
         self.assertEqual(player.hp, player.max_hp)
 
+    def test_enemy_stops_attacking_after_player_is_defeated(self):
+        player = Player(0, 0, max_hp=5, radius=10)
+        enemy = Enemy(
+            20,
+            0,
+            EnemyStats("test", 20, 8, 0.1, 60, radius=10),
+            player=player,
+        )
+
+        enemy.update()
+        self.assertEqual(player.hp, 0)
+        for _ in range(10):
+            enemy.update()
+        self.assertEqual(player.hp, 0)
+
     def test_enemy_stops_at_contact_distance_and_without_target(self):
         player = Player(25, 0, radius=10)
         enemy = Enemy(

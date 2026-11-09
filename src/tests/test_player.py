@@ -14,6 +14,20 @@ class FakeImage:
 
 
 class PlayerTests(unittest.TestCase):
+    def test_damage_clamps_health_and_marks_defeat(self):
+        player = Player(0, 0)
+
+        self.assertFalse(player.take_damage(40))
+        self.assertEqual(player.hp, 60)
+        self.assertTrue(player.take_damage(100))
+        self.assertEqual(player.hp, 0)
+        self.assertTrue(player.is_defeated)
+        self.assertFalse(player.is_alive)
+
+    def test_negative_damage_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            Player(0, 0).take_damage(-1)
+
     def test_player_initializes_core_state(self):
         player = Player(100, 200)
 

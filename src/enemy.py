@@ -104,7 +104,7 @@ class Enemy:
         self._screen_position = (screen_x, screen_y)
 
     def update(self):
-        if self.player is None or not self.is_alive:
+        if self.player is None or not self.is_alive or self.player.is_defeated:
             return
         self._update_attack_cooldown()
         direction_x = self.player.x - self.x
@@ -130,7 +130,7 @@ class Enemy:
     def _attack_if_ready(self):
         if self._attack_cooldown_frames > 0 or self.attack_damage <= 0:
             return False
-        self.player.hp = max(0, self.player.hp - self.attack_damage)
+        self.player.take_damage(self.attack_damage)
         self._attack_cooldown_frames = self.attack_interval * FPS
         return True
 
