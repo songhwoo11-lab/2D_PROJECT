@@ -62,7 +62,7 @@ ENEMY_STATS = {
 
 
 class Enemy:
-    def __init__(self, x, y, stats, image=None, player=None):
+    def __init__(self, x, y, stats, image=None, player=None, draw_rectangle=None):
         if stats.max_hp <= 0:
             raise ValueError("enemy max_hp must be positive")
         if stats.attack_interval <= 0:
@@ -80,6 +80,7 @@ class Enemy:
         self.radius = float(stats.radius)
         self.player = player
         self.image = image
+        self.draw_rectangle = draw_rectangle
         self.velocity_x = 0.0
         self.velocity_y = 0.0
         self._screen_position = None
@@ -137,5 +138,22 @@ class Enemy:
     def draw(self):
         if self.image is None:
             raise RuntimeError("Enemy.draw requires a loaded enemy image")
+        if self.draw_rectangle is None:
+            raise RuntimeError("Enemy.draw requires a rectangle drawing function")
         x, y = self._screen_position or (self.x, self.y)
         self.image.draw(x, y, self.radius * 2, self.radius * 2)
+        bar_width = self.radius * 2
+        bar_height = 4
+        bar_left = x - self.radius
+        bar_bottom = y + self.radius + 3
+        self.draw_rectangle(
+            bar_left,
+            bar_bottom,
+            bar_left + bar_width * (self.hp / self.max_hp),
+            bar_bottom + bar_height,
+            255,
+            0,
+            0,
+            255,
+            True,
+        )

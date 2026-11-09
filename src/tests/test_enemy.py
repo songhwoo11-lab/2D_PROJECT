@@ -12,6 +12,14 @@ class FakeImage:
         self.calls.append(args)
 
 
+class FakeRectangle:
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, *args):
+        self.calls.append(args)
+
+
 class EnemyTests(unittest.TestCase):
     def test_enemy_type_stats_match_prd(self):
         expected = {
@@ -58,12 +66,41 @@ class EnemyTests(unittest.TestCase):
 
     def test_draw_uses_injected_image_and_screen_position(self):
         image = FakeImage()
-        enemy = Enemy(10, 20, EnemyStats("test", 20, 8, 1, 0, radius=12), image=image)
+        draw_rectangle = FakeRectangle()
+        enemy = Enemy(
+            10,
+            20,
+            EnemyStats("test", 20, 8, 1, 0, radius=12),
+            image=image,
+            draw_rectangle=draw_rectangle,
+        )
         enemy.set_screen_position(100, 200)
 
         enemy.draw()
 
         self.assertEqual(image.calls, [(100, 200, 24, 24)])
+        self.assertEqual(draw_rectangle.calls, [(88, 215, 112, 219, 255, 0, 0, 255, True)])
+
+    def test_health_bar_width_tracks_health_without_text(self):
+        draw_rectangle = FakeRectangle()
+        enemy = Enemy(
+            10,
+            20,
+            EnemyStats("test", 20, 8, 1, 0, radius=10),
+            image=FakeImage(),
+            draw_rectangle=draw_rectangle,
+        )
+        enemy.take_damage(5)
+
+        enemy.draw()
+
+        self.assertEqual(draw_rectangle.calls, [(0, 33, 15, 37, 255, 0, 0, 255, True)])
+
+    def test_draw_requires_explicit_rendering_dependencies(self):
+        with self.assertRaisesRegex(RuntimeError, "loaded enemy image"):
+            Enemy(0, 0, EnemyStats("test", 20, 8, 1, 0)).draw()
+        with self.assertRaisesRegex(RuntimeError, "rectangle drawing"):
+            Enemy(0, 0, EnemyStats("test", 20, 8, 1, 0), image=FakeImage()).draw()
 
     def test_enemy_tracks_player_at_configured_speed(self):
         player = Player(100, 0)
