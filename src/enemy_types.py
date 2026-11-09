@@ -6,7 +6,7 @@ from arrow import Arrow
 import game_world
 from enemy import ENEMY_STATS, Enemy, EnemyType
 from explosion import Explosion, ExplosionTarget
-from game_config import FPS
+from game_config import DISTANCE_EPSILON, FPS
 
 
 class BasicEnemy(Enemy):
@@ -80,7 +80,7 @@ class ArcherEnemy(Enemy):
         distance_x = self.player.x - self.x
         distance_y = self.player.y - self.y
         distance = math.hypot(distance_x, distance_y)
-        if distance > self.stats.attack_range:
+        if distance > self.stats.attack_range + DISTANCE_EPSILON:
             self.attack_charge = 0.0
             self._attack_charge_frames = 0
             self.attack_warning_remaining = 0
@@ -162,7 +162,7 @@ class ExplosiveEnemy(Enemy):
         distance_y = self.player.y - self.y
         distance = math.hypot(distance_x, distance_y)
         attack_range = self.stats.attack_range
-        if distance > attack_range:
+        if distance > attack_range + DISTANCE_EPSILON:
             if distance > 0:
                 travel = min(
                     self._movement_per_frame,

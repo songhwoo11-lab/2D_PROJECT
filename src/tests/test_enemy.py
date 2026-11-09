@@ -1,3 +1,4 @@
+import math
 import unittest
 
 from enemy import ENEMY_STATS, Enemy, EnemyStats, EnemyType
@@ -117,6 +118,24 @@ class EnemyTests(unittest.TestCase):
         self.assertEqual(enemy.y, 0)
         self.assertEqual(enemy.velocity_x, 1)
         self.assertEqual(enemy.velocity_y, 0)
+
+    def test_contact_attack_triggers_at_floating_point_range_boundary(self):
+        angle = 0.0023
+        player = Player(
+            math.cos(angle) * 32.5,
+            math.sin(angle) * 32.5,
+            radius=10,
+        )
+        enemy = Enemy(
+            0,
+            0,
+            EnemyStats("test", 20, 8, 0.8, 60, radius=22),
+            player=player,
+        )
+
+        enemy.update()
+
+        self.assertEqual(player.hp, 92)
 
     def test_player_collision_uses_combined_circular_radii(self):
         player = Player(0, 0, radius=10)

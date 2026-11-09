@@ -1,3 +1,4 @@
+import math
 import unittest
 
 from arrow import Arrow
@@ -133,6 +134,20 @@ class ArcherEnemyTests(unittest.TestCase):
         self.assertEqual(archer.attack_charge, 0)
         self.assertGreater(archer.x, 0)
 
+    def test_archer_starts_charging_at_floating_point_range_boundary(self):
+        angle = 0.0022
+        player = Player(
+            math.cos(angle) * 300.5,
+            math.sin(angle) * 300.5,
+        )
+        archer = ArcherEnemy(0, 0, player=player)
+
+        archer.update()
+        self.assertEqual(archer.attack_charge, 0)
+        archer.update()
+
+        self.assertGreater(archer.attack_charge, 0)
+
     def test_archer_draws_attack_charge_bar_above_health_bar(self):
         rectangles = []
 
@@ -169,6 +184,20 @@ class ExplosiveEnemyTests(unittest.TestCase):
         self.assertEqual(nearby_enemy.hp, nearby_enemy.max_hp)
         self.assertEqual((explosive.max_hp, explosive.attack_damage), (80, 15))
         self.assertEqual(explosive.attack_interval, 1.5)
+
+    def test_explosive_enemy_attacks_at_floating_point_range_boundary(self):
+        angle = 0.0023
+        player = Player(
+            math.cos(angle) * 20.5,
+            math.sin(angle) * 20.5,
+        )
+        explosive = ExplosiveEnemy(0, 0, player=player)
+
+        explosive.update()
+        self.assertEqual(player.hp, player.max_hp)
+        explosive.update()
+
+        self.assertEqual(player.hp, player.max_hp - explosive.EXPLOSION_DAMAGE)
 
     def test_explosive_enemy_death_only_damages_nearby_enemies(self):
         player = Player(0, 0)

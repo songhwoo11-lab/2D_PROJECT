@@ -4,6 +4,7 @@ from enum import Enum
 import math
 
 from enemy import Enemy
+from game_config import DISTANCE_EPSILON
 
 
 class ExplosionTarget(Enum):
@@ -51,7 +52,7 @@ class Explosion:
             if isinstance(candidate, Enemy) and not candidate.is_alive:
                 continue
             distance = math.hypot(candidate.x - self.x, candidate.y - self.y)
-            if distance <= self.radius:
+            if distance <= self.radius + DISTANCE_EPSILON:
                 candidate.take_damage(self.damage)
                 affected.append(candidate)
         return tuple(affected)

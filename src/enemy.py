@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 import math
 
-from game_config import FPS
+from game_config import DISTANCE_EPSILON, FPS
 
 
 ENEMY_DEFAULT_MOVE_SPEED = 60.0
@@ -112,7 +112,7 @@ class Enemy:
         direction_y = self.player.y - self.y
         distance = (direction_x**2 + direction_y**2) ** 0.5
         contact_distance = self.radius + self.player.radius
-        if distance <= contact_distance or distance == 0:
+        if distance <= contact_distance + DISTANCE_EPSILON or distance == 0:
             self.velocity_x = 0.0
             self.velocity_y = 0.0
             self._attack_if_ready()
@@ -122,7 +122,11 @@ class Enemy:
         travel_distance = min(self._movement_per_frame, distance - contact_distance)
         self.x += self.velocity_x * travel_distance
         self.y += self.velocity_y * travel_distance
-        if self.collides_with(self.player):
+        distance = math.hypot(
+            self.player.x - self.x,
+            self.player.y - self.y,
+        )
+        if distance <= contact_distance + DISTANCE_EPSILON:
             self._attack_if_ready()
 
     def _update_attack_cooldown(self):
