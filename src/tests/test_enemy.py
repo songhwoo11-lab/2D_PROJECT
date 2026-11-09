@@ -27,7 +27,7 @@ class EnemyTests(unittest.TestCase):
             EnemyType.EXPLOSIVE: (80, 15, 1.5, 20),
             EnemyType.TANKER: (120, 5, 2.0, 0),
             EnemyType.ASSASSIN: (10, 10, 0.5, 0),
-            EnemyType.ARCHER: (50, 10, 1.2, 150),
+            EnemyType.ARCHER: (50, 10, 1.2, 300),
         }
 
         for enemy_type, (hp, damage, interval, attack_range) in expected.items():

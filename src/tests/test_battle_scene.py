@@ -4,7 +4,7 @@ from unittest.mock import patch
 import game_world
 from battle_scene import BattleScene
 from enemy import EnemyType
-from enemy_types import BasicEnemy
+from enemy_types import ArcherEnemy, BasicEnemy
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, WORLD_HEIGHT, WORLD_WIDTH
 from player import Player
 from weapon import FireMode, Gun
@@ -68,6 +68,7 @@ class BattleSceneTests(unittest.TestCase):
         }
         self.scene.enemy_images = self.enemy_images
         self.scene.enemy_draw_rectangle = lambda *args: None
+        self.scene.arrow_image = FakeImage()
 
     def tearDown(self):
         self.scene.close()
@@ -271,6 +272,26 @@ class BattleSceneTests(unittest.TestCase):
         self.assertEqual(
             self.enemy_images[EnemyType.BASIC].draw_calls[0][:2],
             self.scene.camera.world_to_screen(enemy.x, enemy.y),
+        )
+
+    def test_archer_fire_renders_arrow_sprite_in_battle_scene(self):
+        archer = self.scene.spawn_enemy(
+            EnemyType.ARCHER,
+            self.player.x + 220,
+            self.player.y,
+        )
+        self.assertIsInstance(archer, ArcherEnemy)
+
+        for _ in range(round(archer.attack_interval * 60) + archer.WARNING_DURATION_FRAMES):
+            self.scene.update(1 / 60)
+
+        self.scene.draw(lambda *args: None)
+        self.assertTrue(self.scene.arrow_image.rotate_calls)
+        arrow = game_world.world[2][0]
+        self.assertEqual(arrow.image, self.scene.arrow_image)
+        self.assertEqual(
+            self.scene.arrow_image.rotate_calls[0][1:3],
+            self.scene.camera.world_to_screen(arrow.x, arrow.y),
         )
 
     def test_spawn_rejects_missing_image_or_draw_function(self):

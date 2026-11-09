@@ -2,6 +2,7 @@
 
 import math
 
+from arrow import Arrow
 import game_world
 from enemy import ENEMY_STATS, Enemy, EnemyType
 from explosion import Explosion, ExplosionTarget
@@ -47,7 +48,15 @@ class AssassinEnemy(Enemy):
 class ArcherEnemy(Enemy):
     WARNING_DURATION_FRAMES = 15
 
-    def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
+    def __init__(
+        self,
+        x,
+        y,
+        image=None,
+        player=None,
+        draw_rectangle=None,
+        arrow_image=None,
+    ):
         super().__init__(
             x,
             y,
@@ -59,6 +68,7 @@ class ArcherEnemy(Enemy):
         self.attack_charge = 0.0
         self._attack_charge_frames = 0
         self.attack_warning_remaining = 0
+        self.arrow_image = arrow_image
 
     @property
     def is_attack_warning(self):
@@ -85,7 +95,18 @@ class ArcherEnemy(Enemy):
         if self.is_attack_warning:
             self.attack_warning_remaining -= 1
             if self.attack_warning_remaining == 0:
-                self.player.take_damage(self.attack_damage)
+                game_world.add_object(
+                    Arrow(
+                        self.x,
+                        self.y,
+                        self.player.x,
+                        self.player.y,
+                        self.arrow_image,
+                        target=self.player,
+                        damage=self.attack_damage,
+                    ),
+                    depth=2,
+                )
                 self.attack_charge = 0.0
                 self._attack_charge_frames = 0
             return
@@ -198,15 +219,17 @@ def create_enemy(
     image,
     player,
     draw_rectangle,
+    arrow_image=None,
 ):
     try:
         enemy_class = ENEMY_CLASSES[enemy_type]
     except KeyError as error:
         raise ValueError("unsupported enemy type: {!r}".format(enemy_type)) from error
-    return enemy_class(
-        x,
-        y,
-        image=image,
-        player=player,
-        draw_rectangle=draw_rectangle,
-    )
+    kwargs = {
+        "image": image,
+        "player": player,
+        "draw_rectangle": draw_rectangle,
+    }
+    if enemy_type is EnemyType.ARCHER:
+        kwargs["arrow_image"] = arrow_image
+    return enemy_class(x, y, **kwargs)

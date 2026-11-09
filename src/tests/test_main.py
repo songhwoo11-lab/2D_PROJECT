@@ -91,6 +91,7 @@ class MainTests(unittest.TestCase):
                 "boy.png",
                 "gun.png",
                 "bullet.png",
+                "arrow.png",
                 "common_skel.png",
                 "boom skel.png",
                 "tanker_skel.png",

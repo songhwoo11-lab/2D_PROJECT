@@ -35,6 +35,7 @@ def main():
         player_image = pico2d.load_image(str(ASSET_DIRECTORY / "boy.png"))
         gun_image = pico2d.load_image(str(ASSET_DIRECTORY / "gun.png"))
         bullet_image = pico2d.load_image(str(ASSET_DIRECTORY / "bullet.png"))
+        arrow_image = pico2d.load_image(str(ASSET_DIRECTORY / "arrow.png"))
         hud_font = pico2d.load_font(
             str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
             20,
@@ -70,6 +71,7 @@ def main():
             hud_font=hud_font,
             enemy_images=enemy_images,
             enemy_draw_rectangle=pico2d.draw_rectangle,
+            arrow_image=arrow_image,
         )
         scene.spawn_test_enemies()
         key_map = {

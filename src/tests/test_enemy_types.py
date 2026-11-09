@@ -1,5 +1,6 @@
 import unittest
 
+from arrow import Arrow
 from enemy import ENEMY_STATS, EnemyType
 from enemy_types import (
     ArcherEnemy,
@@ -72,11 +73,44 @@ class ArcherEnemyTests(unittest.TestCase):
         for _ in range(enemy.WARNING_DURATION_FRAMES):
             enemy.update()
         self.assertFalse(enemy.is_attack_warning)
-        self.assertEqual(player.hp, 90)
+        self.assertEqual(player.hp, 100)
         self.assertEqual(enemy.attack_charge, 0)
+        arrow = next(
+            obj
+            for layer in game_world.world
+            for obj in layer
+            if isinstance(obj, Arrow)
+        )
+        while arrow in game_world.world[2]:
+            arrow.update()
+        self.assertEqual(player.hp, 90)
+
+    def test_archer_shot_spawns_arrow_with_configured_image(self):
+        image = type("Image", (), {"rotate_draw": lambda self, *args: None})()
+        player = Player(150, 0)
+        enemy = ArcherEnemy(0, 0, player=player, arrow_image=image)
+        game_world.clear()
+        try:
+            for _ in range(round(enemy.attack_interval * 60) + enemy.WARNING_DURATION_FRAMES):
+                enemy.update()
+
+            arrows = [
+                obj
+                for layer in game_world.world
+                for obj in layer
+                if isinstance(obj, Arrow)
+            ]
+            self.assertEqual(len(arrows), 1)
+            self.assertIs(arrows[0].image, image)
+            self.assertEqual(player.hp, 100)
+            while arrows[0] in game_world.world[2]:
+                arrows[0].update()
+            self.assertEqual(player.hp, 90)
+        finally:
+            game_world.clear()
 
     def test_archer_resets_charge_outside_range_and_moves_toward_range(self):
-        player = Player(250, 0)
+        player = Player(400, 0)
         enemy = ArcherEnemy(0, 0, player=player)
         enemy.attack_charge = 0.5
 
@@ -85,6 +119,19 @@ class ArcherEnemyTests(unittest.TestCase):
         self.assertEqual(enemy.attack_charge, 0)
         self.assertGreater(enemy.x, 0)
         self.assertEqual(player.hp, player.max_hp)
+
+    def test_archer_range_is_twice_the_original_value(self):
+        archer = ArcherEnemy(0, 0, player=Player(300, 0))
+
+        self.assertEqual(archer.stats.attack_range, 300)
+        archer.update()
+        self.assertGreater(archer.attack_charge, 0)
+        self.assertEqual((archer.x, archer.y), (0, 0))
+
+        archer.player.x = 300.01
+        archer.update()
+        self.assertEqual(archer.attack_charge, 0)
+        self.assertGreater(archer.x, 0)
 
     def test_archer_draws_attack_charge_bar_above_health_bar(self):
         rectangles = []

@@ -2,6 +2,7 @@
 
 import math
 
+from arrow import Arrow
 from bullet import Bullet
 from enemy import Enemy, EnemyType
 from enemy_types import create_enemy
@@ -25,6 +26,7 @@ class BattleScene:
         hud_font=None,
         enemy_images=None,
         enemy_draw_rectangle=None,
+        arrow_image=None,
     ):
         self.player = player
         self.gun = gun
@@ -35,6 +37,7 @@ class BattleScene:
         self.hud_font = hud_font
         self.enemy_images = dict(enemy_images or {})
         self.enemy_draw_rectangle = enemy_draw_rectangle
+        self.arrow_image = arrow_image
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -61,6 +64,7 @@ class BattleScene:
             self.enemy_images[enemy_type],
             self.player,
             self.enemy_draw_rectangle,
+            arrow_image=self.arrow_image,
         )
         game_world.add_object(enemy, depth=1)
         return enemy
@@ -174,7 +178,7 @@ class BattleScene:
 
         for layer in game_world.world:
             for obj in layer:
-                if isinstance(obj, (Bullet, Enemy)):
+                if isinstance(obj, (Arrow, Bullet, Enemy)):
                     screen_x, screen_y = self.camera.world_to_screen(obj.x, obj.y)
                     obj.set_screen_position(screen_x, screen_y)
         game_world.render()

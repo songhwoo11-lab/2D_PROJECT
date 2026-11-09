@@ -56,7 +56,7 @@ ENEMY_STATS = {
         1.2,
         ENEMY_DEFAULT_MOVE_SPEED,
         ENEMY_DEFAULT_RADIUS,
-        attack_range=150,
+        attack_range=300,
     ),
 }
 
