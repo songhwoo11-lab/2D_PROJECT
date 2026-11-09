@@ -282,7 +282,10 @@ class BattleSceneTests(unittest.TestCase):
         )
         self.assertIsInstance(archer, ArcherEnemy)
 
-        for _ in range(round(archer.attack_interval * 60) + archer.WARNING_DURATION_FRAMES):
+        charge_duration_frames = round(
+            archer.attack_interval * 60 / archer.CHARGE_SPEED_MULTIPLIER
+        )
+        for _ in range(charge_duration_frames + archer.WARNING_DURATION_FRAMES):
             self.scene.update(1 / 60)
 
         self.scene.draw(lambda *args: None)

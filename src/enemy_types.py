@@ -46,6 +46,7 @@ class AssassinEnemy(Enemy):
 
 
 class ArcherEnemy(Enemy):
+    CHARGE_SPEED_MULTIPLIER = 2
     WARNING_DURATION_FRAMES = 15
 
     def __init__(
@@ -110,7 +111,9 @@ class ArcherEnemy(Enemy):
                 self.attack_charge = 0.0
                 self._attack_charge_frames = 0
             return
-        charge_duration_frames = self.attack_interval * FPS
+        charge_duration_frames = (
+            self.attack_interval * FPS / self.CHARGE_SPEED_MULTIPLIER
+        )
         self._attack_charge_frames += 1
         self.attack_charge = min(
             1.0,

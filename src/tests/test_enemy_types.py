@@ -62,11 +62,30 @@ class ArcherEnemyTests(unittest.TestCase):
         self.assertGreater(enemy.attack_charge, 0)
         self.assertEqual((enemy.x, enemy.y), (0, 0))
 
+    def test_archer_charge_reaches_warning_in_half_original_time(self):
+        enemy = ArcherEnemy(0, 0, player=Player(150, 0))
+        charge_duration_frames = round(
+            enemy.attack_interval * 60 / enemy.CHARGE_SPEED_MULTIPLIER
+        )
+
+        for _ in range(charge_duration_frames - 1):
+            enemy.update()
+        self.assertFalse(enemy.is_attack_warning)
+        self.assertLess(enemy.attack_charge, 1)
+
+        enemy.update()
+
+        self.assertTrue(enemy.is_attack_warning)
+        self.assertEqual(enemy.attack_charge, 1)
+
     def test_archer_warns_then_attacks_after_charge(self):
         player = Player(150, 0)
         enemy = ArcherEnemy(0, 0, player=player)
 
-        for _ in range(round(enemy.attack_interval * 60)):
+        charge_duration_frames = round(
+            enemy.attack_interval * 60 / enemy.CHARGE_SPEED_MULTIPLIER
+        )
+        for _ in range(charge_duration_frames):
             enemy.update()
         self.assertTrue(enemy.is_attack_warning)
         self.assertEqual(player.hp, 100)
@@ -92,7 +111,10 @@ class ArcherEnemyTests(unittest.TestCase):
         enemy = ArcherEnemy(0, 0, player=player, arrow_image=image)
         game_world.clear()
         try:
-            for _ in range(round(enemy.attack_interval * 60) + enemy.WARNING_DURATION_FRAMES):
+            charge_duration_frames = round(
+                enemy.attack_interval * 60 / enemy.CHARGE_SPEED_MULTIPLIER
+            )
+            for _ in range(charge_duration_frames + enemy.WARNING_DURATION_FRAMES):
                 enemy.update()
 
             arrows = [
