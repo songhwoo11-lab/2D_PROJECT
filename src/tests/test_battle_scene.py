@@ -89,7 +89,7 @@ class BattleSceneTests(unittest.TestCase):
         self.scene.update(1 / 60)
 
         self.assertEqual(self.gun.magazine_ammo, 9)
-        self.scene.draw(lambda *args: None, lambda *args: None)
+        self.scene.draw(lambda *args: None)
         self.assertFalse(any("SHOT MISS" in call[2] for call in self.hud_font.draw_calls))
         self.scene.mouse_up("left")
 
@@ -104,7 +104,7 @@ class BattleSceneTests(unittest.TestCase):
         self.assertAlmostEqual(bullet.angle, 3.141592653589793 / 2)
         self.assertAlmostEqual(bullet.x, self.player.x)
         self.assertAlmostEqual(bullet.y, self.player.y + self.player.radius + 14)
-        self.scene.draw(lambda *args: None, lambda *args: None)
+        self.scene.draw(lambda *args: None)
         self.assertEqual(self.scene.bullet_image.rotate_calls[0][1:3], (400, 330))
 
     def test_gun_image_faces_right_without_flipping(self):
@@ -112,7 +112,7 @@ class BattleSceneTests(unittest.TestCase):
         self.scene.mouse_move(SCREEN_WIDTH / 2 + 100, SCREEN_HEIGHT / 2 - 50)
         self.scene.update(1 / 60)
 
-        self.scene.draw(lambda *args: None, lambda *args: None)
+        self.scene.draw(lambda *args: None)
 
         angle, flip = self.scene.gun_image.composite_calls[0][:2]
         self.assertAlmostEqual(angle, 0.4636476090008061)
@@ -123,7 +123,7 @@ class BattleSceneTests(unittest.TestCase):
         self.scene.mouse_move(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 50)
         self.scene.update(1 / 60)
 
-        self.scene.draw(lambda *args: None, lambda *args: None)
+        self.scene.draw(lambda *args: None)
 
         angle, flip = self.scene.gun_image.composite_calls[0][:2]
         self.assertAlmostEqual(angle, -0.4636476090008061)
@@ -156,7 +156,6 @@ class BattleSceneTests(unittest.TestCase):
         self.assertTrue(self.gun.reloading)
 
     def test_draw_renders_background_player_aim_and_hud(self):
-        lines = []
         rectangles = []
         self.scene.mouse_move(500, 300)
         self.scene.update(1 / 60)
@@ -164,17 +163,10 @@ class BattleSceneTests(unittest.TestCase):
         def draw_rectangle(x1, y1, x2, y2, r=255, g=0, b=0, a=255, filled=False):
             rectangles.append((x1, y1, x2, y2, r, g, b, a, filled))
 
-        def draw_line(x1, y1, x2, y2, r=0, g=0, b=0, a=255):
-            lines.append((x1, y1, x2, y2, r, g, b, a))
-
-        self.scene.draw(
-            draw_rectangle,
-            draw_line,
-        )
+        self.scene.draw(draw_rectangle)
 
         self.assertTrue(self.background.calls)
         self.assertTrue(rectangles)
-        self.assertTrue(lines)
         self.assertIn((20, 20, 220, 30, 55, 45, 45, 255, True), rectangles)
         self.assertIn((20, 20, 220, 30, 220, 45, 45, 255, True), rectangles)
         self.assertIn((20, 45, "HP 100/100", (255, 255, 255)), self.hud_font.draw_calls)
@@ -202,7 +194,7 @@ class BattleSceneTests(unittest.TestCase):
         self.gun.magazine_ammo = 0
         self.gun.start_reload()
 
-        self.scene.draw(lambda *args: None, lambda *args: None)
+        self.scene.draw(lambda *args: None)
 
         self.assertIn(
             (

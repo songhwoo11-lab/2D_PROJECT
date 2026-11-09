@@ -87,10 +87,7 @@ def main():
 
             scene.update(delta_time)
             pico2d.clear_canvas()
-            scene.draw(
-                pico2d.draw_rectangle,
-                pico2d.draw_line,
-            )
+            scene.draw(pico2d.draw_rectangle)
             pico2d.update_canvas()
             frame_duration = pico2d.get_time() - frame_start
             pico2d.delay(max(0.0, FRAME_TIME - frame_duration))

@@ -109,7 +109,7 @@ class BattleScene:
         screen_x, screen_y = self.camera.world_to_screen(self.player.x, self.player.y)
         self.player.set_screen_position(screen_x, screen_y)
 
-    def draw(self, draw_rectangle, draw_line):
+    def draw(self, draw_rectangle):
         first_column = int(self.camera.x // SCREEN_WIDTH)
         last_column = int((self.camera.x + SCREEN_WIDTH) // SCREEN_WIDTH)
         first_row = int(self.camera.y // SCREEN_HEIGHT)
@@ -153,17 +153,6 @@ class BattleScene:
                 42,
                 24,
             )
-        target_x = self.mouse_screen_x
-        target_y = SCREEN_HEIGHT - self.mouse_screen_y
-        draw_line(
-            self.player.screen_position[0],
-            self.player.screen_position[1],
-            target_x,
-            target_y,
-            245,
-            220,
-            120,
-        )
         if self.hud_font is None:
             raise RuntimeError("BattleScene.draw requires a loaded HUD font")
         draw_hud(
