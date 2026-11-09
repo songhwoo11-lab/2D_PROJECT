@@ -1,7 +1,7 @@
 import unittest
 
 from battle_scene import BattleScene
-from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
+from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, WORLD_HEIGHT, WORLD_WIDTH
 from player import Player
 from weapon import FireMode, Gun
 
@@ -22,8 +22,8 @@ class FakeBackground:
 class BattleSceneTests(unittest.TestCase):
     def setUp(self):
         self.player = Player(
-            SCREEN_WIDTH * 2,
-            SCREEN_HEIGHT * 2,
+            WORLD_WIDTH / 2,
+            WORLD_HEIGHT / 2,
             image=FakeImage(),
         )
         self.gun = Gun()

@@ -3,7 +3,13 @@
 from pathlib import Path
 
 from battle_scene import BattleScene
-from game_config import FRAME_TIME, SCREEN_HEIGHT, SCREEN_WIDTH
+from game_config import (
+    FRAME_TIME,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    WORLD_HEIGHT,
+    WORLD_WIDTH,
+)
 from player import Player
 from weapon import Gun
 
@@ -27,8 +33,8 @@ def main():
         background = pico2d.load_image(str(ASSET_DIRECTORY / "in_game.png"))
         player_image = pico2d.load_image(str(ASSET_DIRECTORY / "boy.png"))
         player = Player(
-            SCREEN_WIDTH * 2,
-            SCREEN_HEIGHT * 2,
+            WORLD_WIDTH / 2,
+            WORLD_HEIGHT / 2,
             image=player_image,
         )
         scene = BattleScene(player, Gun(), background)

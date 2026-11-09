@@ -2,6 +2,7 @@ import unittest
 import math
 
 from player import Player
+from game_config import WORLD_HEIGHT, WORLD_WIDTH
 
 
 class FakeImage:
@@ -89,11 +90,11 @@ class PlayerTests(unittest.TestCase):
         player.update()
         self.assertEqual((player.x, player.y), (10, 10))
 
-        player.x = 3180
-        player.y = 2380
+        player.x = WORLD_WIDTH - 10
+        player.y = WORLD_HEIGHT - 10
         player.set_movement(1, 1, 1)
         player.update()
-        self.assertEqual((player.x, player.y), (3190, 2390))
+        self.assertEqual((player.x, player.y), (WORLD_WIDTH - 10, WORLD_HEIGHT - 10))
 
 
 if __name__ == "__main__":
