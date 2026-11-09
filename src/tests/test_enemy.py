@@ -1,6 +1,7 @@
 import unittest
 
 from enemy import ENEMY_STATS, Enemy, EnemyStats, EnemyType
+from player import Player
 
 
 class FakeImage:
@@ -63,6 +64,41 @@ class EnemyTests(unittest.TestCase):
         enemy.draw()
 
         self.assertEqual(image.calls, [(100, 200, 24, 24)])
+
+    def test_enemy_tracks_player_at_configured_speed(self):
+        player = Player(100, 0)
+        enemy = Enemy(
+            0,
+            0,
+            EnemyStats("test", 20, 8, 1, 60, radius=10),
+            player=player,
+        )
+
+        enemy.update()
+
+        self.assertAlmostEqual(enemy.x, 1)
+        self.assertEqual(enemy.y, 0)
+        self.assertEqual(enemy.velocity_x, 1)
+        self.assertEqual(enemy.velocity_y, 0)
+
+    def test_enemy_stops_at_contact_distance_and_without_target(self):
+        player = Player(25, 0, radius=10)
+        enemy = Enemy(
+            0,
+            0,
+            EnemyStats("test", 20, 8, 1, 2000, radius=10),
+            player=player,
+        )
+
+        enemy.update()
+
+        self.assertEqual(enemy.x, 5)
+        self.assertEqual(enemy.y, 0)
+        self.assertEqual((enemy.velocity_x, enemy.velocity_y), (1, 0))
+
+        targetless = Enemy(0, 0, EnemyStats("test", 20, 8, 1, 60))
+        targetless.update()
+        self.assertEqual((targetless.x, targetless.y), (0, 0))
 
 
 if __name__ == "__main__":

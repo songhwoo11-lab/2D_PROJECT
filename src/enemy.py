@@ -98,7 +98,21 @@ class Enemy:
         self._screen_position = (screen_x, screen_y)
 
     def update(self):
-        pass
+        if self.player is None or not self.is_alive:
+            return
+        direction_x = self.player.x - self.x
+        direction_y = self.player.y - self.y
+        distance = (direction_x**2 + direction_y**2) ** 0.5
+        contact_distance = self.radius + self.player.radius
+        if distance <= contact_distance or distance == 0:
+            self.velocity_x = 0.0
+            self.velocity_y = 0.0
+            return
+        self.velocity_x = direction_x / distance
+        self.velocity_y = direction_y / distance
+        travel_distance = min(self._movement_per_frame, distance - contact_distance)
+        self.x += self.velocity_x * travel_distance
+        self.y += self.velocity_y * travel_distance
 
     def draw(self):
         if self.image is None:
