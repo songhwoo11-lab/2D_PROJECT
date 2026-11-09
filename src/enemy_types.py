@@ -181,7 +181,7 @@ class ExplosiveEnemy(Enemy):
                 ExplosionTarget.PLAYER_ONLY,
                 owner=self,
             ).apply(player=self.player)
-            self._attack_cooldown_frames = self.attack_interval * FPS
+            super().take_damage(self.hp)
 
     def take_damage(self, amount):
         was_alive = self.is_alive

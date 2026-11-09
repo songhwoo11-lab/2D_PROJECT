@@ -184,6 +184,7 @@ class ExplosiveEnemyTests(unittest.TestCase):
         self.assertEqual(nearby_enemy.hp, nearby_enemy.max_hp)
         self.assertEqual((explosive.max_hp, explosive.attack_damage), (80, 15))
         self.assertEqual(explosive.attack_interval, 1.5)
+        self.assertFalse(explosive.is_alive)
 
     def test_explosive_enemy_attacks_at_floating_point_range_boundary(self):
         angle = 0.0023
@@ -201,11 +202,15 @@ class ExplosiveEnemyTests(unittest.TestCase):
 
     def test_explosive_enemy_player_attack_has_50_unit_range(self):
         player = Player(50, 0)
+        nearby_enemy = BasicEnemy(0, 0)
         explosive = ExplosiveEnemy(0, 0, player=player)
+        game_world.add_object(nearby_enemy, depth=1)
 
         explosive.update()
 
         self.assertEqual(player.hp, player.max_hp - explosive.EXPLOSION_DAMAGE)
+        self.assertFalse(explosive.is_alive)
+        self.assertEqual(nearby_enemy.hp, nearby_enemy.max_hp)
 
     def test_explosive_death_blast_has_50_unit_range(self):
         player = Player(0, 0)
