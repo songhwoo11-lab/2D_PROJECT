@@ -6,6 +6,7 @@ import math
 
 from game_config import (
     FPS,
+    MIN_TEMPERATURE,
     PISTOL_DAMAGE,
     PISTOL_FIRE_INTERVAL_FRAMES,
     PISTOL_MAGAZINE_SIZE,
@@ -61,10 +62,20 @@ class Gun:
         self.reload_remaining = 0.0
         self.fire_mode = FireMode.SINGLE
         self.infinite_ammo = False
+        self.temperature = MIN_TEMPERATURE
+        self.overheated = False
 
     @property
     def reloading(self):
         return self.reload_remaining > 0.0
+
+    @property
+    def temperature_limit(self):
+        return self.spec.temperature_limit
+
+    @property
+    def fire_blocked(self):
+        return self.overheated
 
     @property
     def total_ammo(self):
@@ -73,7 +84,8 @@ class Gun:
     @property
     def can_fire(self):
         return (
-            not self.reloading
+            not self.overheated
+            and not self.reloading
             and (self.infinite_ammo or self.magazine_ammo > 0)
             and self.cooldown_remaining <= 1e-9
         )
