@@ -1,5 +1,6 @@
 """First-stage battle scene: movement, aiming, pistol controls, and HUD."""
 
+from enum import Enum
 import math
 import random
 
@@ -42,6 +43,19 @@ SHOT_FEEDBACK_COLOR = (255, 0, 0)
 SHOT_FEEDBACK_FONT_SIZE = 12
 WAVE_BANNER_SECONDS = 2.5
 WAVE_STRENGTH_BANNER_SECONDS = 3.5
+
+PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
+RESULT_TITLES = {
+    "victory": "VICTORY",
+    "defeat": "DEFEAT",
+    "quit": "BATTLE ENDED",
+}
+
+
+class BattleResult(Enum):
+    VICTORY = "victory"
+    DEFEAT = "defeat"
+    QUIT = "quit"
 DEBUG_MENU_WIDTH = 190
 DEBUG_MENU_LEFT = SCREEN_WIDTH - DEBUG_MENU_WIDTH - 8
 DEBUG_BUTTON_TOP = 42
@@ -117,6 +131,11 @@ class BattleScene:
         self.coins = 0
         self.pickups = []
         self.health_pickups = []
+        self.paused = False
+        self.pause_menu_index = 0
+        self.finished = False
+        self.result = None
+        self.exit_requested = False
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
@@ -257,6 +276,29 @@ class BattleScene:
         if key in self.keys:
             return
         self.keys.add(key)
+        if self.finished:
+            if key in ("return", "enter"):
+                self.exit_requested = True
+            return
+        if key == "q":
+            self.paused = not self.paused
+            if self.paused:
+                self.pause_menu_index = 0
+            return
+        if self.paused:
+            if key in ("w", "up"):
+                self.pause_menu_index = (
+                    self.pause_menu_index - 1
+                ) % len(PAUSE_MENU_ITEMS)
+            elif key in ("s", "down"):
+                self.pause_menu_index = (
+                    self.pause_menu_index + 1
+                ) % len(PAUSE_MENU_ITEMS)
+            elif key in ("return", "enter"):
+                self._select_pause_menu_item()
+            elif key == "escape":
+                self.paused = False
+            return
         if key == "f1":
             self.debug_mode = not self.debug_mode
             self.gun.infinite_ammo = self.debug_mode
@@ -264,6 +306,19 @@ class BattleScene:
             self.gun.toggle_mode()
         elif key == "r":
             self.gun.start_reload()
+
+    def _select_pause_menu_item(self):
+        if self.pause_menu_index == 0:
+            self.paused = False
+        else:
+            self._finish(BattleResult.QUIT)
+
+    def _finish(self, result):
+        if self.finished:
+            return
+        self.finished = True
+        self.result = result
+        self.paused = False
 
     def key_up(self, key):
         self.keys.discard(key.lower())
@@ -364,6 +419,11 @@ class BattleScene:
         self.coins = 0
         self.pickups = []
         self.health_pickups = []
+        self.paused = False
+        self.pause_menu_index = 0
+        self.finished = False
+        self.result = None
+        self.exit_requested = False
         game_world.clear()
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
@@ -371,6 +431,8 @@ class BattleScene:
         self._announce_wave()
 
     def update(self, delta_time):
+        if self.finished or self.paused:
+            return
         self.shot_feedbacks = [
             (x, y, label, remaining - delta_time)
             for x, y, label, remaining in self.shot_feedbacks
@@ -388,6 +450,9 @@ class BattleScene:
         ]
         game_world.update()
         self._record_shot_feedback(bullets)
+        if self.player.is_defeated:
+            self._finish(BattleResult.DEFEAT)
+            return
 
         self.camera.follow(self.player.x, self.player.y)
         world_x, world_y = self.camera.screen_to_world(
@@ -425,6 +490,8 @@ class BattleScene:
             0.0,
             self.wave_banner_remaining - delta_time,
         )
+        if self.waves_cleared:
+            self._finish(BattleResult.VICTORY)
 
     def _record_shot_feedback(self, bullets):
         result_labels = {
@@ -534,6 +601,10 @@ class BattleScene:
         )
         if self.debug_mode:
             self._draw_debug_menu(draw_rectangle)
+        if self.paused:
+            self._draw_pause_menu(draw_rectangle)
+        if self.finished:
+            self._draw_result_screen(draw_rectangle)
 
     def _draw_spawn_warnings(self):
         if self.enemy_draw_circle is None:
@@ -558,6 +629,56 @@ class BattleScene:
                 60,
                 200,
             )
+
+    def _draw_pause_menu(self, draw_rectangle):
+        left = SCREEN_WIDTH / 2 - 150
+        right = SCREEN_WIDTH / 2 + 150
+        bottom = SCREEN_HEIGHT / 2 - 85
+        top = SCREEN_HEIGHT / 2 + 85
+        draw_rectangle(left, bottom, right, top, 20, 25, 35, 225, True)
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT / 2 + 52,
+            "PAUSED",
+            (255, 220, 80),
+        )
+        for index, label in enumerate(PAUSE_MENU_ITEMS):
+            color = (
+                (255, 220, 80)
+                if index == self.pause_menu_index
+                else (255, 255, 255)
+            )
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT / 2 + 12 - index * 34,
+                label,
+                color,
+            )
+
+    def _draw_result_screen(self, draw_rectangle):
+        draw_rectangle(
+            0,
+            0,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            0,
+            0,
+            0,
+            180,
+            True,
+        )
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT / 2 + 40,
+            RESULT_TITLES[self.result.value],
+            (255, 220, 80),
+        )
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT / 2 - 10,
+            "PRESS ENTER TO RETURN TO LOBBY",
+            (255, 255, 255),
+        )
 
     def _draw_pickups(self, draw_rectangle):
         groups = (

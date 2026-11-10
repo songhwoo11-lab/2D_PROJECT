@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from battle_scene import BattleScene
+from battle_scene import BattleResult, BattleScene
 from enemy import Enemy, EnemyType
 from game_config import WORLD_HEIGHT, WORLD_WIDTH
 import game_world
@@ -305,6 +305,117 @@ class BattleSceneHealthDropTests(unittest.TestCase):
         self.scene._update_pickups()
 
         self.assertEqual(len(self.scene.health_pickups), 1)
+
+
+class BattleSceneFlowTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+
+    def tearDown(self):
+        game_world.clear()
+
+    def test_q_pauses_the_battle_and_freezes_updates(self):
+        self.scene.key_down("q")
+
+        self.scene.update(0.1)
+
+        self.assertTrue(self.scene.paused)
+        self.assertEqual(self.scene.spawn_warnings, [])
+        self.assertEqual(self.scene.gun.temperature, self.scene.gun.temperature)
+
+    def test_q_resumes_the_battle(self):
+        self.scene.key_down("q")
+        self.scene.key_up("q")
+
+        self.scene.key_down("q")
+
+        self.assertFalse(self.scene.paused)
+
+    def test_gameplay_keys_are_ignored_while_paused(self):
+        original_mode = self.scene.gun.fire_mode
+        self.scene.key_down("q")
+
+        self.scene.key_down("e")
+
+        self.assertEqual(self.scene.gun.fire_mode, original_mode)
+
+    def test_pause_menu_navigation_wraps_around(self):
+        self.scene.key_down("q")
+
+        self.scene.key_down("s")
+        self.assertEqual(self.scene.pause_menu_index, 1)
+        self.scene.key_up("s")
+        self.scene.key_down("s")
+        self.assertEqual(self.scene.pause_menu_index, 0)
+        self.scene.key_up("s")
+        self.scene.key_down("w")
+        self.assertEqual(self.scene.pause_menu_index, 1)
+
+    def test_resume_option_closes_the_pause_menu(self):
+        self.scene.key_down("q")
+
+        self.scene.key_down("return")
+
+        self.assertFalse(self.scene.paused)
+        self.assertFalse(self.scene.finished)
+
+    def test_quit_option_finishes_the_battle(self):
+        self.scene.key_down("q")
+        self.scene.key_down("s")
+        self.scene.key_up("s")
+
+        self.scene.key_down("return")
+
+        self.assertTrue(self.scene.finished)
+        self.assertFalse(self.scene.paused)
+        self.assertIs(self.scene.result, BattleResult.QUIT)
+        self.assertFalse(self.scene.exit_requested)
+
+    def test_player_death_finishes_the_battle_as_a_defeat(self):
+        self.scene.player.hp = 0
+
+        self.scene.update(0.0)
+
+        self.assertTrue(self.scene.finished)
+        self.assertIs(self.scene.result, BattleResult.DEFEAT)
+
+    def test_clearing_all_waves_finishes_the_battle_as_a_victory(self):
+        self.scene.waves_cleared = True
+
+        self.scene.update(0.0)
+
+        self.assertTrue(self.scene.finished)
+        self.assertIs(self.scene.result, BattleResult.VICTORY)
+
+    def test_finished_battle_ignores_further_updates(self):
+        self.scene.waves_cleared = True
+        self.scene.update(0.0)
+        warnings = list(self.scene.spawn_warnings)
+
+        self.scene.update(1.0)
+
+        self.assertEqual(self.scene.spawn_warnings, warnings)
+
+    def test_enter_after_the_result_requests_leaving(self):
+        self.scene.waves_cleared = True
+        self.scene.update(0.0)
+
+        self.scene.key_down("return")
+
+        self.assertTrue(self.scene.exit_requested)
+
+    def test_reset_map_clears_pause_and_result_state(self):
+        self.scene.paused = True
+        self.scene.finished = True
+        self.scene.result = BattleResult.QUIT
+        self.scene.exit_requested = True
+
+        self.scene.reset_map()
+
+        self.assertFalse(self.scene.paused)
+        self.assertFalse(self.scene.finished)
+        self.assertIsNone(self.scene.result)
+        self.assertFalse(self.scene.exit_requested)
 
 
 if __name__ == "__main__":

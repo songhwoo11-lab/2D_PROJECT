@@ -92,6 +92,10 @@ def main():
             pico2d.SDLK_d: "d",
             pico2d.SDLK_e: "e",
             pico2d.SDLK_r: "r",
+            pico2d.SDLK_q: "q",
+            pico2d.SDLK_UP: "up",
+            pico2d.SDLK_DOWN: "down",
+            pico2d.SDLK_RETURN: "return",
         }
 
         running = True
@@ -123,6 +127,8 @@ def main():
             pico2d.clear_canvas()
             scene.draw(pico2d.draw_rectangle)
             pico2d.update_canvas()
+            if scene.exit_requested:
+                running = False
             frame_duration = pico2d.get_time() - frame_start
             pico2d.delay(max(0.0, FRAME_TIME - frame_duration))
             last_time = frame_start
