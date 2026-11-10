@@ -5,10 +5,12 @@ from collections import Counter
 from enemy import EnemyType
 from game_config import TOTAL_WAVES
 from waves import (
+    WaveDirector,
     build_wave_spawn_order,
     validate_wave,
     wave_composition,
     wave_enemy_count,
+    wave_stat_multiplier,
 )
 
 
@@ -66,6 +68,75 @@ class SpawnOrderTests(unittest.TestCase):
 
         self.assertEqual(len(order), wave_enemy_count(8))
         self.assertEqual(Counter(order), Counter(wave_composition(8)))
+
+
+class WaveStatMultiplierTests(unittest.TestCase):
+    def test_first_block_uses_base_stats(self):
+        self.assertEqual(wave_stat_multiplier(1), 1)
+        self.assertEqual(wave_stat_multiplier(9), 1)
+
+    def test_second_block_doubles_stats(self):
+        self.assertEqual(wave_stat_multiplier(10), 2)
+        self.assertEqual(wave_stat_multiplier(19), 2)
+
+    def test_third_block_quadruples_stats(self):
+        self.assertEqual(wave_stat_multiplier(20), 4)
+        self.assertEqual(wave_stat_multiplier(29), 4)
+
+    def test_final_wave_octuples_stats(self):
+        self.assertEqual(wave_stat_multiplier(30), 8)
+
+
+class WaveDirectorTests(unittest.TestCase):
+    def test_starts_on_first_wave_with_full_queue(self):
+        director = WaveDirector(random_source=random.Random(0))
+
+        self.assertEqual(director.current_wave, 1)
+        self.assertEqual(director.total_to_spawn, 100)
+        self.assertEqual(director.spawned_count, 0)
+        self.assertFalse(director.all_spawned)
+
+    def test_spawns_fifty_enemies_per_second(self):
+        director = WaveDirector(random_source=random.Random(0))
+
+        spawned = sum(
+            len(director.pending_spawns(1.0 / 60.0)) for _ in range(60)
+        )
+
+        self.assertEqual(spawned, 50)
+        self.assertEqual(director.spawned_count, 50)
+
+    def test_reports_all_spawned_after_the_queue_empties(self):
+        director = WaveDirector(random_source=random.Random(0))
+        spawned = 0
+        while not director.all_spawned:
+            spawned += len(director.pending_spawns(0.1))
+
+        self.assertEqual(spawned, 100)
+        self.assertTrue(director.all_spawned)
+
+    def test_advance_loads_the_next_wave(self):
+        director = WaveDirector(random_source=random.Random(0))
+
+        self.assertTrue(director.advance())
+
+        self.assertEqual(director.current_wave, 2)
+        self.assertEqual(director.total_to_spawn, 120)
+        self.assertEqual(director.spawned_count, 0)
+        self.assertFalse(director.all_spawned)
+
+    def test_cannot_advance_past_the_last_wave(self):
+        director = WaveDirector(total_waves=2, random_source=random.Random(0))
+
+        self.assertTrue(director.advance())
+        self.assertFalse(director.advance())
+        self.assertEqual(director.current_wave, 2)
+
+    def test_rejects_invalid_configuration(self):
+        with self.assertRaises(ValueError):
+            WaveDirector(total_waves=0)
+        with self.assertRaises(ValueError):
+            WaveDirector(spawn_rate=0)
 
 
 if __name__ == "__main__":

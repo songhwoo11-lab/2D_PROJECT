@@ -1,9 +1,15 @@
 """Wave composition data for the 30-wave survival mode."""
 
-from collections import OrderedDict
+from collections import OrderedDict, deque
+import random
 
 from enemy import EnemyType
-from game_config import TOTAL_WAVES
+from game_config import (
+    TOTAL_WAVES,
+    WAVE_SPAWN_RATE_PER_SECOND,
+    WAVE_STAT_MULTIPLIER_EVERY,
+    WAVE_STAT_MULTIPLIER_FACTOR,
+)
 
 
 # Each entry applies to a 10-wave cycle: index 0 -> waves 1, 11, 21, ...
@@ -130,3 +136,69 @@ def build_wave_spawn_order(wave, random_source=None):
     if random_source is not None:
         random_source.shuffle(order)
     return order
+
+
+def wave_stat_multiplier(wave):
+    validate_wave(wave)
+    return WAVE_STAT_MULTIPLIER_FACTOR ** (wave // WAVE_STAT_MULTIPLIER_EVERY)
+
+
+class WaveDirector:
+    """Schedules enemy spawns for the current wave at a fixed rate."""
+
+    def __init__(
+        self,
+        total_waves=TOTAL_WAVES,
+        spawn_rate=WAVE_SPAWN_RATE_PER_SECOND,
+        random_source=None,
+    ):
+        if total_waves < 1:
+            raise ValueError("total_waves must be positive")
+        if spawn_rate <= 0:
+            raise ValueError("spawn_rate must be positive")
+        self.total_waves = int(total_waves)
+        self.spawn_rate = float(spawn_rate)
+        self.random_source = random_source or random.Random()
+        self.current_wave = 1
+        self._spawn_accumulator = 0.0
+        self._queue = deque(self._build_order(self.current_wave))
+        self.spawned_count = 0
+
+    def _build_order(self, wave):
+        return build_wave_spawn_order(wave, self.random_source)
+
+    @property
+    def all_spawned(self):
+        return not self._queue
+
+    @property
+    def total_to_spawn(self):
+        return len(self._queue) + self.spawned_count
+
+    @property
+    def is_last_wave(self):
+        return self.current_wave >= self.total_waves
+
+    def pending_spawns(self, delta_time):
+        if delta_time < 0:
+            raise ValueError("delta_time must be non-negative")
+        self._spawn_accumulator += self.spawn_rate * delta_time
+        count = int(self._spawn_accumulator)
+        if count <= 0:
+            return []
+        self._spawn_accumulator -= count
+        spawned = []
+        for _ in range(min(count, len(self._queue))):
+            spawned.append(self._queue.popleft())
+            self.spawned_count += 1
+        return spawned
+
+    def advance(self):
+        if self.is_last_wave:
+            return False
+        self.current_wave += 1
+        self._queue = deque(self._build_order(self.current_wave))
+        self.spawned_count = 0
+        self._spawn_accumulator = 0.0
+        return True
+

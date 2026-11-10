@@ -254,7 +254,6 @@ class ArcherEnemy(Enemy):
 class ExplosiveEnemy(Enemy):
     PLAYER_ATTACK_RADIUS = 50.0
     DEATH_EXPLOSION_RADIUS = 50.0
-    EXPLOSION_DAMAGE = 15.0
 
     def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
         super().__init__(
@@ -291,7 +290,7 @@ class ExplosiveEnemy(Enemy):
                 self.x,
                 self.y,
                 self.PLAYER_ATTACK_RADIUS,
-                self.EXPLOSION_DAMAGE,
+                self.attack_damage,
                 ExplosionTarget.PLAYER_ONLY,
                 owner=self,
             ).apply(player=self.player)
@@ -311,7 +310,7 @@ class ExplosiveEnemy(Enemy):
                 self.x,
                 self.y,
                 self.DEATH_EXPLOSION_RADIUS,
-                self.EXPLOSION_DAMAGE,
+                self.attack_damage,
                 ExplosionTarget.ENEMIES_ONLY,
                 owner=self,
             ).apply(enemies=enemies)

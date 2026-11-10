@@ -108,6 +108,13 @@ class Enemy:
     def is_alive(self):
         return self.hp > 0
 
+    def apply_stat_multiplier(self, multiplier):
+        if multiplier < 0:
+            raise ValueError("stat multiplier must be non-negative")
+        self.max_hp *= multiplier
+        self.hp = self.max_hp
+        self.attack_damage *= multiplier
+
     def take_damage(self, amount):
         if amount < 0:
             raise ValueError("damage must be non-negative")
