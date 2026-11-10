@@ -47,7 +47,12 @@ ENEMY_STATS = {
         "tanker", 120, 5, 2.0, ENEMY_DEFAULT_MOVE_SPEED, ENEMY_DEFAULT_RADIUS
     ),
     EnemyType.ASSASSIN: EnemyStats(
-        "assassin", 10, 10, 0.5, ENEMY_DEFAULT_MOVE_SPEED, ENEMY_DEFAULT_RADIUS
+        "assassin",
+        10,
+        10,
+        0.5,
+        ENEMY_DEFAULT_MOVE_SPEED * 2,
+        ENEMY_DEFAULT_RADIUS,
     ),
     EnemyType.ARCHER: EnemyStats(
         "archer",

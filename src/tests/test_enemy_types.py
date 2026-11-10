@@ -46,7 +46,16 @@ class AssassinEnemyTests(unittest.TestCase):
         self.assertEqual(enemy.stats, ENEMY_STATS[EnemyType.ASSASSIN])
         self.assertEqual((enemy.max_hp, enemy.attack_damage), (10, 10))
         self.assertEqual(enemy.attack_interval, 0.5)
+        self.assertEqual(enemy.move_speed, 120)
         self.assertTrue(enemy.take_damage(10))
+
+    def test_assassin_moves_at_twice_the_default_enemy_speed(self):
+        enemy = AssassinEnemy(0, 0, player=Player(1000, 0))
+
+        enemy.update()
+
+        self.assertEqual(enemy.x, 2)
+        self.assertEqual(enemy.y, 0)
 
 
 class ArcherEnemyTests(unittest.TestCase):
