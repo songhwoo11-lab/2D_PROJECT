@@ -8,7 +8,7 @@ import game_world
 from game_config import DISTANCE_EPSILON, FPS
 
 
-ENEMY_DEFAULT_MOVE_SPEED = 60.0
+ENEMY_DEFAULT_MOVE_SPEED = 70.0
 ENEMY_DEFAULT_RADIUS = 16.0
 
 
@@ -33,7 +33,12 @@ class EnemyStats:
 
 ENEMY_STATS = {
     EnemyType.BASIC: EnemyStats(
-        "basic", 20, 8, 0.8, ENEMY_DEFAULT_MOVE_SPEED, ENEMY_DEFAULT_RADIUS
+        "basic",
+        20,
+        8,
+        0.8,
+        ENEMY_DEFAULT_MOVE_SPEED * 1.3,
+        ENEMY_DEFAULT_RADIUS,
     ),
     EnemyType.EXPLOSIVE: EnemyStats(
         "explosive",

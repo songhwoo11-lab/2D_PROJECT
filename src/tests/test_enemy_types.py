@@ -14,6 +14,7 @@ from enemy_types import (
 )
 from explosion import Explosion, ExplosionTarget
 import game_world
+from game_config import FPS
 from player import Player
 
 
@@ -24,8 +25,9 @@ class BasicEnemyTests(unittest.TestCase):
         self.assertEqual(enemy.stats, ENEMY_STATS[EnemyType.BASIC])
         self.assertEqual((enemy.max_hp, enemy.attack_damage), (20, 8))
         self.assertEqual(enemy.attack_interval, 0.8)
+        self.assertEqual(enemy.move_speed, ENEMY_DEFAULT_MOVE_SPEED * 1.3)
         enemy.update()
-        self.assertGreater(enemy.x, 0)
+        self.assertAlmostEqual(enemy.x, enemy.move_speed / FPS)
         self.assertTrue(enemy.is_alive)
 
 
@@ -48,7 +50,7 @@ class AssassinEnemyTests(unittest.TestCase):
         self.assertEqual(enemy.stats, ENEMY_STATS[EnemyType.ASSASSIN])
         self.assertEqual((enemy.max_hp, enemy.attack_damage), (10, 10))
         self.assertEqual(enemy.attack_interval, 0.5)
-        self.assertEqual(enemy.move_speed, 120)
+        self.assertEqual(enemy.move_speed, ENEMY_DEFAULT_MOVE_SPEED * 2)
         self.assertTrue(enemy.take_damage(10))
 
     def test_assassin_moves_at_twice_the_default_enemy_speed(self):
@@ -56,7 +58,7 @@ class AssassinEnemyTests(unittest.TestCase):
 
         enemy.update()
 
-        self.assertEqual(enemy.x, 2)
+        self.assertAlmostEqual(enemy.x, enemy.move_speed / FPS)
         self.assertEqual(enemy.y, 0)
 
     def test_assassin_opacity_fades_linearly_with_player_distance(self):
@@ -383,16 +385,16 @@ class ExplosiveEnemyTests(unittest.TestCase):
     def tearDown(self):
         game_world.clear()
 
-    def test_explosive_enemy_moves_at_one_and_a_half_times_default_speed(self):
+    def test_explosive_enemy_moves_at_1_8_times_default_speed(self):
         explosive = ExplosiveEnemy(0, 0, player=Player(1000, 0))
 
         explosive.update()
 
         self.assertEqual(
             explosive.move_speed,
-            ENEMY_DEFAULT_MOVE_SPEED * 1.5,
+            ENEMY_DEFAULT_MOVE_SPEED * 1.8,
         )
-        self.assertAlmostEqual(explosive.x, 1.5)
+        self.assertAlmostEqual(explosive.x, explosive.move_speed / FPS)
         self.assertEqual(explosive.y, 0)
 
     def test_explosive_enemy_uses_prd_stats_and_player_only_attack(self):
