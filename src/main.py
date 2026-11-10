@@ -75,6 +75,7 @@ def main():
         )
         scene.spawn_test_enemies()
         key_map = {
+            pico2d.SDLK_F1: "f1",
             pico2d.SDLK_w: "w",
             pico2d.SDLK_a: "a",
             pico2d.SDLK_s: "s",

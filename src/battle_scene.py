@@ -43,6 +43,7 @@ class BattleScene:
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.mouse_held = False
         self._mouse_pressed = False
+        self.debug_mode = False
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
@@ -91,7 +92,10 @@ class BattleScene:
         if key in self.keys:
             return
         self.keys.add(key)
-        if key == "e":
+        if key == "f1":
+            self.debug_mode = not self.debug_mode
+            self.gun.infinite_ammo = self.debug_mode
+        elif key == "e":
             self.gun.toggle_mode()
         elif key == "r":
             self.gun.start_reload()

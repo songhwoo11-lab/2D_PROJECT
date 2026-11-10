@@ -56,6 +56,7 @@ class Gun:
         self.cooldown_remaining = 0.0
         self.reload_remaining = 0.0
         self.fire_mode = FireMode.SINGLE
+        self.infinite_ammo = False
 
     @property
     def reloading(self):
@@ -69,7 +70,7 @@ class Gun:
     def can_fire(self):
         return (
             not self.reloading
-            and self.magazine_ammo > 0
+            and (self.infinite_ammo or self.magazine_ammo > 0)
             and self.cooldown_remaining <= 1e-9
         )
 
@@ -83,7 +84,7 @@ class Gun:
                 self._finish_reload()
 
     def start_reload(self):
-        if self.reloading:
+        if self.infinite_ammo or self.reloading:
             return False
         if self.magazine_ammo >= self.spec.magazine_size or self.reserve_ammo <= 0:
             return False
@@ -102,7 +103,8 @@ class Gun:
     def try_fire(self):
         if not self.can_fire:
             return False
-        self.magazine_ammo -= 1
+        if not self.infinite_ammo:
+            self.magazine_ammo -= 1
         fire_interval_frames = self.spec.fire_interval_frames
         if self.fire_mode is FireMode.SINGLE:
             fire_interval_frames *= 2
@@ -123,7 +125,7 @@ class Gun:
             if self.fire_mode is FireMode.SINGLE
             else mouse_held
         )
-        if should_reload and self.magazine_ammo <= 0:
+        if should_reload and not self.infinite_ammo and self.magazine_ammo <= 0:
             self.start_reload()
             return False
         if self.fire_mode is FireMode.SINGLE:

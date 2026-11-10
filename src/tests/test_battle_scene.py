@@ -156,6 +156,41 @@ class BattleSceneTests(unittest.TestCase):
         self.assertTrue(self.gun.reloading)
         self.assertEqual(self.gun.magazine_ammo, 0)
 
+    def test_f1_toggles_debug_mode_without_resetting_game_or_ammo_state(self):
+        self.player.take_damage(25)
+        self.gun.magazine_ammo = 3
+        self.gun.reserve_ammo = 41
+        player_state = (self.player.x, self.player.y, self.player.hp)
+
+        self.scene.key_down("f1")
+        self.assertTrue(self.scene.debug_mode)
+        self.assertTrue(self.gun.infinite_ammo)
+        self.assertEqual(
+            (self.player.x, self.player.y, self.player.hp),
+            player_state,
+        )
+
+        self.scene.mouse_down("left")
+        self.scene.update(1 / 60)
+        self.assertEqual((self.gun.magazine_ammo, self.gun.reserve_ammo), (3, 41))
+        self.scene.mouse_up("left")
+
+        self.scene.key_up("f1")
+        self.scene.key_down("f1")
+        self.assertFalse(self.scene.debug_mode)
+        self.assertFalse(self.gun.infinite_ammo)
+        self.assertEqual((self.gun.magazine_ammo, self.gun.reserve_ammo), (3, 41))
+
+    def test_debug_hud_displays_infinite_ammo(self):
+        self.gun.infinite_ammo = True
+
+        self.scene.draw(lambda *args: None)
+
+        self.assertIn(
+            ((SCREEN_WIDTH - len("AMMO INF") * 10) / 2, 60, "AMMO INF", (255, 255, 255)),
+            self.hud_font.draw_calls,
+        )
+
     def test_r_key_starts_manual_reload(self):
         self.gun.magazine_ammo = 0
 

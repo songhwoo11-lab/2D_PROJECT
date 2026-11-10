@@ -137,6 +137,18 @@ class GunTests(unittest.TestCase):
         self.assertTrue(gun.reloading)
         self.assertEqual(gun.reserve_ammo, 90)
 
+    def test_infinite_ammo_allows_firing_without_changing_ammo_or_reloading(self):
+        gun = Gun()
+        gun.magazine_ammo = 0
+        gun.reserve_ammo = 17
+        gun.infinite_ammo = True
+
+        self.assertTrue(gun.can_fire)
+        self.assertTrue(gun.handle_fire_input(mouse_held=True, mouse_pressed=True))
+        self.assertEqual((gun.magazine_ammo, gun.reserve_ammo), (0, 17))
+        self.assertFalse(gun.start_reload())
+        self.assertFalse(gun.reloading)
+
     def test_reload_does_not_overfill_or_start_without_reserve(self):
         gun = Gun()
         gun.magazine_ammo = 9

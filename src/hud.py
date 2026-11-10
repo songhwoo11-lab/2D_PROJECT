@@ -57,11 +57,12 @@ def draw_hud(player, gun, font, draw_rectangle):
     )
     font.draw(20, 45, "HP {}/{}".format(player.hp, player.max_hp), (255, 255, 255))
 
-    _draw_centered_text(
-        font,
-        60,
-        "AMMO {}/{}".format(gun.magazine_ammo, gun.reserve_ammo),
+    ammo_text = (
+        "AMMO INF"
+        if gun.infinite_ammo
+        else "AMMO {}/{}".format(gun.magazine_ammo, gun.reserve_ammo)
     )
+    _draw_centered_text(font, 60, ammo_text)
     _draw_centered_text(
         font,
         35,
