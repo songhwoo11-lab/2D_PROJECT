@@ -121,6 +121,7 @@ class MainTests(unittest.TestCase):
             [(path.rsplit("\\", 2)[-2:], size) for path, size in loaded_fonts],
             [
                 (["font", "PuzzleSansSuper.ttf"], 20),
+                (["font", "PuzzleSansSuper.ttf"], 12),
                 (["font", "PuzzleSansSuper.ttf"], 15),
             ],
         )

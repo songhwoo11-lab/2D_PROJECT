@@ -7,6 +7,8 @@ from battle_scene import (
     DEBUG_BUTTON_TEXT_Y_OFFSET,
     DEBUG_FONT_SIZE,
     DEBUG_MENU_LEFT,
+    SHOT_FEEDBACK_COLOR,
+    SHOT_FEEDBACK_DURATION,
     BattleScene,
 )
 from bullet import Bullet
@@ -14,6 +16,7 @@ from enemy import EnemyType
 from enemy_types import ArcherEnemy, BasicEnemy
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, WORLD_HEIGHT, WORLD_WIDTH
 from player import Player
+from shot_result import HitResult
 from weapon import FireMode, Gun
 
 
@@ -64,12 +67,14 @@ class BattleSceneTests(unittest.TestCase):
         self.gun = Gun()
         self.background = FakeBackground()
         self.hud_font = FakeFont()
+        self.hit_feedback_font = FakeFont()
         self.debug_font = FakeFont()
         self.scene = BattleScene(
             self.player,
             self.gun,
             self.background,
             hud_font=self.hud_font,
+            hit_feedback_font=self.hit_feedback_font,
             debug_font=self.debug_font,
         )
         self.enemy_images = {
@@ -111,6 +116,50 @@ class BattleSceneTests(unittest.TestCase):
         self.scene.draw(lambda *args: None)
         self.assertFalse(any("SHOT MISS" in call[2] for call in self.hud_font.draw_calls))
         self.scene.mouse_up("left")
+
+    def test_enemy_shot_results_are_displayed_above_the_target(self):
+        for result, label in (
+            (HitResult.HIT, "HIT"),
+            (HitResult.HEADSHOT, "HEADSHOT"),
+            (HitResult.MISS, "MISS"),
+        ):
+            with self.subTest(result=result), patch(
+                "bullet.roll_hit_result",
+                return_value=result,
+            ):
+                game_world.clear()
+                self.scene.shot_feedbacks.clear()
+                self.hit_feedback_font.draw_calls.clear()
+                game_world.add_object(self.player, depth=1)
+                target = BasicEnemy(200, 200)
+                bullet = Bullet(185, 200, 0, FakeImage(), speed=600)
+                game_world.add_object(target, depth=1)
+                game_world.add_object(bullet, depth=2)
+
+                self.scene.update(1 / 60)
+                self.scene.draw(lambda *args: None)
+
+                self.assertEqual(len(self.scene.shot_feedbacks), 1)
+                self.assertEqual(
+                    self.scene.shot_feedbacks[0][2:],
+                    (label, SHOT_FEEDBACK_DURATION),
+                )
+                self.assertEqual(
+                    self.hit_feedback_font.draw_calls[-1][2],
+                    label,
+                )
+                self.assertEqual(
+                    self.hit_feedback_font.draw_calls[-1][3],
+                    SHOT_FEEDBACK_COLOR,
+                )
+                _, target_screen_y = self.scene.camera.world_to_screen(
+                    target.x,
+                    target.y,
+                )
+                self.assertEqual(
+                    self.hit_feedback_font.draw_calls[-1][1],
+                    target_screen_y + target.radius + 4,
+                )
 
     def test_firing_spawns_bullet_from_muzzle_in_aim_direction(self):
         self.scene.bullet_image = FakeImage()

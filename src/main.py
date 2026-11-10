@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from battle_scene import DEBUG_FONT_SIZE, BattleScene
+from battle_scene import DEBUG_FONT_SIZE, SHOT_FEEDBACK_FONT_SIZE, BattleScene
 from enemy import EnemyType
 from game_config import (
     FRAME_TIME,
@@ -40,6 +40,10 @@ def main():
             str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
             20,
         )
+        hit_feedback_font = pico2d.load_font(
+            str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
+            SHOT_FEEDBACK_FONT_SIZE,
+        )
         debug_font = pico2d.load_font(
             str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
             DEBUG_FONT_SIZE,
@@ -73,6 +77,7 @@ def main():
             gun_image=gun_image,
             bullet_image=bullet_image,
             hud_font=hud_font,
+            hit_feedback_font=hit_feedback_font,
             debug_font=debug_font,
             enemy_images=enemy_images,
             enemy_draw_rectangle=pico2d.draw_rectangle,

@@ -17,9 +17,13 @@ from game_config import (
 )
 from hud import draw_hud
 from player import Player
+from shot_result import HitResult
 from weapon import Gun
 
 
+SHOT_FEEDBACK_DURATION = 0.8
+SHOT_FEEDBACK_COLOR = (255, 0, 0)
+SHOT_FEEDBACK_FONT_SIZE = 12
 DEBUG_MENU_WIDTH = 190
 DEBUG_MENU_LEFT = SCREEN_WIDTH - DEBUG_MENU_WIDTH - 8
 DEBUG_BUTTON_TOP = 42
@@ -51,6 +55,7 @@ class BattleScene:
         gun_image=None,
         bullet_image=None,
         hud_font=None,
+        hit_feedback_font=None,
         debug_font=None,
         enemy_images=None,
         enemy_draw_rectangle=None,
@@ -64,6 +69,9 @@ class BattleScene:
         self.gun_image = gun_image
         self.bullet_image = bullet_image
         self.hud_font = hud_font
+        self.hit_feedback_font = (
+            hud_font if hit_feedback_font is None else hit_feedback_font
+        )
         self.debug_font = hud_font if debug_font is None else debug_font
         self.enemy_images = dict(enemy_images or {})
         self.enemy_draw_rectangle = enemy_draw_rectangle
@@ -79,6 +87,7 @@ class BattleScene:
         self.show_attack_ranges = False
         self.show_hitboxes = False
         self.show_assassin_reveal_range = False
+        self.shot_feedbacks = []
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
@@ -223,11 +232,23 @@ class BattleScene:
         self.spawn_test_enemies()
 
     def update(self, delta_time):
+        self.shot_feedbacks = [
+            (x, y, label, remaining - delta_time)
+            for x, y, label, remaining in self.shot_feedbacks
+            if remaining > delta_time
+        ]
         self.gun.update(delta_time)
         move_x = int("d" in self.keys) - int("a" in self.keys)
         move_y = int("w" in self.keys) - int("s" in self.keys)
         self.player.set_movement(move_x, move_y, delta_time)
+        bullets = [
+            obj
+            for layer in game_world.world
+            for obj in layer
+            if isinstance(obj, Bullet)
+        ]
         game_world.update()
+        self._record_shot_feedback(bullets)
 
         self.camera.follow(self.player.x, self.player.y)
         world_x, world_y = self.camera.screen_to_world(
@@ -259,6 +280,25 @@ class BattleScene:
                     depth=2,
                 )
         self._remove_defeated_enemies()
+
+    def _record_shot_feedback(self, bullets):
+        result_labels = {
+            HitResult.HIT: "HIT",
+            HitResult.HEADSHOT: "HEADSHOT",
+            HitResult.MISS: "MISS",
+        }
+        for bullet in bullets:
+            if bullet.hit_target is None or bullet.hit_result is None:
+                continue
+            target = bullet.hit_target
+            self.shot_feedbacks.append(
+                (
+                    target.x - target.radius,
+                    target.y + target.radius + 4,
+                    result_labels[bullet.hit_result],
+                    SHOT_FEEDBACK_DURATION,
+                )
+            )
 
     def _remove_defeated_enemies(self):
         defeated = [
@@ -292,6 +332,14 @@ class BattleScene:
                     screen_x, screen_y = self.camera.world_to_screen(obj.x, obj.y)
                     obj.set_screen_position(screen_x, screen_y)
         game_world.render(self._is_visible_on_screen)
+        for x, y, label, _ in self.shot_feedbacks:
+            screen_x, screen_y = self.camera.world_to_screen(x, y)
+            self.hit_feedback_font.draw(
+                screen_x,
+                screen_y,
+                label,
+                SHOT_FEEDBACK_COLOR,
+            )
         if (
             self.show_attack_ranges
             or self.show_hitboxes
