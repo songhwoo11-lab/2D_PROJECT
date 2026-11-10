@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pico2d
 from arrow import Arrow
-from enemy import ENEMY_STATS, EnemyType
+from enemy import ENEMY_DEFAULT_MOVE_SPEED, ENEMY_STATS, EnemyType
 from enemy_types import (
     ArcherEnemy,
     AssassinEnemy,
@@ -382,6 +382,18 @@ class ArcherEnemyTests(unittest.TestCase):
 class ExplosiveEnemyTests(unittest.TestCase):
     def tearDown(self):
         game_world.clear()
+
+    def test_explosive_enemy_moves_at_one_and_a_half_times_default_speed(self):
+        explosive = ExplosiveEnemy(0, 0, player=Player(1000, 0))
+
+        explosive.update()
+
+        self.assertEqual(
+            explosive.move_speed,
+            ENEMY_DEFAULT_MOVE_SPEED * 1.5,
+        )
+        self.assertAlmostEqual(explosive.x, 1.5)
+        self.assertEqual(explosive.y, 0)
 
     def test_explosive_enemy_uses_prd_stats_and_player_only_attack(self):
         player = Player(20, 0)
