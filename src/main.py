@@ -71,6 +71,7 @@ def main():
             hud_font=hud_font,
             enemy_images=enemy_images,
             enemy_draw_rectangle=pico2d.draw_rectangle,
+            enemy_draw_circle=pico2d.draw_circle,
             arrow_image=arrow_image,
         )
         scene.spawn_test_enemies()

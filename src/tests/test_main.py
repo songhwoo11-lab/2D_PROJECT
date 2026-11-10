@@ -59,6 +59,7 @@ class MainTests(unittest.TestCase):
             SDL_MOUSEBUTTONUP=6,
             SDL_BUTTON_LEFT=1,
             SDLK_ESCAPE=27,
+            SDLK_F1=0x4000003A,
             SDLK_w=ord("w"),
             SDLK_a=ord("a"),
             SDLK_s=ord("s"),
@@ -76,6 +77,7 @@ class MainTests(unittest.TestCase):
             delay=lambda duration: delays.append(duration),
             draw_line=draw_line,
             draw_rectangle=draw_rectangle,
+            draw_circle=lambda *args: None,
         )
 
         with patch.dict(sys.modules, {"pico2d": pico2d}):

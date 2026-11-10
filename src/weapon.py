@@ -51,8 +51,12 @@ class Gun:
         if spec.magazine_size <= 0 or spec.starting_ammo < 0:
             raise ValueError("weapon ammunition values are invalid")
         self.spec = spec
-        self.magazine_ammo = min(spec.magazine_size, spec.starting_ammo)
-        self.reserve_ammo = spec.starting_ammo - self.magazine_ammo
+        self.infinite_ammo = False
+        self.reset()
+
+    def reset(self):
+        self.magazine_ammo = min(self.spec.magazine_size, self.spec.starting_ammo)
+        self.reserve_ammo = self.spec.starting_ammo - self.magazine_ammo
         self.cooldown_remaining = 0.0
         self.reload_remaining = 0.0
         self.fire_mode = FireMode.SINGLE

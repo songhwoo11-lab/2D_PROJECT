@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import game_world
 from battle_scene import DEBUG_MENU_LEFT, BattleScene
+from bullet import Bullet
 from enemy import EnemyType
 from enemy_types import ArcherEnemy, BasicEnemy
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, WORLD_HEIGHT, WORLD_WIDTH
@@ -68,6 +69,8 @@ class BattleSceneTests(unittest.TestCase):
         }
         self.scene.enemy_images = self.enemy_images
         self.scene.enemy_draw_rectangle = lambda *args: None
+        self.debug_circles = []
+        self.scene.enemy_draw_circle = lambda *args: self.debug_circles.append(args)
         self.scene.arrow_image = FakeImage()
 
     def tearDown(self):
@@ -236,6 +239,67 @@ class BattleSceneTests(unittest.TestCase):
             (DEBUG_MENU_LEFT + 8, SCREEN_HEIGHT - 30, "DEBUG MODE", (255, 220, 80)),
             self.hud_font.draw_calls,
         )
+
+    def test_debug_map_reset_restarts_player_weapon_and_map(self):
+        self.scene.key_down("f1")
+        self.player.x += 40
+        self.player.y -= 25
+        self.player.take_damage(30)
+        self.gun.magazine_ammo = 2
+        self.gun.reserve_ammo = 13
+        self.gun.toggle_mode()
+        enemy = self.scene.spawn_enemy(
+            EnemyType.BASIC,
+            self.player.x + 100,
+            self.player.y,
+        )
+        bullet = Bullet(self.player.x, self.player.y, 0, FakeImage())
+        game_world.add_object(bullet, depth=2)
+        self.scene.show_attack_ranges = True
+        self.scene.show_hitboxes = True
+
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 6 * 30 + 13)
+
+        self.assertEqual((self.player.x, self.player.y), self.scene.initial_player_position)
+        self.assertEqual(self.player.hp, self.player.max_hp)
+        self.assertEqual(
+            (self.gun.magazine_ammo, self.gun.reserve_ammo),
+            (10, 90),
+        )
+        self.assertIs(self.gun.fire_mode, FireMode.SINGLE)
+        self.assertTrue(self.gun.infinite_ammo)
+        self.assertFalse(self.scene.show_attack_ranges)
+        self.assertFalse(self.scene.show_hitboxes)
+        self.assertNotIn(enemy, [obj for layer in game_world.world for obj in layer])
+        self.assertFalse(any(isinstance(obj, Bullet) for layer in game_world.world for obj in layer))
+        enemies = [
+            obj
+            for layer in game_world.world
+            for obj in layer
+            if hasattr(obj, "stats")
+        ]
+        self.assertEqual(len(enemies), len(EnemyType))
+
+    def test_debug_visualization_toggles_draw_enemy_hitbox_and_attack_radius(self):
+        self.scene.key_down("f1")
+        enemy = self.scene.spawn_enemy(
+            EnemyType.BASIC,
+            self.player.x + 100,
+            self.player.y,
+        )
+
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 7 * 30 + 13)
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 8 * 30 + 13)
+        self.scene.draw(lambda *args: None)
+
+        screen_position = self.scene.camera.world_to_screen(enemy.x, enemy.y)
+        self.assertIn((*screen_position, enemy.radius), self.debug_circles)
+        self.assertIn(
+            (*screen_position, enemy.radius + self.player.radius),
+            self.debug_circles,
+        )
+        self.assertTrue(self.scene.show_attack_ranges)
+        self.assertTrue(self.scene.show_hitboxes)
 
         self.scene.key_down("f1")
         self.scene.draw(lambda *args: None)

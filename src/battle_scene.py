@@ -32,6 +32,9 @@ DEBUG_MENU_ITEMS = (
     ("spawn_archer", "Archer Enemy"),
     ("spawn_tanker", "Tanker Enemy"),
     ("reset_hp", "Reset Player HP"),
+    ("reset_map", "Reset Map"),
+    ("toggle_attack_ranges", "Attack Ranges: OFF"),
+    ("toggle_hitboxes", "Hitboxes: OFF"),
 )
 
 
@@ -47,6 +50,7 @@ class BattleScene:
         hud_font=None,
         enemy_images=None,
         enemy_draw_rectangle=None,
+        enemy_draw_circle=None,
         arrow_image=None,
     ):
         self.player = player
@@ -58,13 +62,17 @@ class BattleScene:
         self.hud_font = hud_font
         self.enemy_images = dict(enemy_images or {})
         self.enemy_draw_rectangle = enemy_draw_rectangle
+        self.enemy_draw_circle = enemy_draw_circle
         self.arrow_image = arrow_image
+        self.initial_player_position = (player.x, player.y)
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.mouse_held = False
         self._mouse_pressed = False
         self.debug_mode = False
+        self.show_attack_ranges = False
+        self.show_hitboxes = False
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
@@ -157,7 +165,7 @@ class BattleScene:
         ):
             return False
 
-        for index, (action, _) in enumerate(DEBUG_MENU_ITEMS):
+        for index, (action, _) in enumerate(self._debug_menu_items()):
             left, top, right, bottom = self._debug_button_bounds(index)
             if left <= screen_x <= right and top <= screen_y <= bottom:
                 self._run_debug_action(action)
@@ -180,6 +188,30 @@ class BattleScene:
             )
         elif action == "reset_hp":
             self.player.hp = self.player.max_hp
+        elif action == "reset_map":
+            self.reset_map()
+        elif action == "toggle_attack_ranges":
+            self.show_attack_ranges = not self.show_attack_ranges
+        elif action == "toggle_hitboxes":
+            self.show_hitboxes = not self.show_hitboxes
+
+    def reset_map(self):
+        self.player.x, self.player.y = self.initial_player_position
+        self.player.hp = self.player.max_hp
+        self.player.aim_angle = 0.0
+        self.player.set_movement(0, 0, 0.0)
+        self.gun.reset()
+        self.gun.infinite_ammo = self.debug_mode
+        self.keys.clear()
+        self.mouse_held = False
+        self._mouse_pressed = False
+        self.show_attack_ranges = False
+        self.show_hitboxes = False
+        game_world.clear()
+        game_world.add_object(self.player, depth=1)
+        self.camera.follow(self.player.x, self.player.y)
+        self._update_player_view()
+        self.spawn_test_enemies()
 
     def update(self, delta_time):
         self.gun.update(delta_time)
@@ -251,6 +283,8 @@ class BattleScene:
                     screen_x, screen_y = self.camera.world_to_screen(obj.x, obj.y)
                     obj.set_screen_position(screen_x, screen_y)
         game_world.render()
+        if self.show_attack_ranges or self.show_hitboxes:
+            self._draw_enemy_debug_circles()
         if self.gun_image is not None:
             gun_offset = PLAYER_RADIUS * 0.6
             gun_x = (
@@ -288,6 +322,26 @@ class BattleScene:
         if self.debug_mode:
             self._draw_debug_menu(draw_rectangle)
 
+    def _debug_menu_items(self):
+        return tuple(
+            (
+                action,
+                label.replace(
+                    "OFF",
+                    "ON"
+                    if (
+                        self.show_attack_ranges
+                        if action == "toggle_attack_ranges"
+                        else self.show_hitboxes
+                    )
+                    else "OFF",
+                )
+                if action in ("toggle_attack_ranges", "toggle_hitboxes")
+                else label,
+            )
+            for action, label in DEBUG_MENU_ITEMS
+        )
+
     def _draw_debug_menu(self, draw_rectangle):
         menu_bottom = DEBUG_BUTTON_TOP + len(DEBUG_MENU_ITEMS) * DEBUG_BUTTON_SPACING
         draw_rectangle(
@@ -307,7 +361,7 @@ class BattleScene:
             "DEBUG MODE",
             (255, 220, 80),
         )
-        for index, (_, label) in enumerate(DEBUG_MENU_ITEMS):
+        for index, (_, label) in enumerate(self._debug_menu_items()):
             left, top, right, bottom = self._debug_button_bounds(index)
             self.hud_font.draw(
                 left + 6,
@@ -326,3 +380,25 @@ class BattleScene:
                 255,
                 False,
             )
+
+    def _draw_enemy_debug_circles(self):
+        if self.enemy_draw_circle is None:
+            raise RuntimeError(
+                "BattleScene debug visualization requires a circle drawing function"
+            )
+        for layer in game_world.world:
+            for enemy in layer:
+                if not isinstance(enemy, Enemy):
+                    continue
+                x, y = enemy._screen_position or self.camera.world_to_screen(
+                    enemy.x,
+                    enemy.y,
+                )
+                if self.show_hitboxes:
+                    self.enemy_draw_circle(x, y, enemy.radius)
+                if self.show_attack_ranges:
+                    attack_range = (
+                        enemy.stats.attack_range
+                        or enemy.radius + self.player.radius
+                    )
+                    self.enemy_draw_circle(x, y, attack_range)

@@ -149,6 +149,22 @@ class GunTests(unittest.TestCase):
         self.assertFalse(gun.start_reload())
         self.assertFalse(gun.reloading)
 
+    def test_reset_restores_initial_weapon_state(self):
+        gun = Gun()
+        gun.magazine_ammo = 2
+        gun.reserve_ammo = 13
+        gun.toggle_mode()
+        gun.infinite_ammo = True
+        gun.try_fire()
+
+        gun.reset()
+
+        self.assertEqual((gun.magazine_ammo, gun.reserve_ammo), (10, 90))
+        self.assertEqual(gun.cooldown_remaining, 0)
+        self.assertEqual(gun.reload_remaining, 0)
+        self.assertIs(gun.fire_mode, FireMode.SINGLE)
+        self.assertFalse(gun.infinite_ammo)
+
     def test_reload_does_not_overfill_or_start_without_reserve(self):
         gun = Gun()
         gun.magazine_ammo = 9
