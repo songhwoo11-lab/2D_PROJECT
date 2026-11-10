@@ -1,0 +1,49 @@
+import unittest
+from types import SimpleNamespace
+
+from hud import fire_status_text, temperature_text
+
+
+def make_gun(**overrides):
+    values = {
+        "temperature": 10.0,
+        "temperature_limit": 200.0,
+        "fire_blocked": False,
+        "can_fire": True,
+        "reloading": False,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+class TemperatureTextTests(unittest.TestCase):
+    def test_temperature_text_shows_current_and_limit(self):
+        gun = make_gun(temperature=42.4, temperature_limit=200.0)
+
+        self.assertEqual(temperature_text(gun), "TEMP 42/200")
+
+
+class FireStatusTextTests(unittest.TestCase):
+    def test_overheat_is_shown_when_blocked(self):
+        gun = make_gun(fire_blocked=True, can_fire=False)
+
+        self.assertEqual(fire_status_text(gun), "OVERHEAT")
+
+    def test_ready_is_shown_when_gun_can_fire(self):
+        gun = make_gun(can_fire=True)
+
+        self.assertEqual(fire_status_text(gun), "READY")
+
+    def test_no_status_is_shown_during_fire_cooldown(self):
+        gun = make_gun(can_fire=False, reloading=False)
+
+        self.assertIsNone(fire_status_text(gun))
+
+    def test_reloading_is_not_reported_as_ready_or_overheat(self):
+        gun = make_gun(can_fire=False, reloading=True)
+
+        self.assertIsNone(fire_status_text(gun))
+
+
+if __name__ == "__main__":
+    unittest.main()

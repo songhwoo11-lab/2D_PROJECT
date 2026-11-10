@@ -7,6 +7,10 @@ import pico2d
 from game_config import SCREEN_WIDTH
 
 
+TEMPERATURE_BAR_WIDTH = 200
+TEMPERATURE_BAR_HEIGHT = 8
+
+
 def _measure_text_width(font, text):
     width = ctypes.c_int()
     height = ctypes.c_int()
@@ -24,6 +28,56 @@ def _measure_text_width(font, text):
 def _draw_centered_text(font, y, text):
     x = (SCREEN_WIDTH - _measure_text_width(font, text)) / 2
     font.draw(x, y, text, (255, 255, 255))
+
+
+def temperature_text(gun):
+    return "TEMP {0:.0f}/{1:.0f}".format(
+        gun.temperature,
+        gun.temperature_limit,
+    )
+
+
+def fire_status_text(gun):
+    if gun.fire_blocked:
+        return "OVERHEAT"
+    if gun.can_fire:
+        return "READY"
+    return None
+
+
+def _draw_temperature(font, gun, draw_rectangle):
+    bar_left = (SCREEN_WIDTH - TEMPERATURE_BAR_WIDTH) / 2
+    bar_bottom = 95
+    ratio = min(
+        max(gun.temperature / gun.temperature_limit, 0.0),
+        1.0,
+    )
+    draw_rectangle(
+        bar_left,
+        bar_bottom,
+        bar_left + TEMPERATURE_BAR_WIDTH,
+        bar_bottom + TEMPERATURE_BAR_HEIGHT,
+        55,
+        45,
+        45,
+        255,
+        True,
+    )
+    draw_rectangle(
+        bar_left,
+        bar_bottom,
+        bar_left + TEMPERATURE_BAR_WIDTH * ratio,
+        bar_bottom + TEMPERATURE_BAR_HEIGHT,
+        230,
+        140,
+        40,
+        255,
+        True,
+    )
+    _draw_centered_text(font, 85, temperature_text(gun))
+    status = fire_status_text(gun)
+    if status is not None:
+        _draw_centered_text(font, 110, status)
 
 
 def draw_hud(player, gun, font, draw_rectangle):
@@ -70,3 +124,4 @@ def draw_hud(player, gun, font, draw_rectangle):
     )
     if gun.reloading:
         _draw_centered_text(font, 10, "RELOAD")
+    _draw_temperature(font, gun, draw_rectangle)
