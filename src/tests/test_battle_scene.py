@@ -6,6 +6,7 @@ from enemy import Enemy, EnemyType
 from game_config import WORLD_HEIGHT, WORLD_WIDTH
 import game_world
 from player import Player
+from pickup import MagazinePickup
 from weapon import Gun
 from waves import WaveDirector
 
@@ -22,6 +23,18 @@ class FakeImage:
 class FakeFont:
     def draw(self, *args):
         pass
+
+
+class StubRandom:
+    def __init__(self, coin=1, roll=1.0):
+        self.coin = coin
+        self.roll = roll
+
+    def randint(self, minimum, maximum):
+        return self.coin
+
+    def random(self):
+        return self.roll
 
 
 def make_scene(total_waves, spawn_rate):
@@ -121,6 +134,10 @@ class BattleSceneWaveTests(unittest.TestCase):
     def test_reset_map_restores_the_first_wave(self):
         self.scene.update(0.1)
         self.scene.waves_cleared = True
+        self.scene.coins = 12
+        self.scene.pickups.append(
+            MagazinePickup(self.scene.player.x, self.scene.player.y, 5)
+        )
 
         self.scene.reset_map()
 
@@ -129,6 +146,76 @@ class BattleSceneWaveTests(unittest.TestCase):
         self.assertFalse(self.scene.waves_cleared)
         self.assertEqual(self.scene.wave_banner_text, "WAVE 1")
         self.assertEqual(alive_enemies(), [])
+        self.assertEqual(self.scene.coins, 0)
+        self.assertEqual(self.scene.pickups, [])
+
+
+class BattleSceneRewardTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _defeat_one_enemy(self):
+        enemy = self.scene._spawn_wave_enemy(
+            EnemyType.BASIC,
+            self.scene.player.x + 300,
+            self.scene.player.y,
+        )
+        enemy.hp = 0
+        self.scene.update(0.0)
+
+    def test_defeating_an_enemy_awards_coins_and_can_drop_a_magazine(self):
+        self.scene.random_source = StubRandom(coin=4, roll=0.0)
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(self.scene.coins, 4)
+        self.assertEqual(len(self.scene.pickups), 1)
+        self.assertEqual(self.scene.pickups[0].amount, 5)
+
+    def test_no_magazine_drops_at_three_hundred_or_more_ammo(self):
+        self.scene.random_source = StubRandom(coin=2, roll=0.0)
+        self.scene.gun.magazine_ammo = 10
+        self.scene.gun.reserve_ammo = 290
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(self.scene.coins, 2)
+        self.assertEqual(self.scene.pickups, [])
+
+    def test_walking_over_a_magazine_refills_the_gun(self):
+        self.scene.gun.magazine_ammo = 2
+        self.scene.pickups.append(
+            MagazinePickup(
+                self.scene.player.x,
+                self.scene.player.y,
+                5,
+            )
+        )
+
+        self.scene._update_pickups()
+
+        self.assertEqual(self.scene.gun.magazine_ammo, 7)
+        self.assertEqual(self.scene.pickups, [])
+
+    def test_full_magazine_leaves_the_pickup_on_the_map(self):
+        self.scene.pickups.append(
+            MagazinePickup(
+                self.scene.player.x,
+                self.scene.player.y,
+                5,
+            )
+        )
+
+        self.scene._update_pickups()
+
+        self.assertEqual(
+            self.scene.gun.magazine_ammo,
+            self.scene.gun.spec.magazine_size,
+        )
+        self.assertEqual(len(self.scene.pickups), 1)
 
 
 if __name__ == "__main__":

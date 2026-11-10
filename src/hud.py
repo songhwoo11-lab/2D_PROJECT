@@ -46,6 +46,10 @@ def wave_text(wave, total=TOTAL_WAVES):
     return "WAVE {}/{}".format(wave, total)
 
 
+def coin_text(coins):
+    return "COINS {}".format(coins)
+
+
 def fire_status_text(gun):
     if gun.fire_blocked:
         return "OVERHEAT"
@@ -89,7 +93,15 @@ def _draw_temperature(font, gun, draw_rectangle):
         _draw_centered_text(font, 110, status)
 
 
-def draw_hud(player, gun, font, draw_rectangle, wave=None, total_waves=TOTAL_WAVES):
+def draw_hud(
+    player,
+    gun,
+    font,
+    draw_rectangle,
+    wave=None,
+    total_waves=TOTAL_WAVES,
+    coins=None,
+):
     hp_bar_left = 20
     hp_bar_bottom = 20
     hp_bar_width = 200
@@ -119,6 +131,8 @@ def draw_hud(player, gun, font, draw_rectangle, wave=None, total_waves=TOTAL_WAV
         True,
     )
     font.draw(20, 45, "HP {}/{}".format(player.hp, player.max_hp), (255, 255, 255))
+    if coins is not None:
+        font.draw(20, 70, coin_text(coins), (255, 220, 100))
 
     ammo_text = (
         "AMMO INF"

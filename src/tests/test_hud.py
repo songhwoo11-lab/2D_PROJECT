@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
-from hud import fire_status_text, temperature_text, wave_text
+from hud import coin_text, fire_status_text, temperature_text, wave_text
 
 
 def make_gun(**overrides):
@@ -29,6 +29,11 @@ class WaveTextTests(unittest.TestCase):
 
     def test_wave_text_defaults_to_thirty_waves(self):
         self.assertEqual(wave_text(7), "WAVE 7/30")
+
+
+class CoinTextTests(unittest.TestCase):
+    def test_coin_text_shows_the_current_balance(self):
+        self.assertEqual(coin_text(123), "COINS 123")
 
 
 class FireStatusTextTests(unittest.TestCase):

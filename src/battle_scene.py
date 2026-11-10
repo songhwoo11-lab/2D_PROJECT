@@ -10,6 +10,7 @@ from enemy_types import AssassinEnemy, create_enemy
 import game_world
 from game_camera import Camera
 from game_config import (
+    MAGAZINE_REFILL_RATIO,
     PLAYER_RADIUS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -18,6 +19,7 @@ from game_config import (
 )
 from hud import draw_centered_text, draw_hud
 from player import Player
+from pickup import MagazinePickup, roll_coin_reward, roll_magazine_drop
 from shot_result import HitResult
 from spawn_warning import SpawnWarning
 from waves import (
@@ -105,6 +107,8 @@ class BattleScene:
         self.wave_banner_text = ""
         self.wave_banner_remaining = 0.0
         self.waves_cleared = False
+        self.coins = 0
+        self.pickups = []
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
@@ -149,6 +153,29 @@ class BattleScene:
             wave_stat_multiplier(self.wave_director.current_wave)
         )
         return enemy
+
+    def _magazine_refill_amount(self):
+        return max(1, int(self.gun.spec.magazine_size * MAGAZINE_REFILL_RATIO))
+
+    def _reward_enemy_defeat(self, enemy):
+        self.coins += roll_coin_reward(self.random_source)
+        if roll_magazine_drop(self.gun.total_ammo, self.random_source):
+            self.pickups.append(
+                MagazinePickup(
+                    enemy.x,
+                    enemy.y,
+                    self._magazine_refill_amount(),
+                )
+            )
+
+    def _update_pickups(self):
+        remaining = []
+        for pickup in self.pickups:
+            if pickup.can_collect(self.player):
+                if self.gun.refill_magazine(pickup.amount) > 0:
+                    continue
+            remaining.append(pickup)
+        self.pickups = remaining
 
     def _alive_enemy_count(self):
         return sum(
@@ -310,6 +337,8 @@ class BattleScene:
         self.wave_director = WaveDirector(random_source=self.random_source)
         self.spawn_warnings = []
         self.waves_cleared = False
+        self.coins = 0
+        self.pickups = []
         game_world.clear()
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
@@ -365,6 +394,7 @@ class BattleScene:
                     depth=2,
                 )
         self._remove_defeated_enemies()
+        self._update_pickups()
         self._update_waves(delta_time)
         self.wave_banner_remaining = max(
             0.0,
@@ -398,6 +428,7 @@ class BattleScene:
             if isinstance(obj, Enemy) and not obj.is_alive
         ]
         for enemy in defeated:
+            self._reward_enemy_defeat(enemy)
             game_world.remove_object(enemy)
 
     def _update_player_view(self):
@@ -423,6 +454,7 @@ class BattleScene:
                     obj.set_screen_position(screen_x, screen_y)
         game_world.render(self._is_visible_on_screen)
         self._draw_spawn_warnings()
+        self._draw_pickups(draw_rectangle)
         for x, y, label, _ in self.shot_feedbacks:
             screen_x, screen_y = self.camera.world_to_screen(x, y)
             self.hit_feedback_font.draw(
@@ -473,6 +505,7 @@ class BattleScene:
             draw_rectangle,
             wave=self.wave_director.current_wave,
             total_waves=self.wave_director.total_waves,
+            coins=self.coins,
         )
         if self.debug_mode:
             self._draw_debug_menu(draw_rectangle)
@@ -499,6 +532,30 @@ class BattleScene:
                 60,
                 60,
                 200,
+            )
+
+    def _draw_pickups(self, draw_rectangle):
+        for pickup in self.pickups:
+            screen_x, screen_y = self.camera.world_to_screen(
+                pickup.x,
+                pickup.y,
+            )
+            size = pickup.radius * 2
+            if not (
+                -size <= screen_x <= SCREEN_WIDTH + size
+                and -size <= screen_y <= SCREEN_HEIGHT + size
+            ):
+                continue
+            draw_rectangle(
+                screen_x - pickup.radius,
+                screen_y - pickup.radius,
+                screen_x + pickup.radius,
+                screen_y + pickup.radius,
+                235,
+                190,
+                65,
+                255,
+                True,
             )
 
     def _draw_wave_banner(self):
