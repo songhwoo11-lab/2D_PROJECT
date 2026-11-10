@@ -293,10 +293,23 @@ class BattleSceneTests(unittest.TestCase):
         self.scene.draw(lambda *args: None)
 
         screen_position = self.scene.camera.world_to_screen(enemy.x, enemy.y)
-        self.assertIn((*screen_position, enemy.radius), self.debug_circles)
         self.assertIn(
-            (*screen_position, enemy.radius + self.player.radius),
+            (*screen_position, round(enemy.radius), 0, 0, 255, 255),
             self.debug_circles,
+        )
+        self.assertIn(
+            (
+                *screen_position,
+                round(enemy.radius + self.player.radius),
+                255,
+                0,
+                0,
+                255,
+            ),
+            self.debug_circles,
+        )
+        self.assertTrue(
+            all(isinstance(circle[2], int) for circle in self.debug_circles)
         )
         self.assertTrue(self.scene.show_attack_ranges)
         self.assertTrue(self.scene.show_hitboxes)

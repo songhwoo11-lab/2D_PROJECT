@@ -395,10 +395,26 @@ class BattleScene:
                     enemy.y,
                 )
                 if self.show_hitboxes:
-                    self.enemy_draw_circle(x, y, enemy.radius)
+                    self.enemy_draw_circle(
+                        x,
+                        y,
+                        round(enemy.radius),
+                        0,
+                        0,
+                        255,
+                        255,
+                    )
                 if self.show_attack_ranges:
                     attack_range = (
                         enemy.stats.attack_range
                         or enemy.radius + self.player.radius
                     )
-                    self.enemy_draw_circle(x, y, attack_range)
+                    self.enemy_draw_circle(
+                        x,
+                        y,
+                        round(attack_range),
+                        255,
+                        0,
+                        0,
+                        255,
+                    )
