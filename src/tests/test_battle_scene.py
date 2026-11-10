@@ -374,6 +374,14 @@ class BattleSceneTests(unittest.TestCase):
             (*screen_position, round(enemy.radius), 0, 0, 255, 255),
             self.debug_circles,
         )
+        player_position = self.scene.camera.world_to_screen(
+            self.player.x,
+            self.player.y,
+        )
+        self.assertIn(
+            (*player_position, round(self.player.radius), 0, 0, 255, 255),
+            self.debug_circles,
+        )
         self.assertIn(
             (
                 *screen_position,

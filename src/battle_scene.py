@@ -509,6 +509,20 @@ class BattleScene:
                         0,
                         255,
                     )
+        if self.show_hitboxes:
+            player_x, player_y = self.camera.world_to_screen(
+                self.player.x,
+                self.player.y,
+            )
+            self.enemy_draw_circle(
+                player_x,
+                player_y,
+                round(self.player.radius),
+                0,
+                0,
+                255,
+                255,
+            )
         if self.show_assassin_reveal_range:
             player_x, player_y = self.camera.world_to_screen(
                 self.player.x,
