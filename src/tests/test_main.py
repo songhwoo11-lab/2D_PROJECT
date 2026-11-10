@@ -121,11 +121,11 @@ class MainTests(unittest.TestCase):
             [(path.rsplit("\\", 2)[-2:], size) for path, size in loaded_fonts],
             [
                 (["font", "PuzzleSansSuper.ttf"], 20),
-                (["font", "PuzzleSansSuper.ttf"], 12),
+                (["font", "BMEuljiro10yearslater.ttf"], 12),
                 (["font", "PuzzleSansSuper.ttf"], 15),
             ],
         )
-        self.assertTrue(Path(loaded_fonts[0][0]).is_file())
+        self.assertTrue(all(Path(path).is_file() for path, _ in loaded_fonts))
         self.assertEqual(closed, [True])
         self.assertEqual(len(delays), 1)
 

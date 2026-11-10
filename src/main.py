@@ -41,7 +41,7 @@ def main():
             20,
         )
         hit_feedback_font = pico2d.load_font(
-            str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
+            str(ASSET_DIRECTORY / "font" / "BMEuljiro10yearslater.ttf"),
             SHOT_FEEDBACK_FONT_SIZE,
         )
         debug_font = pico2d.load_font(
