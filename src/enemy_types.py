@@ -177,12 +177,15 @@ class ArcherEnemy(Enemy):
             self._attack_charge_frames = 0
             self.attack_warning_remaining = 0
             if distance > 0:
-                travel = min(
+                travel_distance = min(
                     self._movement_per_frame,
                     distance - self.stats.attack_range,
                 )
-                self.x += distance_x / distance * travel
-                self.y += distance_y / distance * travel
+                self.move_towards(
+                    self.player.x,
+                    self.player.y,
+                    travel_distance,
+                )
             return
         if self.is_attack_warning:
             self.attack_warning_remaining -= 1
@@ -259,12 +262,15 @@ class ExplosiveEnemy(Enemy):
         attack_range = self.stats.attack_range
         if distance > attack_range + DISTANCE_EPSILON:
             if distance > 0:
-                travel = min(
+                travel_distance = min(
                     self._movement_per_frame,
                     distance - attack_range,
                 )
-                self.x += distance_x / distance * travel
-                self.y += distance_y / distance * travel
+                self.move_towards(
+                    self.player.x,
+                    self.player.y,
+                    travel_distance,
+                )
             return
         if self._attack_cooldown_frames <= 0:
             Explosion(

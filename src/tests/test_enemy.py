@@ -2,6 +2,7 @@ import math
 import unittest
 
 from enemy import ENEMY_STATS, Enemy, EnemyStats, EnemyType
+import game_world
 from player import Player
 
 
@@ -118,6 +119,103 @@ class EnemyTests(unittest.TestCase):
         self.assertEqual(enemy.y, 0)
         self.assertEqual(enemy.velocity_x, 1)
         self.assertEqual(enemy.velocity_y, 0)
+
+    def test_enemies_do_not_overlap_while_chasing_the_same_player(self):
+        player = Player(300, 0)
+        first = Enemy(
+            0,
+            0,
+            EnemyStats("first", 20, 8, 1, 60, radius=16),
+            player=player,
+        )
+        second = Enemy(
+            -40,
+            0,
+            EnemyStats("second", 20, 8, 1, 120, radius=16),
+            player=player,
+        )
+        game_world.clear()
+        game_world.add_object(first, depth=1)
+        game_world.add_object(second, depth=1)
+        try:
+            for _ in range(250):
+                game_world.update()
+                distance = math.hypot(second.x - first.x, second.y - first.y)
+                self.assertGreaterEqual(
+                    distance + 1e-6,
+                    first.radius + second.radius,
+                )
+        finally:
+            game_world.clear()
+
+    def test_enemy_routes_around_blocker_without_stopping_or_slowing(self):
+        player = Player(200, 0)
+        chaser = Enemy(
+            0,
+            0,
+            EnemyStats("chaser", 20, 8, 1, 60, radius=16),
+            player=player,
+        )
+        blocker = Enemy(
+            40,
+            0,
+            EnemyStats("blocker", 20, 8, 1, 0, radius=16),
+        )
+        game_world.clear()
+        game_world.add_object(chaser, depth=1)
+        game_world.add_object(blocker, depth=1)
+        previous_position = (chaser.x, chaser.y)
+        try:
+            for _ in range(100):
+                chaser.update()
+                moved_distance = math.hypot(
+                    chaser.x - previous_position[0],
+                    chaser.y - previous_position[1],
+                )
+                self.assertAlmostEqual(moved_distance, 1.0, places=6)
+                self.assertGreaterEqual(
+                    math.hypot(chaser.x - blocker.x, chaser.y - blocker.y) + 1e-6,
+                    chaser.radius + blocker.radius,
+                )
+                previous_position = (chaser.x, chaser.y)
+
+            self.assertGreater(chaser.x, blocker.x + chaser.radius + blocker.radius)
+        finally:
+            game_world.clear()
+
+    def test_overlapping_enemies_separate_before_chasing(self):
+        player = Player(300, 0)
+        enemies = [
+            Enemy(
+                0,
+                0,
+                EnemyStats("first", 20, 8, 1, 60, radius=16),
+                player=player,
+            ),
+            Enemy(
+                0,
+                0,
+                EnemyStats("second", 20, 8, 1, 60, radius=16),
+                player=player,
+            ),
+        ]
+        game_world.clear()
+        for enemy in enemies:
+            game_world.add_object(enemy, depth=1)
+        try:
+            for _ in range(40):
+                game_world.update()
+
+            distance = math.hypot(
+                enemies[1].x - enemies[0].x,
+                enemies[1].y - enemies[0].y,
+            )
+            self.assertGreaterEqual(
+                distance + 1e-6,
+                enemies[0].radius + enemies[1].radius,
+            )
+        finally:
+            game_world.clear()
 
     def test_contact_attack_triggers_at_floating_point_range_boundary(self):
         angle = 0.0023

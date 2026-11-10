@@ -203,6 +203,9 @@ class AssassinEnemyTests(unittest.TestCase):
 
 
 class ArcherEnemyTests(unittest.TestCase):
+    def tearDown(self):
+        game_world.clear()
+
     def test_archer_uses_prd_stats_and_charges_inside_range(self):
         player = Player(150, 0)
         enemy = ArcherEnemy(0, 0, player=player)
@@ -323,6 +326,21 @@ class ArcherEnemyTests(unittest.TestCase):
 
         self.assertGreater(archer.attack_charge, 0)
 
+    def test_archer_does_not_move_through_another_enemy(self):
+        player = Player(1000, 0)
+        archer = ArcherEnemy(0, 0, player=player)
+        obstacle = BasicEnemy(50, 0, player=player)
+        game_world.add_object(archer, depth=1)
+        game_world.add_object(obstacle, depth=1)
+
+        for _ in range(40):
+            archer.update()
+
+        self.assertGreaterEqual(
+            math.hypot(archer.x - obstacle.x, archer.y - obstacle.y) + 1e-6,
+            archer.radius + obstacle.radius,
+        )
+
     def test_archer_draws_attack_charge_bar_above_health_bar(self):
         rectangles = []
 
@@ -374,6 +392,25 @@ class ExplosiveEnemyTests(unittest.TestCase):
         explosive.update()
 
         self.assertEqual(player.hp, player.max_hp - explosive.EXPLOSION_DAMAGE)
+
+    def test_explosive_enemy_does_not_move_through_another_enemy(self):
+        player = Player(1000, 0)
+        explosive = ExplosiveEnemy(0, 0, player=player)
+        obstacle = BasicEnemy(50, 0, player=player)
+        game_world.add_object(explosive, depth=1)
+        game_world.add_object(obstacle, depth=1)
+
+        for _ in range(40):
+            explosive.update()
+
+        self.assertGreaterEqual(
+            math.hypot(
+                explosive.x - obstacle.x,
+                explosive.y - obstacle.y,
+            )
+            + 1e-6,
+            explosive.radius + obstacle.radius,
+        )
 
     def test_explosive_enemy_player_attack_has_50_unit_range(self):
         player = Player(50, 0)

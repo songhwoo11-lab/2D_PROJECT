@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 import math
 
+import game_world
 from game_config import DISTANCE_EPSILON, FPS
 
 
@@ -106,6 +107,95 @@ class Enemy:
         distance = math.hypot(other.x - self.x, other.y - self.y)
         return distance <= self.radius + other.radius
 
+    def move_towards(self, target_x, target_y, max_distance):
+        direction_x = target_x - self.x
+        direction_y = target_y - self.y
+        distance = math.hypot(direction_x, direction_y)
+        if max_distance <= 0:
+            return False
+
+        enemies = [
+            other
+            for layer in game_world.world
+            for other in layer
+            if isinstance(other, Enemy) and other is not self and other.is_alive
+        ]
+        if distance == 0 and not enemies:
+            return False
+
+        base_angle = math.atan2(direction_y, direction_x) if distance else 0.0
+        angle_offsets = [0.0]
+        for degrees in range(15, 180, 15):
+            angle_offsets.extend(
+                (math.radians(degrees), -math.radians(degrees))
+            )
+        angle_offsets.append(math.pi)
+
+        best_position = None
+        best_score = None
+        for angle_offset in angle_offsets:
+            angle = base_angle + angle_offset
+            next_x = self.x + math.cos(angle) * max_distance
+            next_y = self.y + math.sin(angle) * max_distance
+            overlap_improvement = 0.0
+            is_clear = True
+            for other in enemies:
+                minimum_distance = self.radius + other.radius
+                current_distance = math.hypot(other.x - self.x, other.y - self.y)
+                segment_distance = self._distance_to_segment(
+                    other.x,
+                    other.y,
+                    self.x,
+                    self.y,
+                    next_x,
+                    next_y,
+                )
+                next_distance = math.hypot(other.x - next_x, other.y - next_y)
+                if current_distance < minimum_distance - DISTANCE_EPSILON:
+                    if (
+                        segment_distance + DISTANCE_EPSILON < current_distance
+                        or next_distance <= current_distance + DISTANCE_EPSILON
+                    ):
+                        is_clear = False
+                        break
+                    overlap_improvement += next_distance - current_distance
+                elif segment_distance + DISTANCE_EPSILON < minimum_distance:
+                    is_clear = False
+                    break
+
+            if not is_clear:
+                continue
+            remaining_distance = math.hypot(
+                target_x - next_x,
+                target_y - next_y,
+            )
+            progress = distance - remaining_distance
+            score = (overlap_improvement, progress)
+            if best_score is None or score > best_score:
+                best_score = score
+                best_position = (next_x, next_y)
+
+        if best_position is None:
+            return False
+        self.x, self.y = best_position
+        return True
+
+    @staticmethod
+    def _distance_to_segment(point_x, point_y, start_x, start_y, end_x, end_y):
+        segment_x = end_x - start_x
+        segment_y = end_y - start_y
+        segment_length_squared = segment_x * segment_x + segment_y * segment_y
+        if segment_length_squared == 0:
+            return math.hypot(point_x - start_x, point_y - start_y)
+        projection = (
+            (point_x - start_x) * segment_x
+            + (point_y - start_y) * segment_y
+        ) / segment_length_squared
+        projection = min(1.0, max(0.0, projection))
+        closest_x = start_x + projection * segment_x
+        closest_y = start_y + projection * segment_y
+        return math.hypot(point_x - closest_x, point_y - closest_y)
+
     def set_screen_position(self, screen_x, screen_y):
         self._screen_position = (screen_x, screen_y)
 
@@ -125,8 +215,11 @@ class Enemy:
         self.velocity_x = direction_x / distance
         self.velocity_y = direction_y / distance
         travel_distance = min(self._movement_per_frame, distance - contact_distance)
-        self.x += self.velocity_x * travel_distance
-        self.y += self.velocity_y * travel_distance
+        self.move_towards(
+            self.player.x,
+            self.player.y,
+            travel_distance,
+        )
         distance = math.hypot(
             self.player.x - self.x,
             self.player.y - self.y,
