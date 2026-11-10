@@ -5,8 +5,11 @@ from collections import Counter
 from enemy import EnemyType
 from game_config import TOTAL_WAVES
 from waves import (
+    SPAWN_RADIUS_RANGES,
     WaveDirector,
     build_wave_spawn_order,
+    random_spawn_position,
+    spawn_radius_range,
     validate_wave,
     wave_composition,
     wave_enemy_count,
@@ -137,6 +140,58 @@ class WaveDirectorTests(unittest.TestCase):
             WaveDirector(total_waves=0)
         with self.assertRaises(ValueError):
             WaveDirector(spawn_rate=0)
+
+
+class SpawnRadiusTests(unittest.TestCase):
+    def test_radius_ranges_match_the_product_requirements(self):
+        self.assertEqual(SPAWN_RADIUS_RANGES[EnemyType.BASIC], (500.0, 1000.0))
+        self.assertEqual(
+            SPAWN_RADIUS_RANGES[EnemyType.EXPLOSIVE],
+            (800.0, 1000.0),
+        )
+        self.assertEqual(SPAWN_RADIUS_RANGES[EnemyType.TANKER], (200.0, 500.0))
+        self.assertEqual(
+            SPAWN_RADIUS_RANGES[EnemyType.ASSASSIN],
+            (200.0, 300.0),
+        )
+        self.assertEqual(SPAWN_RADIUS_RANGES[EnemyType.ARCHER], (600.0, 800.0))
+
+    def test_assassin_spawns_within_its_radius_band(self):
+        random_source = random.Random(7)
+        player_x, player_y = 800.0, 600.0
+        for _ in range(200):
+            x, y = random_spawn_position(
+                EnemyType.ASSASSIN,
+                player_x,
+                player_y,
+                1600.0,
+                1200.0,
+                random_source,
+            )
+            distance = ((x - player_x) ** 2 + (y - player_y) ** 2) ** 0.5
+            self.assertGreaterEqual(distance, 200.0 - 1e-9)
+            self.assertLessEqual(distance, 300.0 + 1e-9)
+
+    def test_spawn_positions_never_leave_the_map(self):
+        random_source = random.Random(11)
+        for enemy_type in EnemyType:
+            for _ in range(100):
+                x, y = random_spawn_position(
+                    enemy_type,
+                    200.0,
+                    150.0,
+                    1600.0,
+                    1200.0,
+                    random_source,
+                )
+                self.assertGreaterEqual(x, 0.0)
+                self.assertLessEqual(x, 1600.0)
+                self.assertGreaterEqual(y, 0.0)
+                self.assertLessEqual(y, 1200.0)
+
+    def test_unsupported_enemy_type_is_rejected(self):
+        with self.assertRaises(ValueError):
+            spawn_radius_range("basic")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Wave composition data for the 30-wave survival mode."""
 
 from collections import OrderedDict, deque
+import math
 import random
 
 from enemy import EnemyType
@@ -10,6 +11,15 @@ from game_config import (
     WAVE_STAT_MULTIPLIER_EVERY,
     WAVE_STAT_MULTIPLIER_FACTOR,
 )
+
+
+SPAWN_RADIUS_RANGES = {
+    EnemyType.BASIC: (500.0, 1000.0),
+    EnemyType.EXPLOSIVE: (800.0, 1000.0),
+    EnemyType.TANKER: (200.0, 500.0),
+    EnemyType.ASSASSIN: (200.0, 300.0),
+    EnemyType.ARCHER: (600.0, 800.0),
+}
 
 
 # Each entry applies to a 10-wave cycle: index 0 -> waves 1, 11, 21, ...
@@ -141,6 +151,31 @@ def build_wave_spawn_order(wave, random_source=None):
 def wave_stat_multiplier(wave):
     validate_wave(wave)
     return WAVE_STAT_MULTIPLIER_FACTOR ** (wave // WAVE_STAT_MULTIPLIER_EVERY)
+
+
+def spawn_radius_range(enemy_type):
+    try:
+        return SPAWN_RADIUS_RANGES[enemy_type]
+    except KeyError as error:
+        raise ValueError("unsupported enemy type: {!r}".format(enemy_type)) from error
+
+
+def random_spawn_position(
+    enemy_type,
+    player_x,
+    player_y,
+    world_width,
+    world_height,
+    random_source,
+):
+    min_radius, max_radius = spawn_radius_range(enemy_type)
+    angle = random_source.uniform(0.0, 2.0 * math.pi)
+    radius = random_source.uniform(min_radius, max_radius)
+    x = player_x + math.cos(angle) * radius
+    y = player_y + math.sin(angle) * radius
+    x = min(max(x, 0.0), world_width)
+    y = min(max(y, 0.0), world_height)
+    return x, y
 
 
 class WaveDirector:
