@@ -13,6 +13,7 @@ from game_config import (
     PISTOL_RELOAD_SECONDS,
     PISTOL_STARTING_AMMO,
     PISTOL_TEMPERATURE_LIMIT,
+    SINGLE_SHOT_HEAT,
 )
 
 
@@ -124,8 +125,15 @@ class Gun:
         fire_interval_frames = self.spec.fire_interval_frames
         if self.fire_mode is FireMode.SINGLE:
             fire_interval_frames *= 2
+            self._add_heat(SINGLE_SHOT_HEAT)
         self.cooldown_remaining = fire_interval_frames / FPS
         return True
+
+    def _add_heat(self, amount):
+        self.temperature = min(
+            self.temperature_limit,
+            self.temperature + max(0.0, amount),
+        )
 
     def toggle_mode(self):
         self.fire_mode = (

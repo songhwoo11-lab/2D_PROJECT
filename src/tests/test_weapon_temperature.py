@@ -32,5 +32,37 @@ class GunTemperatureStateTests(unittest.TestCase):
         self.assertTrue(gun.can_fire)
 
 
+class SingleShotHeatTests(unittest.TestCase):
+    def _ready_gun(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        return gun
+
+    def test_each_single_shot_adds_half_a_degree(self):
+        gun = self._ready_gun()
+
+        self.assertTrue(gun.try_fire())
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 0.5)
+        gun.cooldown_remaining = 0.0
+        self.assertTrue(gun.try_fire())
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 1.0)
+
+    def test_blocked_shot_does_not_add_heat(self):
+        gun = self._ready_gun()
+        gun.overheated = True
+        gun.temperature = 42.0
+
+        self.assertFalse(gun.try_fire())
+        self.assertEqual(gun.temperature, 42.0)
+
+    def test_temperature_is_clamped_to_limit(self):
+        gun = self._ready_gun()
+        gun.temperature = gun.temperature_limit - 0.2
+
+        gun.try_fire()
+
+        self.assertEqual(gun.temperature, gun.temperature_limit)
+
+
 if __name__ == "__main__":
     unittest.main()
