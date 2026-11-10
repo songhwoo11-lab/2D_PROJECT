@@ -63,14 +63,14 @@ class AssassinEnemyTests(unittest.TestCase):
         player = Player(0, 0)
         enemy = AssassinEnemy(125, 0, player=player)
 
-        self.assertEqual(enemy.opacity_alpha, 128)
-        enemy.x = 250
+        self.assertEqual(enemy.opacity_alpha, round((1 - 125 / 150) * 255))
+        enemy.x = 150
         self.assertEqual(enemy.opacity_alpha, 0)
         enemy.x = 0
         self.assertEqual(enemy.opacity_alpha, 255)
 
     def test_assassin_hit_temporarily_overrides_distance_fade(self):
-        enemy = AssassinEnemy(300, 0, player=Player(0, 0))
+        enemy = AssassinEnemy(200, 0, player=Player(0, 0))
         self.assertEqual(enemy.opacity_alpha, 0)
 
         enemy.take_damage(1)
@@ -85,7 +85,7 @@ class AssassinEnemyTests(unittest.TestCase):
         self.assertEqual(enemy.opacity_alpha, 0)
 
     def test_zero_damage_does_not_trigger_assassin_hit_flash(self):
-        enemy = AssassinEnemy(300, 0, player=Player(0, 0))
+        enemy = AssassinEnemy(200, 0, player=Player(0, 0))
 
         enemy.take_damage(0)
 
@@ -95,7 +95,7 @@ class AssassinEnemyTests(unittest.TestCase):
         image = type("Image", (), {"texture": object(), "draw": lambda *args: None})()
         rectangles = []
         enemy = AssassinEnemy(
-            251,
+            151,
             0,
             image=image,
             player=Player(0, 0),
@@ -125,7 +125,7 @@ class AssassinEnemyTests(unittest.TestCase):
         image = FakeImage()
         rectangles = []
         enemy = AssassinEnemy(
-            125,
+            110,
             0,
             image=image,
             player=Player(0, 0),
@@ -140,7 +140,10 @@ class AssassinEnemyTests(unittest.TestCase):
             enemy.draw()
 
         self.assertEqual(len(image.draw_calls), 1)
-        self.assertEqual(set_alpha.call_args_list[0].args[1], 128)
+        self.assertEqual(
+            set_alpha.call_args_list[0].args[1],
+            round((1 - 110 / 150) * 255),
+        )
         self.assertEqual(set_alpha.call_args_list[-1].args[1], 255)
         self.assertEqual(rectangles, [])
 
@@ -169,7 +172,7 @@ class AssassinEnemyTests(unittest.TestCase):
         image = type("Image", (), {"texture": object(), "draw": lambda *args: None})()
         rectangles = []
         enemy = AssassinEnemy(
-            300,
+            200,
             0,
             image=image,
             player=Player(0, 0),
@@ -300,7 +303,7 @@ class ArcherEnemyTests(unittest.TestCase):
         self.assertEqual(player.hp, player.max_hp)
 
     def test_archer_range_is_twice_the_original_value(self):
-        archer = ArcherEnemy(0, 0, player=Player(300, 0))
+        archer = ArcherEnemy(0, 0, player=Player(        200, 0))
 
         self.assertEqual(archer.stats.attack_range, 300)
         archer.update()

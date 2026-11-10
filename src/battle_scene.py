@@ -5,7 +5,7 @@ import math
 from arrow import Arrow
 from bullet import Bullet
 from enemy import Enemy, EnemyType
-from enemy_types import create_enemy
+from enemy_types import AssassinEnemy, create_enemy
 import game_world
 from game_camera import Camera
 from game_config import (
@@ -35,6 +35,7 @@ DEBUG_MENU_ITEMS = (
     ("reset_map", "Reset Map"),
     ("toggle_attack_ranges", "Attack Ranges: OFF"),
     ("toggle_hitboxes", "Hitboxes: OFF"),
+    ("toggle_assassin_reveal_range", "Assassin Reveal: OFF"),
 )
 
 
@@ -73,6 +74,7 @@ class BattleScene:
         self.debug_mode = False
         self.show_attack_ranges = False
         self.show_hitboxes = False
+        self.show_assassin_reveal_range = False
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
@@ -194,6 +196,8 @@ class BattleScene:
             self.show_attack_ranges = not self.show_attack_ranges
         elif action == "toggle_hitboxes":
             self.show_hitboxes = not self.show_hitboxes
+        elif action == "toggle_assassin_reveal_range":
+            self.show_assassin_reveal_range = not self.show_assassin_reveal_range
 
     def reset_map(self):
         self.player.x, self.player.y = self.initial_player_position
@@ -207,6 +211,7 @@ class BattleScene:
         self._mouse_pressed = False
         self.show_attack_ranges = False
         self.show_hitboxes = False
+        self.show_assassin_reveal_range = False
         game_world.clear()
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
@@ -283,7 +288,11 @@ class BattleScene:
                     screen_x, screen_y = self.camera.world_to_screen(obj.x, obj.y)
                     obj.set_screen_position(screen_x, screen_y)
         game_world.render(self._is_visible_on_screen)
-        if self.show_attack_ranges or self.show_hitboxes:
+        if (
+            self.show_attack_ranges
+            or self.show_hitboxes
+            or self.show_assassin_reveal_range
+        ):
             self._draw_enemy_debug_circles()
         if self.gun_image is not None:
             gun_offset = PLAYER_RADIUS * 0.6
@@ -336,20 +345,16 @@ class BattleScene:
         )
 
     def _debug_menu_items(self):
+        toggle_states = {
+            "toggle_attack_ranges": self.show_attack_ranges,
+            "toggle_hitboxes": self.show_hitboxes,
+            "toggle_assassin_reveal_range": self.show_assassin_reveal_range,
+        }
         return tuple(
             (
                 action,
-                label.replace(
-                    "OFF",
-                    "ON"
-                    if (
-                        self.show_attack_ranges
-                        if action == "toggle_attack_ranges"
-                        else self.show_hitboxes
-                    )
-                    else "OFF",
-                )
-                if action in ("toggle_attack_ranges", "toggle_hitboxes")
+                label.replace("OFF", "ON" if toggle_states[action] else "OFF")
+                if action in toggle_states
                 else label,
             )
             for action, label in DEBUG_MENU_ITEMS
@@ -431,3 +436,17 @@ class BattleScene:
                         0,
                         255,
                     )
+        if self.show_assassin_reveal_range:
+            player_x, player_y = self.camera.world_to_screen(
+                self.player.x,
+                self.player.y,
+            )
+            self.enemy_draw_circle(
+                player_x,
+                player_y,
+                round(AssassinEnemy.FADE_DISTANCE),
+                255,
+                255,
+                0,
+                255,
+            )

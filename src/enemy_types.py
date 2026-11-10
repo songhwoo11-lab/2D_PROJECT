@@ -36,7 +36,7 @@ class TankerEnemy(Enemy):
 
 
 class AssassinEnemy(Enemy):
-    FADE_DISTANCE = 250.0
+    FADE_DISTANCE = 150.0
     HEALTH_BAR_DISTANCE = 100.0
     HIT_FLASH_DURATION_SECONDS = 0.2
 

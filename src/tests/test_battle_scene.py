@@ -321,6 +321,26 @@ class BattleSceneTests(unittest.TestCase):
             self.hud_font.draw_calls,
         )
 
+    def test_debug_visualization_marks_assassin_reveal_radius_around_player(self):
+        self.scene.key_down("f1")
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 9 * 30 + 13)
+        self.scene.draw(lambda *args: None)
+
+        self.assertTrue(self.scene.show_assassin_reveal_range)
+        player_position = self.scene.camera.world_to_screen(
+            self.player.x,
+            self.player.y,
+        )
+        self.assertIn(
+            (*player_position, 150, 255, 255, 0, 255),
+            self.debug_circles,
+        )
+        self.assertIn(
+            (DEBUG_MENU_LEFT + 14, SCREEN_HEIGHT - (42 + 9 * 30 + 26) + 6,
+             "Assassin Reveal: ON", (255, 255, 255)),
+            self.hud_font.draw_calls,
+        )
+
     def test_r_key_starts_manual_reload(self):
         self.gun.magazine_ammo = 0
 
