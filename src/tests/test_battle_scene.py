@@ -283,12 +283,32 @@ class BattleSceneTests(unittest.TestCase):
     def test_debug_menu_resets_player_health_and_does_not_fire(self):
         self.scene.key_down("f1")
         self.player.take_damage(35)
-        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 5 * 30 + 13)
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 6 * 30 + 13)
 
         self.assertEqual(self.player.hp, self.player.max_hp)
         self.assertFalse(self.scene.mouse_held)
         self.assertFalse(self.scene._mouse_pressed)
         self.assertEqual(self.gun.magazine_ammo, 10)
+
+    def test_debug_menu_removes_all_enemies_but_keeps_player_and_projectiles(self):
+        self.scene.key_down("f1")
+        enemies = self.scene.spawn_test_enemies()
+        bullet = Bullet(self.player.x, self.player.y, 0, FakeImage())
+        game_world.add_object(bullet, depth=2)
+
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 5 * 30 + 13)
+
+        self.assertTrue(
+            all(
+                enemy not in layer
+                for enemy in enemies
+                for layer in game_world.world
+            )
+        )
+        self.assertTrue(any(self.player in layer for layer in game_world.world))
+        self.assertIn(bullet, game_world.world[2])
+        self.assertFalse(self.scene.mouse_held)
+        self.assertFalse(self.scene._mouse_pressed)
 
     def test_debug_menu_is_rendered_only_in_debug_mode(self):
         self.scene.draw(lambda *args: None)
@@ -315,7 +335,7 @@ class BattleSceneTests(unittest.TestCase):
         self.scene.show_attack_ranges = True
         self.scene.show_hitboxes = True
 
-        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 6 * 30 + 13)
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 7 * 30 + 13)
 
         self.assertEqual((self.player.x, self.player.y), self.scene.initial_player_position)
         self.assertEqual(self.player.hp, self.player.max_hp)
@@ -345,8 +365,8 @@ class BattleSceneTests(unittest.TestCase):
             self.player.y,
         )
 
-        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 7 * 30 + 13)
         self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 8 * 30 + 13)
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 9 * 30 + 13)
         self.scene.draw(lambda *args: None)
 
         screen_position = self.scene.camera.world_to_screen(enemy.x, enemy.y)
@@ -393,7 +413,7 @@ class BattleSceneTests(unittest.TestCase):
 
     def test_debug_visualization_marks_assassin_reveal_radius_around_player(self):
         self.scene.key_down("f1")
-        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 9 * 30 + 13)
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 10 * 30 + 13)
         self.scene.draw(lambda *args: None)
 
         self.assertTrue(self.scene.show_assassin_reveal_range)
@@ -409,7 +429,7 @@ class BattleSceneTests(unittest.TestCase):
             (
                 DEBUG_MENU_LEFT + 14,
                 SCREEN_HEIGHT
-                - (42 + 9 * 30 + 26)
+                - (42 + 10 * 30 + 26)
                 + (DEBUG_BUTTON_HEIGHT - DEBUG_FONT_SIZE) // 2
                 + DEBUG_BUTTON_TEXT_Y_OFFSET,
                 "Assassin Reveal: ON",

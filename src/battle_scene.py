@@ -37,6 +37,7 @@ DEBUG_MENU_ITEMS = (
     ("spawn_assassin", "Assassin Enemy"),
     ("spawn_archer", "Archer Enemy"),
     ("spawn_tanker", "Tanker Enemy"),
+    ("remove_all_enemies", "Remove All Enemies"),
     ("reset_hp", "Reset Player HP"),
     ("reset_map", "Reset Map"),
     ("toggle_attack_ranges", "Attack Ranges: OFF"),
@@ -205,12 +206,24 @@ class BattleScene:
             self.player.hp = self.player.max_hp
         elif action == "reset_map":
             self.reset_map()
+        elif action == "remove_all_enemies":
+            self._remove_all_enemies()
         elif action == "toggle_attack_ranges":
             self.show_attack_ranges = not self.show_attack_ranges
         elif action == "toggle_hitboxes":
             self.show_hitboxes = not self.show_hitboxes
         elif action == "toggle_assassin_reveal_range":
             self.show_assassin_reveal_range = not self.show_assassin_reveal_range
+
+    def _remove_all_enemies(self):
+        enemies = [
+            obj
+            for layer in game_world.world
+            for obj in tuple(layer)
+            if isinstance(obj, Enemy)
+        ]
+        for enemy in enemies:
+            game_world.remove_object(enemy)
 
     def reset_map(self):
         self.player.x, self.player.y = self.initial_player_position
