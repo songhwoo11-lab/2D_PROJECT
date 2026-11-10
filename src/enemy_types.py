@@ -2,6 +2,8 @@
 
 import math
 
+import pico2d
+
 from arrow import Arrow
 import game_world
 from enemy import ENEMY_STATS, Enemy, EnemyType
@@ -34,6 +36,8 @@ class TankerEnemy(Enemy):
 
 
 class AssassinEnemy(Enemy):
+    FADE_DISTANCE = 250.0
+
     def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
         super().__init__(
             x,
@@ -43,6 +47,55 @@ class AssassinEnemy(Enemy):
             player=player,
             draw_rectangle=draw_rectangle,
         )
+
+    @property
+    def opacity_alpha(self):
+        if self.player is None:
+            return 255
+        distance = math.hypot(self.player.x - self.x, self.player.y - self.y)
+        opacity = min(max(1.0 - distance / self.FADE_DISTANCE, 0.0), 1.0)
+        return round(opacity * 255)
+
+    def draw(self):
+        if self.image is None:
+            raise RuntimeError("AssassinEnemy.draw requires a loaded enemy image")
+        if self.draw_rectangle is None:
+            raise RuntimeError(
+                "AssassinEnemy.draw requires a rectangle drawing function"
+            )
+
+        alpha = self.opacity_alpha
+        if alpha == 0:
+            return
+
+        texture = self.image.texture
+        if pico2d.SDL_SetTextureBlendMode(
+            texture,
+            pico2d.SDL_BLENDMODE_BLEND,
+        ) != 0:
+            raise RuntimeError(
+                "Unable to enable assassin sprite blending: {}".format(
+                    pico2d.SDL_GetError()
+                )
+            )
+        if pico2d.SDL_SetTextureAlphaMod(texture, alpha) != 0:
+            raise RuntimeError(
+                "Unable to set assassin sprite opacity: {}".format(
+                    pico2d.SDL_GetError()
+                )
+            )
+
+        x, y = self._screen_position or (self.x, self.y)
+        try:
+            self.image.draw(x, y, self.radius * 2, self.radius * 2)
+        finally:
+            if pico2d.SDL_SetTextureAlphaMod(texture, 255) != 0:
+                raise RuntimeError(
+                    "Unable to restore assassin sprite opacity: {}".format(
+                        pico2d.SDL_GetError()
+                    )
+                )
+        self.draw_health_bar(x, y, alpha)
 
 
 class ArcherEnemy(Enemy):

@@ -5,10 +5,13 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import main
+import enemy_types
 from enemy import EnemyType
 
 
 class FakeImage:
+    texture = object()
+
     def draw(self, *args):
         pass
 
@@ -77,7 +80,16 @@ class MainTests(unittest.TestCase):
 
         with patch.dict(sys.modules, {"pico2d": pico2d}):
             with patch("hud._measure_text_width", return_value=100):
-                main.main()
+                with patch.object(
+                    enemy_types.pico2d,
+                    "SDL_SetTextureBlendMode",
+                    return_value=0,
+                ), patch.object(
+                    enemy_types.pico2d,
+                    "SDL_SetTextureAlphaMod",
+                    return_value=0,
+                ):
+                    main.main()
 
         self.assertEqual(opened_canvases, [(800, 600)])
         self.assertEqual(

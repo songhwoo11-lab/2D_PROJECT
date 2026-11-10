@@ -1,6 +1,8 @@
 import math
 import unittest
+from unittest.mock import patch
 
+import pico2d
 from arrow import Arrow
 from enemy import ENEMY_STATS, EnemyType
 from enemy_types import (
@@ -56,6 +58,69 @@ class AssassinEnemyTests(unittest.TestCase):
 
         self.assertEqual(enemy.x, 2)
         self.assertEqual(enemy.y, 0)
+
+    def test_assassin_opacity_fades_linearly_with_player_distance(self):
+        player = Player(0, 0)
+        enemy = AssassinEnemy(125, 0, player=player)
+
+        self.assertEqual(enemy.opacity_alpha, 128)
+        enemy.x = 250
+        self.assertEqual(enemy.opacity_alpha, 0)
+        enemy.x = 0
+        self.assertEqual(enemy.opacity_alpha, 255)
+
+    def test_assassin_is_not_drawn_outside_fade_distance(self):
+        image = type("Image", (), {"texture": object(), "draw": lambda *args: None})()
+        rectangles = []
+        enemy = AssassinEnemy(
+            251,
+            0,
+            image=image,
+            player=Player(0, 0),
+            draw_rectangle=lambda *args: rectangles.append(args),
+        )
+
+        with patch.object(pico2d, "SDL_SetTextureBlendMode") as set_blend_mode, patch.object(
+            pico2d,
+            "SDL_SetTextureAlphaMod",
+        ) as set_alpha:
+            enemy.draw()
+
+        set_blend_mode.assert_not_called()
+        set_alpha.assert_not_called()
+        self.assertEqual(rectangles, [])
+
+    def test_assassin_sprite_and_health_bar_share_distance_opacity(self):
+        class FakeImage:
+            texture = object()
+
+            def __init__(self):
+                self.draw_calls = []
+
+            def draw(self, *args):
+                self.draw_calls.append(args)
+
+        image = FakeImage()
+        rectangles = []
+        enemy = AssassinEnemy(
+            125,
+            0,
+            image=image,
+            player=Player(0, 0),
+            draw_rectangle=lambda *args: rectangles.append(args),
+        )
+
+        with patch.object(pico2d, "SDL_SetTextureBlendMode", return_value=0), patch.object(
+            pico2d,
+            "SDL_SetTextureAlphaMod",
+            return_value=0,
+        ) as set_alpha:
+            enemy.draw()
+
+        self.assertEqual(len(image.draw_calls), 1)
+        self.assertEqual(set_alpha.call_args_list[0].args[1], 128)
+        self.assertEqual(set_alpha.call_args_list[-1].args[1], 255)
+        self.assertEqual(rectangles[0][7], 128)
 
 
 class ArcherEnemyTests(unittest.TestCase):

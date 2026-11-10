@@ -144,7 +144,7 @@ class Enemy:
         self._attack_cooldown_frames = self.attack_interval * FPS
         return True
 
-    def draw_health_bar(self, x, y):
+    def draw_health_bar(self, x, y, alpha=255):
         bar_width = self.radius * 2
         bar_height = 4
         bar_left = x - self.radius
@@ -157,7 +157,7 @@ class Enemy:
             255,
             0,
             0,
-            255,
+            alpha,
             True,
         )
 
