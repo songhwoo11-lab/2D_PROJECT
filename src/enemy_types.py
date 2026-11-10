@@ -37,6 +37,7 @@ class TankerEnemy(Enemy):
 
 class AssassinEnemy(Enemy):
     FADE_DISTANCE = 250.0
+    HIT_FLASH_DURATION_SECONDS = 0.2
 
     def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
         super().__init__(
@@ -47,14 +48,33 @@ class AssassinEnemy(Enemy):
             player=player,
             draw_rectangle=draw_rectangle,
         )
+        self._hit_flash_frames_remaining = 0
 
     @property
     def opacity_alpha(self):
+        if self._hit_flash_frames_remaining > 0:
+            return 255
         if self.player is None:
             return 255
         distance = math.hypot(self.player.x - self.x, self.player.y - self.y)
         opacity = min(max(1.0 - distance / self.FADE_DISTANCE, 0.0), 1.0)
         return round(opacity * 255)
+
+    def take_damage(self, amount):
+        was_alive = self.is_alive
+        defeated = super().take_damage(amount)
+        if amount > 0 and was_alive:
+            self._hit_flash_frames_remaining = round(
+                self.HIT_FLASH_DURATION_SECONDS * FPS
+            )
+        return defeated
+
+    def update(self):
+        self._hit_flash_frames_remaining = max(
+            0,
+            self._hit_flash_frames_remaining - 1,
+        )
+        super().update()
 
     def draw(self):
         if self.image is None:

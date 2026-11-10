@@ -69,6 +69,28 @@ class AssassinEnemyTests(unittest.TestCase):
         enemy.x = 0
         self.assertEqual(enemy.opacity_alpha, 255)
 
+    def test_assassin_hit_temporarily_overrides_distance_fade(self):
+        enemy = AssassinEnemy(300, 0, player=Player(0, 0))
+        self.assertEqual(enemy.opacity_alpha, 0)
+
+        enemy.take_damage(1)
+
+        self.assertEqual(enemy.opacity_alpha, 255)
+        for _ in range(round(enemy.HIT_FLASH_DURATION_SECONDS * 60) - 1):
+            enemy.update()
+            self.assertEqual(enemy.opacity_alpha, 255)
+
+        enemy.update()
+
+        self.assertEqual(enemy.opacity_alpha, 0)
+
+    def test_zero_damage_does_not_trigger_assassin_hit_flash(self):
+        enemy = AssassinEnemy(300, 0, player=Player(0, 0))
+
+        enemy.take_damage(0)
+
+        self.assertEqual(enemy.opacity_alpha, 0)
+
     def test_assassin_is_not_drawn_outside_fade_distance(self):
         image = type("Image", (), {"texture": object(), "draw": lambda *args: None})()
         rectangles = []
