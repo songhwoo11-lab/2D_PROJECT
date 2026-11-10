@@ -117,6 +117,7 @@ class BattleSceneWaveTests(unittest.TestCase):
 
         self.assertFalse(scene.waves_cleared)
         self.assertEqual(scene.wave_director.current_wave, 2)
+        self.assertEqual(scene.reached_wave, 2)
         self.assertEqual(scene.wave_banner_text, "WAVE 2")
 
     def test_wave_enemies_use_the_wave_stat_multiplier(self):
@@ -416,6 +417,92 @@ class BattleSceneFlowTests(unittest.TestCase):
         self.assertFalse(self.scene.finished)
         self.assertIsNone(self.scene.result)
         self.assertFalse(self.scene.exit_requested)
+
+
+class BattleSceneRecordTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+
+    def tearDown(self):
+        game_world.clear()
+
+    def test_elapsed_time_accumulates_while_active(self):
+        self.scene.update(0.1)
+
+        self.scene.update(0.2)
+
+        self.assertAlmostEqual(self.scene.elapsed_time, 0.3)
+
+    def test_pausing_stops_the_clock(self):
+        self.scene.update(0.1)
+
+        self.scene.key_down("q")
+        self.scene.update(5.0)
+
+        self.assertAlmostEqual(self.scene.elapsed_time, 0.1)
+
+    def test_victory_records_the_clear_time(self):
+        self.scene.waves_cleared = True
+
+        self.scene.update(0.25)
+
+        self.assertIs(self.scene.result, BattleResult.VICTORY)
+        self.assertAlmostEqual(self.scene.clear_time, 0.25)
+
+    def test_defeat_does_not_record_a_clear_time(self):
+        self.scene.update(0.1)
+        self.scene.player.hp = 0
+
+        self.scene.update(0.2)
+
+        self.assertIs(self.scene.result, BattleResult.DEFEAT)
+        self.assertIsNone(self.scene.clear_time)
+        self.assertAlmostEqual(self.scene.elapsed_time, 0.3)
+
+    def test_quitting_keeps_the_reached_wave(self):
+        self.scene.reached_wave = 4
+
+        self.scene.key_down("q")
+        self.scene.key_down("s")
+        self.scene.key_up("s")
+        self.scene.key_down("return")
+
+        self.assertIs(self.scene.result, BattleResult.QUIT)
+        self.assertEqual(self.scene.reached_wave, 4)
+        self.assertIsNone(self.scene.clear_time)
+
+    def test_reset_map_clears_record_values(self):
+        self.scene.elapsed_time = 30.0
+        self.scene.reached_wave = 9
+        self.scene.clear_time = 30.0
+
+        self.scene.reset_map()
+
+        self.assertEqual(self.scene.elapsed_time, 0.0)
+        self.assertEqual(self.scene.reached_wave, 1)
+        self.assertIsNone(self.scene.clear_time)
+
+    def test_development_settings_configure_the_wave_director(self):
+        scene = BattleScene(
+            Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
+            Gun(),
+            FakeBackground(),
+            hud_font=FakeFont(),
+            enemy_images={enemy_type: FakeImage() for enemy_type in EnemyType},
+            enemy_draw_rectangle=lambda *args: None,
+            enemy_draw_circle=lambda *args: None,
+            random_source=random.Random(0),
+            total_waves=2,
+            wave_spawn_rate=500,
+        )
+
+        self.assertEqual(scene.wave_director.total_waves, 2)
+        self.assertEqual(scene.wave_director.spawn_rate, 500)
+
+        scene.reset_map()
+
+        self.assertEqual(scene.wave_director.total_waves, 2)
+        self.assertEqual(scene.wave_director.spawn_rate, 500)
 
 
 if __name__ == "__main__":

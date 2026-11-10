@@ -5,6 +5,7 @@ import math
 import random
 
 from arrow import Arrow
+import battle_record
 from bullet import Bullet
 from enemy import ENEMY_STATS, Enemy, EnemyType
 from enemy_types import AssassinEnemy, create_enemy
@@ -95,6 +96,8 @@ class BattleScene:
         enemy_draw_circle=None,
         arrow_image=None,
         random_source=None,
+        total_waves=None,
+        wave_spawn_rate=None,
     ):
         self.player = player
         self.gun = gun
@@ -123,11 +126,16 @@ class BattleScene:
         self.show_assassin_reveal_range = False
         self.shot_feedbacks = []
         self.random_source = random_source or random.Random()
-        self.wave_director = WaveDirector(random_source=self.random_source)
+        self.total_waves_setting = total_waves
+        self.wave_spawn_rate_setting = wave_spawn_rate
+        self.wave_director = self._create_wave_director()
         self.spawn_warnings = []
         self.wave_banner_text = ""
         self.wave_banner_remaining = 0.0
         self.waves_cleared = False
+        self.elapsed_time = 0.0
+        self.reached_wave = 1
+        self.clear_time = None
         self.coins = 0
         self.pickups = []
         self.health_pickups = []
@@ -145,6 +153,14 @@ class BattleScene:
 
     def close(self):
         game_world.clear()
+
+    def _create_wave_director(self):
+        options = {"random_source": self.random_source}
+        if self.total_waves_setting is not None:
+            options["total_waves"] = self.total_waves_setting
+        if self.wave_spawn_rate_setting is not None:
+            options["spawn_rate"] = self.wave_spawn_rate_setting
+        return WaveDirector(**options)
 
     def spawn_enemy(self, enemy_type, x, y):
         if enemy_type not in self.enemy_images:
@@ -265,6 +281,7 @@ class BattleScene:
             and self._alive_enemy_count() == 0
         ):
             if self.wave_director.advance():
+                self.reached_wave = self.wave_director.current_wave
                 self._announce_wave()
             else:
                 self.waves_cleared = True
@@ -319,6 +336,8 @@ class BattleScene:
         self.finished = True
         self.result = result
         self.paused = False
+        if result is BattleResult.VICTORY:
+            self.clear_time = self.elapsed_time
 
     def key_up(self, key):
         self.keys.discard(key.lower())
@@ -413,9 +432,12 @@ class BattleScene:
         self.show_attack_ranges = False
         self.show_hitboxes = False
         self.show_assassin_reveal_range = False
-        self.wave_director = WaveDirector(random_source=self.random_source)
+        self.wave_director = self._create_wave_director()
         self.spawn_warnings = []
         self.waves_cleared = False
+        self.elapsed_time = 0.0
+        self.reached_wave = 1
+        self.clear_time = None
         self.coins = 0
         self.pickups = []
         self.health_pickups = []
@@ -433,6 +455,7 @@ class BattleScene:
     def update(self, delta_time):
         if self.finished or self.paused:
             return
+        self.elapsed_time += delta_time
         self.shot_feedbacks = [
             (x, y, label, remaining - delta_time)
             for x, y, label, remaining in self.shot_feedbacks
@@ -675,7 +698,19 @@ class BattleScene:
         )
         draw_centered_text(
             self.hud_font,
-            SCREEN_HEIGHT / 2 - 10,
+            SCREEN_HEIGHT / 2,
+            battle_record.result_record_text(
+                self.result.value,
+                self.reached_wave,
+                self.wave_director.total_waves,
+                self.elapsed_time,
+                self.clear_time,
+            ),
+            (255, 255, 255),
+        )
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT / 2 - 40,
             "PRESS ENTER TO RETURN TO LOBBY",
             (255, 255, 255),
         )

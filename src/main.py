@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from battle_scene import DEBUG_FONT_SIZE, SHOT_FEEDBACK_FONT_SIZE, BattleScene
+from dev_settings import development_spawn_rate, development_total_waves
 from enemy import EnemyType
 from game_config import (
     FRAME_TIME,
@@ -83,6 +84,8 @@ def main():
             enemy_draw_rectangle=pico2d.draw_rectangle,
             enemy_draw_circle=pico2d.draw_circle,
             arrow_image=arrow_image,
+            total_waves=development_total_waves(),
+            wave_spawn_rate=development_spawn_rate(),
         )
         key_map = {
             pico2d.SDLK_F1: "f1",
