@@ -363,6 +363,21 @@ class ArcherEnemyTests(unittest.TestCase):
         self.assertEqual(len(rectangles), 2)
         self.assertLess(rectangles[0][1], rectangles[1][1])
 
+    def test_archer_warning_charge_bar_is_yellow(self):
+        rectangles = []
+        enemy = ArcherEnemy(
+            100,
+            100,
+            image=type("Image", (), {"draw": lambda self, *args: None})(),
+            draw_rectangle=lambda *args: rectangles.append(args),
+        )
+        enemy.attack_charge = 1.0
+        enemy.attack_warning_remaining = 1
+
+        enemy.draw()
+
+        self.assertEqual(rectangles[1][4:7], (255, 220, 40))
+
 
 class ExplosiveEnemyTests(unittest.TestCase):
     def tearDown(self):

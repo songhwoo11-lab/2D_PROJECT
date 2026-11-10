@@ -225,7 +225,7 @@ class ArcherEnemy(Enemy):
         bar_width = self.radius * 2
         bar_left = x - self.radius
         bar_bottom = y + self.radius + 9
-        color = (255, 80, 40) if self.is_attack_warning else (80, 200, 255)
+        color = (255, 220, 40) if self.is_attack_warning else (80, 200, 255)
         self.draw_rectangle(
             bar_left,
             bar_bottom,
