@@ -2,7 +2,13 @@ import unittest
 from unittest.mock import patch
 
 import game_world
-from battle_scene import DEBUG_MENU_LEFT, BattleScene
+from battle_scene import (
+    DEBUG_BUTTON_HEIGHT,
+    DEBUG_BUTTON_TEXT_Y_OFFSET,
+    DEBUG_FONT_SIZE,
+    DEBUG_MENU_LEFT,
+    BattleScene,
+)
 from bullet import Bullet
 from enemy import EnemyType
 from enemy_types import ArcherEnemy, BasicEnemy
@@ -58,11 +64,13 @@ class BattleSceneTests(unittest.TestCase):
         self.gun = Gun()
         self.background = FakeBackground()
         self.hud_font = FakeFont()
+        self.debug_font = FakeFont()
         self.scene = BattleScene(
             self.player,
             self.gun,
             self.background,
             hud_font=self.hud_font,
+            debug_font=self.debug_font,
         )
         self.enemy_images = {
             enemy_type: FakeImage() for enemy_type in EnemyType
@@ -318,7 +326,20 @@ class BattleSceneTests(unittest.TestCase):
         self.scene.draw(lambda *args: None)
         self.assertIn(
             (DEBUG_MENU_LEFT + 8, SCREEN_HEIGHT - 30, "DEBUG MODE", (255, 220, 80)),
-            self.hud_font.draw_calls,
+            self.debug_font.draw_calls,
+        )
+        button_left, _, _, button_bottom = self.scene._debug_button_bounds(0)
+        self.assertIn(
+            (
+                button_left + 6,
+                SCREEN_HEIGHT
+                - button_bottom
+                + (DEBUG_BUTTON_HEIGHT - DEBUG_FONT_SIZE) // 2
+                + DEBUG_BUTTON_TEXT_Y_OFFSET,
+                "Basic Enemy",
+                (255, 255, 255),
+            ),
+            self.debug_font.draw_calls,
         )
 
     def test_debug_visualization_marks_assassin_reveal_radius_around_player(self):
@@ -336,9 +357,16 @@ class BattleSceneTests(unittest.TestCase):
             self.debug_circles,
         )
         self.assertIn(
-            (DEBUG_MENU_LEFT + 14, SCREEN_HEIGHT - (42 + 9 * 30 + 26) + 6,
-             "Assassin Reveal: ON", (255, 255, 255)),
-            self.hud_font.draw_calls,
+            (
+                DEBUG_MENU_LEFT + 14,
+                SCREEN_HEIGHT
+                - (42 + 9 * 30 + 26)
+                + (DEBUG_BUTTON_HEIGHT - DEBUG_FONT_SIZE) // 2
+                + DEBUG_BUTTON_TEXT_Y_OFFSET,
+                "Assassin Reveal: ON",
+                (255, 255, 255),
+            ),
+            self.debug_font.draw_calls,
         )
 
     def test_r_key_starts_manual_reload(self):

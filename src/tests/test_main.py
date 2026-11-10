@@ -119,7 +119,10 @@ class MainTests(unittest.TestCase):
         self.assertTrue(all(Path(path).is_file() for path in loaded_images))
         self.assertEqual(
             [(path.rsplit("\\", 2)[-2:], size) for path, size in loaded_fonts],
-            [(["font", "PuzzleSansSuper.ttf"], 20)],
+            [
+                (["font", "PuzzleSansSuper.ttf"], 20),
+                (["font", "PuzzleSansSuper.ttf"], 15),
+            ],
         )
         self.assertTrue(Path(loaded_fonts[0][0]).is_file())
         self.assertEqual(closed, [True])

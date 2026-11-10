@@ -25,6 +25,8 @@ DEBUG_MENU_LEFT = SCREEN_WIDTH - DEBUG_MENU_WIDTH - 8
 DEBUG_BUTTON_TOP = 42
 DEBUG_BUTTON_HEIGHT = 26
 DEBUG_BUTTON_SPACING = 30
+DEBUG_BUTTON_TEXT_Y_OFFSET = 5
+DEBUG_FONT_SIZE = 15
 DEBUG_MENU_ITEMS = (
     ("spawn_basic", "Basic Enemy"),
     ("spawn_explosive", "Explosive Enemy"),
@@ -49,6 +51,7 @@ class BattleScene:
         gun_image=None,
         bullet_image=None,
         hud_font=None,
+        debug_font=None,
         enemy_images=None,
         enemy_draw_rectangle=None,
         enemy_draw_circle=None,
@@ -61,6 +64,7 @@ class BattleScene:
         self.gun_image = gun_image
         self.bullet_image = bullet_image
         self.hud_font = hud_font
+        self.debug_font = hud_font if debug_font is None else debug_font
         self.enemy_images = dict(enemy_images or {})
         self.enemy_draw_rectangle = enemy_draw_rectangle
         self.enemy_draw_circle = enemy_draw_circle
@@ -361,6 +365,8 @@ class BattleScene:
         )
 
     def _draw_debug_menu(self, draw_rectangle):
+        if self.debug_font is None:
+            raise RuntimeError("BattleScene debug menu requires a loaded debug font")
         menu_bottom = DEBUG_BUTTON_TOP + len(DEBUG_MENU_ITEMS) * DEBUG_BUTTON_SPACING
         draw_rectangle(
             DEBUG_MENU_LEFT,
@@ -373,7 +379,7 @@ class BattleScene:
             230,
             True,
         )
-        self.hud_font.draw(
+        self.debug_font.draw(
             DEBUG_MENU_LEFT + 8,
             SCREEN_HEIGHT - 30,
             "DEBUG MODE",
@@ -381,9 +387,15 @@ class BattleScene:
         )
         for index, (_, label) in enumerate(self._debug_menu_items()):
             left, top, right, bottom = self._debug_button_bounds(index)
-            self.hud_font.draw(
+            text_y = (
+                SCREEN_HEIGHT
+                - bottom
+                + (DEBUG_BUTTON_HEIGHT - DEBUG_FONT_SIZE) // 2
+                + DEBUG_BUTTON_TEXT_Y_OFFSET
+            )
+            self.debug_font.draw(
                 left + 6,
-                SCREEN_HEIGHT - bottom + 6,
+                text_y,
                 label,
                 (255, 255, 255),
             )
