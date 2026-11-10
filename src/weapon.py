@@ -8,6 +8,7 @@ from game_config import (
     AUTO_SHOT_HEAT_BASE,
     AUTO_SHOT_HEAT_STEP,
     AUTO_STREAK_DECAY_SECONDS,
+    COOLING_PER_FRAME_BLOCKED,
     COOLING_PER_FRAME_FIREABLE,
     FPS,
     MIN_TEMPERATURE,
@@ -110,6 +111,13 @@ class Gun:
 
     def _cool(self, delta_time):
         if self.overheated:
+            self.temperature = max(
+                MIN_TEMPERATURE,
+                self.temperature - COOLING_PER_FRAME_BLOCKED,
+            )
+            if self.temperature <= MIN_TEMPERATURE:
+                self.temperature = MIN_TEMPERATURE
+                self.overheated = False
             return
         self.temperature = max(
             MIN_TEMPERATURE,
@@ -169,6 +177,9 @@ class Gun:
             self.temperature_limit,
             self.temperature + max(0.0, amount),
         )
+        if self.temperature >= self.temperature_limit:
+            self.temperature = self.temperature_limit
+            self.overheated = True
 
     def toggle_mode(self):
         self.fire_mode = (

@@ -136,5 +136,55 @@ class FireableCoolingTests(unittest.TestCase):
         self.assertEqual(gun.temperature, MIN_TEMPERATURE)
 
 
+class OverheatTests(unittest.TestCase):
+    def test_reaching_limit_blocks_firing(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        gun.temperature = gun.temperature_limit - 0.1
+
+        self.assertTrue(gun.try_fire())
+
+        self.assertEqual(gun.temperature, gun.temperature_limit)
+        self.assertTrue(gun.overheated)
+        self.assertTrue(gun.fire_blocked)
+        self.assertFalse(gun.can_fire)
+        gun.cooldown_remaining = 0.0
+        self.assertFalse(gun.try_fire())
+
+    def test_blocked_gun_cools_half_degree_per_frame(self):
+        gun = Gun()
+        gun.overheated = True
+        gun.temperature = gun.temperature_limit
+
+        gun.update(0.0)
+
+        self.assertAlmostEqual(
+            gun.temperature,
+            gun.temperature_limit - 0.5,
+        )
+
+    def test_gun_becomes_fireable_again_at_minimum_temperature(self):
+        gun = Gun()
+        gun.overheated = True
+        gun.temperature = MIN_TEMPERATURE + 0.5
+
+        gun.update(0.0)
+
+        self.assertEqual(gun.temperature, MIN_TEMPERATURE)
+        self.assertFalse(gun.overheated)
+        self.assertTrue(gun.can_fire)
+
+    def test_full_recovery_from_limit_takes_380_frames(self):
+        gun = Gun()
+        gun.overheated = True
+        gun.temperature = gun.temperature_limit
+
+        for _ in range(380):
+            gun.update(0.0)
+
+        self.assertEqual(gun.temperature, MIN_TEMPERATURE)
+        self.assertFalse(gun.overheated)
+
+
 if __name__ == "__main__":
     unittest.main()
