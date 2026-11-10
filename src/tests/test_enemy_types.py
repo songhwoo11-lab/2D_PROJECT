@@ -4,7 +4,12 @@ from unittest.mock import patch
 
 import pico2d
 from arrow import Arrow
-from enemy import ENEMY_DEFAULT_MOVE_SPEED, ENEMY_STATS, EnemyType
+from enemy import (
+    ENEMY_DEFAULT_MOVE_SPEED,
+    ENEMY_DEFAULT_RADIUS,
+    ENEMY_STATS,
+    EnemyType,
+)
 from enemy_types import (
     ArcherEnemy,
     AssassinEnemy,
@@ -38,6 +43,7 @@ class TankerEnemyTests(unittest.TestCase):
         self.assertEqual(enemy.stats, ENEMY_STATS[EnemyType.TANKER])
         self.assertEqual((enemy.max_hp, enemy.attack_damage), (120, 5))
         self.assertEqual(enemy.attack_interval, 2.0)
+        self.assertEqual(enemy.radius, ENEMY_DEFAULT_RADIUS * 2)
         self.assertFalse(enemy.take_damage(100))
         self.assertEqual(enemy.hp, 20)
         self.assertTrue(enemy.take_damage(20))

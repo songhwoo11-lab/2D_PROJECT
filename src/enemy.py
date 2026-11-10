@@ -50,7 +50,12 @@ ENEMY_STATS = {
         attack_range=50,
     ),
     EnemyType.TANKER: EnemyStats(
-        "tanker", 120, 5, 2.0, ENEMY_DEFAULT_MOVE_SPEED, ENEMY_DEFAULT_RADIUS
+        "tanker",
+        120,
+        5,
+        2.0,
+        ENEMY_DEFAULT_MOVE_SPEED,
+        ENEMY_DEFAULT_RADIUS * 2,
     ),
     EnemyType.ASSASSIN: EnemyStats(
         "assassin",
