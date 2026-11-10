@@ -37,6 +37,7 @@ class TankerEnemy(Enemy):
 
 class AssassinEnemy(Enemy):
     FADE_DISTANCE = 250.0
+    HEALTH_BAR_DISTANCE = 100.0
     HIT_FLASH_DURATION_SECONDS = 0.2
 
     def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
@@ -51,14 +52,29 @@ class AssassinEnemy(Enemy):
         self._hit_flash_frames_remaining = 0
 
     @property
+    def distance_to_player(self):
+        if self.player is None:
+            return 0.0
+        return math.hypot(self.player.x - self.x, self.player.y - self.y)
+
+    @property
     def opacity_alpha(self):
         if self._hit_flash_frames_remaining > 0:
             return 255
-        if self.player is None:
-            return 255
-        distance = math.hypot(self.player.x - self.x, self.player.y - self.y)
-        opacity = min(max(1.0 - distance / self.FADE_DISTANCE, 0.0), 1.0)
+        opacity = min(
+            max(1.0 - self.distance_to_player / self.FADE_DISTANCE, 0.0),
+            1.0,
+        )
         return round(opacity * 255)
+
+    @property
+    def health_bar_alpha(self):
+        if (
+            self.distance_to_player <= self.HEALTH_BAR_DISTANCE
+            or self._hit_flash_frames_remaining > 0
+        ):
+            return 255
+        return 0
 
     def take_damage(self, amount):
         was_alive = self.is_alive
@@ -115,7 +131,9 @@ class AssassinEnemy(Enemy):
                         pico2d.SDL_GetError()
                     )
                 )
-        self.draw_health_bar(x, y, alpha)
+        health_bar_alpha = self.health_bar_alpha
+        if health_bar_alpha > 0:
+            self.draw_health_bar(x, y, health_bar_alpha)
 
 
 class ArcherEnemy(Enemy):

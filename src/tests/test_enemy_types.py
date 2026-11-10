@@ -112,7 +112,7 @@ class AssassinEnemyTests(unittest.TestCase):
         set_alpha.assert_not_called()
         self.assertEqual(rectangles, [])
 
-    def test_assassin_sprite_and_health_bar_share_distance_opacity(self):
+    def test_assassin_sprite_fades_before_health_bar_is_revealed(self):
         class FakeImage:
             texture = object()
 
@@ -142,7 +142,64 @@ class AssassinEnemyTests(unittest.TestCase):
         self.assertEqual(len(image.draw_calls), 1)
         self.assertEqual(set_alpha.call_args_list[0].args[1], 128)
         self.assertEqual(set_alpha.call_args_list[-1].args[1], 255)
-        self.assertEqual(rectangles[0][7], 128)
+        self.assertEqual(rectangles, [])
+
+    def test_assassin_health_bar_appears_within_100_units(self):
+        image = type("Image", (), {"texture": object(), "draw": lambda *args: None})()
+        rectangles = []
+        enemy = AssassinEnemy(
+            100,
+            0,
+            image=image,
+            player=Player(0, 0),
+            draw_rectangle=lambda *args: rectangles.append(args),
+        )
+
+        with patch.object(pico2d, "SDL_SetTextureBlendMode", return_value=0), patch.object(
+            pico2d,
+            "SDL_SetTextureAlphaMod",
+            return_value=0,
+        ):
+            enemy.draw()
+
+        self.assertEqual(len(rectangles), 1)
+        self.assertEqual(rectangles[0][7], 255)
+
+    def test_hit_while_hidden_temporarily_reveals_health_bar(self):
+        image = type("Image", (), {"texture": object(), "draw": lambda *args: None})()
+        rectangles = []
+        enemy = AssassinEnemy(
+            300,
+            0,
+            image=image,
+            player=Player(0, 0),
+            draw_rectangle=lambda *args: rectangles.append(args),
+        )
+        self.assertEqual(enemy.health_bar_alpha, 0)
+
+        enemy.take_damage(1)
+        self.assertEqual(enemy.health_bar_alpha, 255)
+        with patch.object(pico2d, "SDL_SetTextureBlendMode", return_value=0), patch.object(
+            pico2d,
+            "SDL_SetTextureAlphaMod",
+            return_value=0,
+        ):
+            enemy.draw()
+        self.assertEqual(len(rectangles), 1)
+        self.assertEqual(rectangles[0][7], 255)
+
+        for _ in range(round(enemy.HIT_FLASH_DURATION_SECONDS * 60)):
+            enemy.update()
+
+        rectangles.clear()
+        self.assertEqual(enemy.health_bar_alpha, 0)
+        with patch.object(pico2d, "SDL_SetTextureBlendMode", return_value=0), patch.object(
+            pico2d,
+            "SDL_SetTextureAlphaMod",
+        ) as set_alpha:
+            enemy.draw()
+        set_alpha.assert_not_called()
+        self.assertEqual(rectangles, [])
 
 
 class ArcherEnemyTests(unittest.TestCase):
