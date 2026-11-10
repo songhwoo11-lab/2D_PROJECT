@@ -12,6 +12,9 @@ from game_config import (
     COOLING_PER_FRAME_FIREABLE,
     FPS,
     MIN_TEMPERATURE,
+    OVERHEAT_INITIAL_REDUCTION,
+    OVERHEAT_REDUCTION_HOLD_SECONDS,
+    OVERHEAT_REDUCTION_RECOVERY_SECONDS,
     PISTOL_DAMAGE,
     PISTOL_FIRE_INTERVAL_FRAMES,
     PISTOL_MAGAZINE_SIZE,
@@ -72,6 +75,7 @@ class Gun:
         self.overheated = False
         self.auto_shot_streak = 0
         self._auto_idle_seconds = 0.0
+        self._damage_reduction_elapsed = None
 
     @property
     def reloading(self):
@@ -98,6 +102,34 @@ class Gun:
             and self.cooldown_remaining <= 1e-9
         )
 
+    @property
+    def damage_reduction(self):
+        elapsed = self._damage_reduction_elapsed
+        if elapsed is None:
+            return 0.0
+        if elapsed < OVERHEAT_REDUCTION_HOLD_SECONDS:
+            return OVERHEAT_INITIAL_REDUCTION
+        recovery_elapsed = elapsed - OVERHEAT_REDUCTION_HOLD_SECONDS
+        if recovery_elapsed >= OVERHEAT_REDUCTION_RECOVERY_SECONDS:
+            return 0.0
+        return (
+            40.0
+            * math.cos(
+                math.pi
+                * recovery_elapsed
+                / OVERHEAT_REDUCTION_RECOVERY_SECONDS
+            )
+            + 40.0
+        ) / 100.0
+
+    @property
+    def damage_multiplier(self):
+        return 1.0 - self.damage_reduction
+
+    @property
+    def effective_damage(self):
+        return self.spec.damage * self.damage_multiplier
+
     def update(self, delta_time):
         if not math.isfinite(delta_time) or delta_time < 0:
             raise ValueError("delta_time must be a finite non-negative number")
@@ -108,6 +140,7 @@ class Gun:
                 self._finish_reload()
         self._decay_auto_streak(delta_time)
         self._cool(delta_time)
+        self._update_damage_reduction(delta_time)
 
     def _cool(self, delta_time):
         if self.overheated:
@@ -118,11 +151,23 @@ class Gun:
             if self.temperature <= MIN_TEMPERATURE:
                 self.temperature = MIN_TEMPERATURE
                 self.overheated = False
+                self._damage_reduction_elapsed = 0.0
             return
         self.temperature = max(
             MIN_TEMPERATURE,
             self.temperature - COOLING_PER_FRAME_FIREABLE,
         )
+
+    def _update_damage_reduction(self, delta_time):
+        if self._damage_reduction_elapsed is None:
+            return
+        self._damage_reduction_elapsed += delta_time
+        if (
+            self._damage_reduction_elapsed
+            >= OVERHEAT_REDUCTION_HOLD_SECONDS
+            + OVERHEAT_REDUCTION_RECOVERY_SECONDS
+        ):
+            self._damage_reduction_elapsed = None
 
     def _decay_auto_streak(self, delta_time):
         if self.auto_shot_streak <= 0:

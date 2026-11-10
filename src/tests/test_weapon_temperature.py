@@ -186,5 +186,58 @@ class OverheatTests(unittest.TestCase):
         self.assertFalse(gun.overheated)
 
 
+class OverheatDamageReductionTests(unittest.TestCase):
+    def _recovered_gun(self):
+        gun = Gun()
+        gun.overheated = True
+        gun.temperature = MIN_TEMPERATURE + 0.5
+        gun.update(0.0)
+        return gun
+
+    def test_gun_without_overheat_has_full_damage(self):
+        gun = Gun()
+
+        self.assertEqual(gun.damage_reduction, 0.0)
+        self.assertAlmostEqual(gun.damage_multiplier, 1.0)
+        self.assertAlmostEqual(gun.effective_damage, gun.spec.damage)
+
+    def test_recovery_starts_with_80_percent_reduction(self):
+        gun = self._recovered_gun()
+
+        self.assertAlmostEqual(gun.damage_reduction, 0.8)
+        self.assertAlmostEqual(gun.damage_multiplier, 0.2)
+        self.assertAlmostEqual(gun.effective_damage, gun.spec.damage * 0.2)
+
+    def test_reduction_is_held_for_one_minute(self):
+        gun = self._recovered_gun()
+
+        gun.update(59.0)
+
+        self.assertAlmostEqual(gun.damage_reduction, 0.8)
+
+    def test_reduction_follows_sine_curve_after_hold(self):
+        gun = self._recovered_gun()
+
+        gun.update(90.0)
+
+        self.assertAlmostEqual(gun.damage_reduction, 0.4, places=6)
+        self.assertAlmostEqual(gun.damage_multiplier, 0.6, places=6)
+
+    def test_reduction_is_gone_after_two_minutes(self):
+        gun = self._recovered_gun()
+
+        gun.update(120.0)
+
+        self.assertAlmostEqual(gun.damage_reduction, 0.0)
+        self.assertAlmostEqual(gun.damage_multiplier, 1.0)
+
+    def test_reset_clears_damage_reduction(self):
+        gun = self._recovered_gun()
+
+        gun.reset()
+
+        self.assertAlmostEqual(gun.damage_multiplier, 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -288,7 +288,7 @@ class BattleScene:
                         + math.sin(self.player.aim_angle) * muzzle_offset,
                         self.player.aim_angle,
                         self.bullet_image,
-                        damage=self.gun.spec.damage,
+                        damage=self.gun.effective_damage,
                     ),
                     depth=2,
                 )
