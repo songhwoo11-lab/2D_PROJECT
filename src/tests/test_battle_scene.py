@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import game_world
-from battle_scene import BattleScene
+from battle_scene import DEBUG_MENU_LEFT, BattleScene
 from enemy import EnemyType
 from enemy_types import ArcherEnemy, BasicEnemy
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, WORLD_HEIGHT, WORLD_WIDTH
@@ -188,6 +188,59 @@ class BattleSceneTests(unittest.TestCase):
 
         self.assertIn(
             ((SCREEN_WIDTH - len("AMMO INF") * 10) / 2, 60, "AMMO INF", (255, 255, 255)),
+            self.hud_font.draw_calls,
+        )
+
+    def test_debug_menu_buttons_spawn_enemy_types_at_map_center(self):
+        self.scene.key_down("f1")
+        center = (WORLD_WIDTH / 2, WORLD_HEIGHT / 2)
+
+        for index, enemy_type in enumerate(
+            (
+                EnemyType.BASIC,
+                EnemyType.EXPLOSIVE,
+                EnemyType.ASSASSIN,
+                EnemyType.ARCHER,
+                EnemyType.TANKER,
+            )
+        ):
+            screen_y = 42 + index * 30 + 13
+            self.scene.mouse_down("left", SCREEN_WIDTH - 50, screen_y)
+            enemies = [
+                obj
+                for layer in game_world.world
+                for obj in layer
+                if obj is not self.player and hasattr(obj, "stats")
+            ]
+            self.assertEqual(len(enemies), index + 1)
+            self.assertEqual(
+                (enemies[-1].x, enemies[-1].y),
+                center,
+            )
+            self.assertEqual(enemies[-1].stats.name, enemy_type.value)
+            self.scene.mouse_up("left")
+
+    def test_debug_menu_resets_player_health_and_does_not_fire(self):
+        self.scene.key_down("f1")
+        self.player.take_damage(35)
+        self.scene.mouse_down("left", SCREEN_WIDTH - 50, 42 + 5 * 30 + 13)
+
+        self.assertEqual(self.player.hp, self.player.max_hp)
+        self.assertFalse(self.scene.mouse_held)
+        self.assertFalse(self.scene._mouse_pressed)
+        self.assertEqual(self.gun.magazine_ammo, 10)
+
+    def test_debug_menu_is_rendered_only_in_debug_mode(self):
+        self.scene.draw(lambda *args: None)
+        self.assertNotIn(
+            (DEBUG_MENU_LEFT + 8, SCREEN_HEIGHT - 30, "DEBUG MODE", (255, 220, 80)),
+            self.hud_font.draw_calls,
+        )
+
+        self.scene.key_down("f1")
+        self.scene.draw(lambda *args: None)
+        self.assertIn(
+            (DEBUG_MENU_LEFT + 8, SCREEN_HEIGHT - 30, "DEBUG MODE", (255, 220, 80)),
             self.hud_font.draw_calls,
         )
 

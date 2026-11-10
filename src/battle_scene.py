@@ -8,10 +8,31 @@ from enemy import Enemy, EnemyType
 from enemy_types import create_enemy
 import game_world
 from game_camera import Camera
-from game_config import PLAYER_RADIUS, SCREEN_HEIGHT, SCREEN_WIDTH
+from game_config import (
+    PLAYER_RADIUS,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    WORLD_HEIGHT,
+    WORLD_WIDTH,
+)
 from hud import draw_hud
 from player import Player
 from weapon import Gun
+
+
+DEBUG_MENU_WIDTH = 190
+DEBUG_MENU_LEFT = SCREEN_WIDTH - DEBUG_MENU_WIDTH - 8
+DEBUG_BUTTON_TOP = 42
+DEBUG_BUTTON_HEIGHT = 26
+DEBUG_BUTTON_SPACING = 30
+DEBUG_MENU_ITEMS = (
+    ("spawn_basic", "Basic Enemy"),
+    ("spawn_explosive", "Explosive Enemy"),
+    ("spawn_assassin", "Assassin Enemy"),
+    ("spawn_archer", "Archer Enemy"),
+    ("spawn_tanker", "Tanker Enemy"),
+    ("reset_hp", "Reset Player HP"),
+)
 
 
 class BattleScene:
@@ -107,7 +128,15 @@ class BattleScene:
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
 
-    def mouse_down(self, button):
+    def mouse_down(self, button, screen_x=None, screen_y=None):
+        if (
+            button == "left"
+            and self.debug_mode
+            and screen_x is not None
+            and screen_y is not None
+            and self._handle_debug_click(screen_x, screen_y)
+        ):
+            return
         if button == "left" and not self.mouse_held:
             self.mouse_held = True
             self._mouse_pressed = True
@@ -115,6 +144,42 @@ class BattleScene:
     def mouse_up(self, button):
         if button == "left":
             self.mouse_held = False
+
+    def _debug_button_bounds(self, index):
+        top = DEBUG_BUTTON_TOP + index * DEBUG_BUTTON_SPACING
+        return DEBUG_MENU_LEFT + 8, top, SCREEN_WIDTH - 8, top + DEBUG_BUTTON_HEIGHT
+
+    def _handle_debug_click(self, screen_x, screen_y):
+        menu_bottom = DEBUG_BUTTON_TOP + len(DEBUG_MENU_ITEMS) * DEBUG_BUTTON_SPACING
+        if not (
+            DEBUG_MENU_LEFT <= screen_x <= SCREEN_WIDTH - 8
+            and 8 <= screen_y <= menu_bottom
+        ):
+            return False
+
+        for index, (action, _) in enumerate(DEBUG_MENU_ITEMS):
+            left, top, right, bottom = self._debug_button_bounds(index)
+            if left <= screen_x <= right and top <= screen_y <= bottom:
+                self._run_debug_action(action)
+                return True
+        return True
+
+    def _run_debug_action(self, action):
+        enemy_types = {
+            "spawn_basic": EnemyType.BASIC,
+            "spawn_explosive": EnemyType.EXPLOSIVE,
+            "spawn_assassin": EnemyType.ASSASSIN,
+            "spawn_archer": EnemyType.ARCHER,
+            "spawn_tanker": EnemyType.TANKER,
+        }
+        if action in enemy_types:
+            self.spawn_enemy(
+                enemy_types[action],
+                WORLD_WIDTH / 2,
+                WORLD_HEIGHT / 2,
+            )
+        elif action == "reset_hp":
+            self.player.hp = self.player.max_hp
 
     def update(self, delta_time):
         self.gun.update(delta_time)
@@ -220,3 +285,44 @@ class BattleScene:
             self.hud_font,
             draw_rectangle,
         )
+        if self.debug_mode:
+            self._draw_debug_menu(draw_rectangle)
+
+    def _draw_debug_menu(self, draw_rectangle):
+        menu_bottom = DEBUG_BUTTON_TOP + len(DEBUG_MENU_ITEMS) * DEBUG_BUTTON_SPACING
+        draw_rectangle(
+            DEBUG_MENU_LEFT,
+            SCREEN_HEIGHT - menu_bottom - 8,
+            SCREEN_WIDTH - 8,
+            SCREEN_HEIGHT - 8,
+            25,
+            30,
+            40,
+            230,
+            True,
+        )
+        self.hud_font.draw(
+            DEBUG_MENU_LEFT + 8,
+            SCREEN_HEIGHT - 30,
+            "DEBUG MODE",
+            (255, 220, 80),
+        )
+        for index, (_, label) in enumerate(DEBUG_MENU_ITEMS):
+            left, top, right, bottom = self._debug_button_bounds(index)
+            self.hud_font.draw(
+                left + 6,
+                SCREEN_HEIGHT - bottom + 6,
+                label,
+                (255, 255, 255),
+            )
+            draw_rectangle(
+                left,
+                SCREEN_HEIGHT - bottom,
+                right,
+                SCREEN_HEIGHT - top,
+                65,
+                75,
+                90,
+                255,
+                False,
+            )

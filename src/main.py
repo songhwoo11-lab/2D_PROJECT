@@ -104,7 +104,7 @@ def main():
                     scene.mouse_move(event.x, event.y)
                 elif event.type == pico2d.SDL_MOUSEBUTTONDOWN:
                     if event.button == pico2d.SDL_BUTTON_LEFT:
-                        scene.mouse_down("left")
+                        scene.mouse_down("left", event.x, event.y)
                 elif event.type == pico2d.SDL_MOUSEBUTTONUP:
                     if event.button == pico2d.SDL_BUTTON_LEFT:
                         scene.mouse_up("left")
