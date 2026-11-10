@@ -272,6 +272,37 @@ class ArcherEnemyTests(unittest.TestCase):
             arrow.update()
         self.assertEqual(player.hp, 90)
 
+    def test_archer_fires_and_keeps_moving_if_player_leaves_during_warning(self):
+        player = Player(250, 0)
+        enemy = ArcherEnemy(0, 0, player=player)
+        enemy.attack_charge = 1.0
+        enemy._attack_charge_frames = round(
+            enemy.attack_interval * 60 / enemy.CHARGE_SPEED_MULTIPLIER
+        )
+        enemy.attack_warning_remaining = enemy.WARNING_DURATION_FRAMES
+        player.x = 400
+
+        for _ in range(enemy.WARNING_DURATION_FRAMES - 1):
+            enemy.update()
+        firing_position = (enemy.x, enemy.y)
+        enemy.update()
+
+        arrows = [
+            obj
+            for layer in game_world.world
+            for obj in layer
+            if isinstance(obj, Arrow)
+        ]
+        self.assertEqual(len(arrows), 1)
+        self.assertEqual((arrows[0].x, arrows[0].y), firing_position)
+        self.assertEqual((arrows[0].target_x, arrows[0].target_y), (player.x, player.y))
+        self.assertEqual(
+            arrows[0].max_distance,
+            enemy.ARROW_MAX_DISTANCE,
+        )
+        self.assertGreater(enemy.x, 0)
+        self.assertEqual(enemy.attack_charge, 0)
+
     def test_archer_shot_spawns_arrow_with_configured_image(self):
         image = type("Image", (), {"rotate_draw": lambda self, *args: None})()
         player = Player(150, 0)
@@ -299,16 +330,36 @@ class ArcherEnemyTests(unittest.TestCase):
         finally:
             game_world.clear()
 
-    def test_archer_resets_charge_outside_range_and_moves_toward_range(self):
+    def test_archer_charge_decays_outside_range_and_moves_toward_range(self):
         player = Player(400, 0)
         enemy = ArcherEnemy(0, 0, player=player)
         enemy.attack_charge = 0.5
+        enemy._attack_charge_frames = 18
+
+        enemy.update()
+
+        self.assertAlmostEqual(
+            enemy.attack_charge,
+            0.5 - enemy.CHARGE_DECAY_SPEED,
+        )
+        self.assertLess(enemy._attack_charge_frames, 18)
+        self.assertGreater(enemy.x, 0)
+        self.assertEqual(player.hp, player.max_hp)
+
+    def test_archer_charge_decays_to_zero_outside_range(self):
+        enemy = ArcherEnemy(0, 0, player=Player(400, 0))
+        charge_duration_frames = (
+            enemy.attack_interval * 60 / enemy.CHARGE_SPEED_MULTIPLIER
+        )
+        enemy.attack_charge = enemy.CHARGE_DECAY_SPEED
+        enemy._attack_charge_frames = (
+            enemy.attack_charge * charge_duration_frames
+        )
 
         enemy.update()
 
         self.assertEqual(enemy.attack_charge, 0)
-        self.assertGreater(enemy.x, 0)
-        self.assertEqual(player.hp, player.max_hp)
+        self.assertEqual(enemy._attack_charge_frames, 0)
 
     def test_archer_range_is_twice_the_original_value(self):
         archer = ArcherEnemy(0, 0, player=Player(        200, 0))
@@ -319,8 +370,9 @@ class ArcherEnemyTests(unittest.TestCase):
         self.assertEqual((archer.x, archer.y), (0, 0))
 
         archer.player.x = 300.01
+        charge_before_leaving_range = archer.attack_charge
         archer.update()
-        self.assertEqual(archer.attack_charge, 0)
+        self.assertLess(archer.attack_charge, charge_before_leaving_range)
         self.assertGreater(archer.x, 0)
 
     def test_archer_starts_charging_at_floating_point_range_boundary(self):

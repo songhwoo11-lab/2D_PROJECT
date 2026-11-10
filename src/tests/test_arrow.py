@@ -3,7 +3,7 @@ import unittest
 
 import game_world
 from arrow import Arrow
-from game_config import ARROW_HIT_RADIUS, ARROW_SIZE
+from game_config import ARROW_HIT_RADIUS, ARROW_SIZE, FPS
 from player import Player
 
 
@@ -45,6 +45,65 @@ class ArrowTests(unittest.TestCase):
             arrow.update()
         arrow.update()
         self.assertNotIn(arrow, game_world.world[2])
+
+    def test_arrow_disappears_after_maximum_flight_distance(self):
+        arrow = Arrow(
+            0,
+            0,
+            1000,
+            0,
+            FakeImage(),
+            speed=600,
+            max_distance=450,
+        )
+        game_world.add_object(arrow, depth=2)
+
+        for _ in range(round(450 / (arrow.speed / FPS))):
+            arrow.update()
+
+        self.assertAlmostEqual(arrow.distance_travelled, 450)
+        self.assertAlmostEqual(arrow.x, 450)
+        self.assertNotIn(arrow, game_world.world[2])
+
+    def test_arrow_with_max_distance_continues_past_aimed_position(self):
+        arrow = Arrow(
+            0,
+            0,
+            100,
+            0,
+            FakeImage(),
+            speed=600,
+            max_distance=600,
+        )
+        game_world.add_object(arrow, depth=2)
+
+        for _ in range(12):
+            arrow.update()
+
+        self.assertAlmostEqual(arrow.x, 120)
+        self.assertAlmostEqual(arrow.distance_travelled, 120)
+        self.assertIn(arrow, game_world.world[2])
+
+    def test_arrow_with_max_distance_disappears_when_it_hits_player(self):
+        player = Player(100, 0, radius=10)
+        arrow = Arrow(
+            0,
+            0,
+            100,
+            0,
+            FakeImage(),
+            speed=600,
+            target=player,
+            damage=10,
+            max_distance=600,
+        )
+        game_world.add_object(arrow, depth=2)
+
+        while arrow in game_world.world[2]:
+            arrow.update()
+
+        self.assertEqual(player.hp, 90)
+        self.assertLess(arrow.distance_travelled, arrow.max_distance)
 
     def test_arrow_only_damages_player_when_its_path_hits(self):
         player = Player(100, 0, radius=10)

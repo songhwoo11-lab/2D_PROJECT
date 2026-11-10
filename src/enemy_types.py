@@ -139,6 +139,8 @@ class AssassinEnemy(Enemy):
 class ArcherEnemy(Enemy):
     CHARGE_SPEED_MULTIPLIER = 2
     WARNING_DURATION_FRAMES = 15
+    CHARGE_DECAY_SPEED = 1.0 / (ENEMY_STATS[EnemyType.ARCHER].attack_interval * FPS)
+    ARROW_MAX_DISTANCE = 600.0
 
     def __init__(
         self,
@@ -169,13 +171,24 @@ class ArcherEnemy(Enemy):
     def update(self):
         if self.player is None or not self.is_alive or self.player.is_defeated:
             return
+        charge_duration_frames = (
+            self.attack_interval * FPS / self.CHARGE_SPEED_MULTIPLIER
+        )
         distance_x = self.player.x - self.x
         distance_y = self.player.y - self.y
         distance = math.hypot(distance_x, distance_y)
         if distance > self.stats.attack_range + DISTANCE_EPSILON:
-            self.attack_charge = 0.0
-            self._attack_charge_frames = 0
-            self.attack_warning_remaining = 0
+            if not self.is_attack_warning and self.attack_charge > 0:
+                self._attack_charge_frames = max(
+                    0.0,
+                    self._attack_charge_frames
+                    - self.CHARGE_DECAY_SPEED * charge_duration_frames,
+                )
+                self.attack_charge = (
+                    self._attack_charge_frames / charge_duration_frames
+                )
+            elif self.is_attack_warning:
+                self._advance_attack_warning()
             if distance > 0:
                 travel_distance = min(
                     self._movement_per_frame,
@@ -188,26 +201,8 @@ class ArcherEnemy(Enemy):
                 )
             return
         if self.is_attack_warning:
-            self.attack_warning_remaining -= 1
-            if self.attack_warning_remaining == 0:
-                game_world.add_object(
-                    Arrow(
-                        self.x,
-                        self.y,
-                        self.player.x,
-                        self.player.y,
-                        self.arrow_image,
-                        target=self.player,
-                        damage=self.attack_damage,
-                    ),
-                    depth=2,
-                )
-                self.attack_charge = 0.0
-                self._attack_charge_frames = 0
+            self._advance_attack_warning()
             return
-        charge_duration_frames = (
-            self.attack_interval * FPS / self.CHARGE_SPEED_MULTIPLIER
-        )
         self._attack_charge_frames += 1
         self.attack_charge = min(
             1.0,
@@ -216,6 +211,25 @@ class ArcherEnemy(Enemy):
         if self._attack_charge_frames >= charge_duration_frames:
             self.attack_charge = 1.0
             self.attack_warning_remaining = self.WARNING_DURATION_FRAMES
+
+    def _advance_attack_warning(self):
+        self.attack_warning_remaining -= 1
+        if self.attack_warning_remaining == 0:
+            game_world.add_object(
+                Arrow(
+                    self.x,
+                    self.y,
+                    self.player.x,
+                    self.player.y,
+                    self.arrow_image,
+                    target=self.player,
+                    damage=self.attack_damage,
+                    max_distance=self.ARROW_MAX_DISTANCE,
+                ),
+                depth=2,
+            )
+            self.attack_charge = 0.0
+            self._attack_charge_frames = 0
 
     def draw(self):
         super().draw()
