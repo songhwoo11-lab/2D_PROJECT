@@ -282,7 +282,7 @@ class BattleScene:
                 if isinstance(obj, (Arrow, Bullet, Enemy)):
                     screen_x, screen_y = self.camera.world_to_screen(obj.x, obj.y)
                     obj.set_screen_position(screen_x, screen_y)
-        game_world.render()
+        game_world.render(self._is_visible_on_screen)
         if self.show_attack_ranges or self.show_hitboxes:
             self._draw_enemy_debug_circles()
         if self.gun_image is not None:
@@ -321,6 +321,19 @@ class BattleScene:
         )
         if self.debug_mode:
             self._draw_debug_menu(draw_rectangle)
+
+    @staticmethod
+    def _is_visible_on_screen(obj):
+        screen_position = getattr(obj, "_screen_position", None)
+        if screen_position is None:
+            x, y = obj.x, obj.y
+        else:
+            x, y = screen_position
+        margin = max(getattr(obj, "radius", 0), 12)
+        return (
+            -margin <= x <= SCREEN_WIDTH + margin
+            and -margin <= y <= SCREEN_HEIGHT + margin
+        )
 
     def _debug_menu_items(self):
         return tuple(

@@ -439,6 +439,27 @@ class BattleSceneTests(unittest.TestCase):
             self.scene.camera.world_to_screen(enemy.x, enemy.y),
         )
 
+    def test_scene_skips_rendering_enemies_outside_the_viewport(self):
+        visible = self.scene.spawn_enemy(
+            EnemyType.BASIC,
+            self.player.x + 100,
+            self.player.y,
+        )
+        self.scene.spawn_enemy(
+            EnemyType.BASIC,
+            WORLD_WIDTH - 20,
+            WORLD_HEIGHT - 20,
+        )
+
+        self.scene.draw(lambda *args: None)
+
+        image_calls = self.enemy_images[EnemyType.BASIC].draw_calls
+        self.assertEqual(len(image_calls), 1)
+        self.assertEqual(
+            image_calls[0][:2],
+            self.scene.camera.world_to_screen(visible.x, visible.y),
+        )
+
     def test_archer_fire_renders_arrow_sprite_in_battle_scene(self):
         archer = self.scene.spawn_enemy(
             EnemyType.ARCHER,

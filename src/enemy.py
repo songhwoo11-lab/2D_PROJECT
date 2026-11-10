@@ -92,6 +92,7 @@ class Enemy:
         self._screen_position = None
         self._movement_per_frame = self.move_speed / FPS
         self._attack_cooldown_frames = 0.0
+        self._uses_spatial_collision = True
 
     @property
     def is_alive(self):
@@ -114,12 +115,10 @@ class Enemy:
         if max_distance <= 0:
             return False
 
-        enemies = [
-            other
-            for layer in game_world.world
-            for other in layer
-            if isinstance(other, Enemy) and other is not self and other.is_alive
-        ]
+        enemies = game_world.nearby_spatial_objects(
+            self,
+            max_distance + self.radius,
+        )
         if distance == 0 and not enemies:
             return False
 
@@ -165,6 +164,11 @@ class Enemy:
 
             if not is_clear:
                 continue
+            if angle_offset == 0:
+                self.x = next_x
+                self.y = next_y
+                game_world.refresh_spatial_position(self)
+                return True
             remaining_distance = math.hypot(
                 target_x - next_x,
                 target_y - next_y,
@@ -178,6 +182,7 @@ class Enemy:
         if best_position is None:
             return False
         self.x, self.y = best_position
+        game_world.refresh_spatial_position(self)
         return True
 
     @staticmethod
