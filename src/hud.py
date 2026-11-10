@@ -4,7 +4,7 @@ import ctypes
 
 import pico2d
 
-from game_config import SCREEN_WIDTH
+from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, TOTAL_WAVES
 
 
 TEMPERATURE_BAR_WIDTH = 200
@@ -25,9 +25,14 @@ def _measure_text_width(font, text):
     return width.value
 
 
-def _draw_centered_text(font, y, text):
+def _draw_centered_text(font, y, text, color=(255, 255, 255)):
     x = (SCREEN_WIDTH - _measure_text_width(font, text)) / 2
-    font.draw(x, y, text, (255, 255, 255))
+    font.draw(x, y, text, color)
+
+
+def draw_centered_text(font, y, text, color=(255, 255, 255)):
+    """Draw text horizontally centered on the screen."""
+    _draw_centered_text(font, y, text, color)
 
 
 def temperature_text(gun):
@@ -35,6 +40,10 @@ def temperature_text(gun):
         gun.temperature,
         gun.temperature_limit,
     )
+
+
+def wave_text(wave, total=TOTAL_WAVES):
+    return "WAVE {}/{}".format(wave, total)
 
 
 def fire_status_text(gun):
@@ -80,7 +89,7 @@ def _draw_temperature(font, gun, draw_rectangle):
         _draw_centered_text(font, 110, status)
 
 
-def draw_hud(player, gun, font, draw_rectangle):
+def draw_hud(player, gun, font, draw_rectangle, wave=None, total_waves=TOTAL_WAVES):
     hp_bar_left = 20
     hp_bar_bottom = 20
     hp_bar_width = 200
@@ -125,3 +134,5 @@ def draw_hud(player, gun, font, draw_rectangle):
     if gun.reloading:
         _draw_centered_text(font, 10, "RELOAD")
     _draw_temperature(font, gun, draw_rectangle)
+    if wave is not None:
+        _draw_centered_text(font, SCREEN_HEIGHT - 25, wave_text(wave, total_waves))

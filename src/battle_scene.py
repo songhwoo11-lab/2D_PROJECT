@@ -1,10 +1,11 @@
 """First-stage battle scene: movement, aiming, pistol controls, and HUD."""
 
 import math
+import random
 
 from arrow import Arrow
 from bullet import Bullet
-from enemy import Enemy, EnemyType
+from enemy import ENEMY_STATS, Enemy, EnemyType
 from enemy_types import AssassinEnemy, create_enemy
 import game_world
 from game_camera import Camera
@@ -15,15 +16,23 @@ from game_config import (
     WORLD_HEIGHT,
     WORLD_WIDTH,
 )
-from hud import draw_hud
+from hud import draw_centered_text, draw_hud
 from player import Player
 from shot_result import HitResult
+from spawn_warning import SpawnWarning
+from waves import (
+    WaveDirector,
+    random_spawn_position,
+    wave_stat_multiplier,
+)
 from weapon import Gun
 
 
 SHOT_FEEDBACK_DURATION = 0.8
 SHOT_FEEDBACK_COLOR = (255, 0, 0)
 SHOT_FEEDBACK_FONT_SIZE = 12
+WAVE_BANNER_SECONDS = 2.5
+WAVE_STRENGTH_BANNER_SECONDS = 3.5
 DEBUG_MENU_WIDTH = 190
 DEBUG_MENU_LEFT = SCREEN_WIDTH - DEBUG_MENU_WIDTH - 8
 DEBUG_BUTTON_TOP = 42
@@ -62,6 +71,7 @@ class BattleScene:
         enemy_draw_rectangle=None,
         enemy_draw_circle=None,
         arrow_image=None,
+        random_source=None,
     ):
         self.player = player
         self.gun = gun
@@ -89,11 +99,18 @@ class BattleScene:
         self.show_hitboxes = False
         self.show_assassin_reveal_range = False
         self.shot_feedbacks = []
+        self.random_source = random_source or random.Random()
+        self.wave_director = WaveDirector(random_source=self.random_source)
+        self.spawn_warnings = []
+        self.wave_banner_text = ""
+        self.wave_banner_remaining = 0.0
+        self.waves_cleared = False
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
+        self._announce_wave()
 
     def close(self):
         game_world.clear()
@@ -115,22 +132,74 @@ class BattleScene:
         game_world.add_object(enemy, depth=1)
         return enemy
 
-    def spawn_test_enemies(self):
-        offsets = {
-            EnemyType.BASIC: (-220, 0),
-            EnemyType.EXPLOSIVE: (220, 0),
-            EnemyType.TANKER: (0, 220),
-            EnemyType.ASSASSIN: (0, -220),
-            EnemyType.ARCHER: (220, 220),
-        }
-        return tuple(
-            self.spawn_enemy(
-                enemy_type,
-                self.player.x + offset_x,
-                self.player.y + offset_y,
+    def _announce_wave(self):
+        wave = self.wave_director.current_wave
+        if wave % 10 == 0:
+            self.wave_banner_text = "WAVE {} - ENEMIES ARE STRONGER!".format(
+                wave
             )
-            for enemy_type, (offset_x, offset_y) in offsets.items()
+            self.wave_banner_remaining = WAVE_STRENGTH_BANNER_SECONDS
+        else:
+            self.wave_banner_text = "WAVE {}".format(wave)
+            self.wave_banner_remaining = WAVE_BANNER_SECONDS
+
+    def _spawn_wave_enemy(self, enemy_type, x, y):
+        enemy = self.spawn_enemy(enemy_type, x, y)
+        enemy.apply_stat_multiplier(
+            wave_stat_multiplier(self.wave_director.current_wave)
         )
+        return enemy
+
+    def _alive_enemy_count(self):
+        return sum(
+            1
+            for layer in game_world.world
+            for obj in layer
+            if isinstance(obj, Enemy) and obj.is_alive
+        )
+
+    def _update_waves(self, delta_time):
+        if self.waves_cleared:
+            return
+        for enemy_type in self.wave_director.pending_spawns(delta_time):
+            x, y = random_spawn_position(
+                enemy_type,
+                self.player.x,
+                self.player.y,
+                WORLD_WIDTH,
+                WORLD_HEIGHT,
+                self.random_source,
+            )
+            self.spawn_warnings.append(
+                (
+                    SpawnWarning(x, y, ENEMY_STATS[enemy_type].radius),
+                    enemy_type,
+                    x,
+                    y,
+                )
+            )
+        active_warnings = []
+        expired_warnings = []
+        for entry in self.spawn_warnings:
+            entry[0].update(delta_time)
+            if entry[0].is_expired:
+                expired_warnings.append(entry)
+            else:
+                active_warnings.append(entry)
+        self.spawn_warnings = active_warnings
+        for _, enemy_type, x, y in expired_warnings:
+            self._spawn_wave_enemy(enemy_type, x, y)
+        if (
+            self.wave_director.all_spawned
+            and not self.spawn_warnings
+            and self._alive_enemy_count() == 0
+        ):
+            if self.wave_director.advance():
+                self._announce_wave()
+            else:
+                self.waves_cleared = True
+                self.wave_banner_text = "ALL WAVES CLEARED"
+                self.wave_banner_remaining = WAVE_STRENGTH_BANNER_SECONDS
 
     def key_down(self, key):
         key = key.lower()
@@ -238,11 +307,14 @@ class BattleScene:
         self.show_attack_ranges = False
         self.show_hitboxes = False
         self.show_assassin_reveal_range = False
+        self.wave_director = WaveDirector(random_source=self.random_source)
+        self.spawn_warnings = []
+        self.waves_cleared = False
         game_world.clear()
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
-        self.spawn_test_enemies()
+        self._announce_wave()
 
     def update(self, delta_time):
         self.shot_feedbacks = [
@@ -293,6 +365,11 @@ class BattleScene:
                     depth=2,
                 )
         self._remove_defeated_enemies()
+        self._update_waves(delta_time)
+        self.wave_banner_remaining = max(
+            0.0,
+            self.wave_banner_remaining - delta_time,
+        )
 
     def _record_shot_feedback(self, bullets):
         result_labels = {
@@ -345,6 +422,7 @@ class BattleScene:
                     screen_x, screen_y = self.camera.world_to_screen(obj.x, obj.y)
                     obj.set_screen_position(screen_x, screen_y)
         game_world.render(self._is_visible_on_screen)
+        self._draw_spawn_warnings()
         for x, y, label, _ in self.shot_feedbacks:
             screen_x, screen_y = self.camera.world_to_screen(x, y)
             self.hit_feedback_font.draw(
@@ -387,14 +465,51 @@ class BattleScene:
             )
         if self.hud_font is None:
             raise RuntimeError("BattleScene.draw requires a loaded HUD font")
+        self._draw_wave_banner()
         draw_hud(
             self.player,
             self.gun,
             self.hud_font,
             draw_rectangle,
+            wave=self.wave_director.current_wave,
+            total_waves=self.wave_director.total_waves,
         )
         if self.debug_mode:
             self._draw_debug_menu(draw_rectangle)
+
+    def _draw_spawn_warnings(self):
+        if self.enemy_draw_circle is None:
+            return
+        for warning, _, _, _ in self.spawn_warnings:
+            screen_x, screen_y = self.camera.world_to_screen(
+                warning.x,
+                warning.y,
+            )
+            margin = warning.radius + 20
+            if not (
+                -margin <= screen_x <= SCREEN_WIDTH + margin
+                and -margin <= screen_y <= SCREEN_HEIGHT + margin
+            ):
+                continue
+            self.enemy_draw_circle(
+                screen_x,
+                screen_y,
+                round(warning.radius + 6 * warning.progress),
+                255,
+                60,
+                60,
+                200,
+            )
+
+    def _draw_wave_banner(self):
+        if self.wave_banner_remaining <= 0.0 or not self.wave_banner_text:
+            return
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT - 130,
+            self.wave_banner_text,
+            (255, 220, 80),
+        )
 
     @staticmethod
     def _is_visible_on_screen(obj):

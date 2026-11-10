@@ -84,7 +84,6 @@ def main():
             enemy_draw_circle=pico2d.draw_circle,
             arrow_image=arrow_image,
         )
-        scene.spawn_test_enemies()
         key_map = {
             pico2d.SDLK_F1: "f1",
             pico2d.SDLK_w: "w",
