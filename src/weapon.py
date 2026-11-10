@@ -5,6 +5,9 @@ from enum import Enum
 import math
 
 from game_config import (
+    AUTO_SHOT_HEAT_BASE,
+    AUTO_SHOT_HEAT_STEP,
+    AUTO_STREAK_DECAY_SECONDS,
     FPS,
     MIN_TEMPERATURE,
     PISTOL_DAMAGE,
@@ -65,6 +68,8 @@ class Gun:
         self.infinite_ammo = False
         self.temperature = MIN_TEMPERATURE
         self.overheated = False
+        self.auto_shot_streak = 0
+        self._auto_idle_seconds = 0.0
 
     @property
     def reloading(self):
@@ -99,6 +104,19 @@ class Gun:
             self.reload_remaining = max(0.0, self.reload_remaining - delta_time)
             if self.reload_remaining <= 1e-9:
                 self._finish_reload()
+        self._decay_auto_streak(delta_time)
+
+    def _decay_auto_streak(self, delta_time):
+        if self.auto_shot_streak <= 0:
+            self._auto_idle_seconds = 0.0
+            return
+        self._auto_idle_seconds += delta_time
+        while (
+            self._auto_idle_seconds >= AUTO_STREAK_DECAY_SECONDS
+            and self.auto_shot_streak > 0
+        ):
+            self._auto_idle_seconds -= AUTO_STREAK_DECAY_SECONDS
+            self.auto_shot_streak -= 1
 
     def start_reload(self):
         if self.infinite_ammo or self.reloading:
@@ -126,6 +144,13 @@ class Gun:
         if self.fire_mode is FireMode.SINGLE:
             fire_interval_frames *= 2
             self._add_heat(SINGLE_SHOT_HEAT)
+        else:
+            self.auto_shot_streak += 1
+            self._auto_idle_seconds = 0.0
+            self._add_heat(
+                AUTO_SHOT_HEAT_BASE
+                + AUTO_SHOT_HEAT_STEP * (self.auto_shot_streak - 1)
+            )
         self.cooldown_remaining = fire_interval_frames / FPS
         return True
 

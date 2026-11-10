@@ -1,7 +1,7 @@
 import unittest
 
 from game_config import MIN_TEMPERATURE, PISTOL_TEMPERATURE_LIMIT
-from weapon import Gun
+from weapon import FireMode, Gun
 
 
 class GunTemperatureStateTests(unittest.TestCase):
@@ -62,6 +62,51 @@ class SingleShotHeatTests(unittest.TestCase):
         gun.try_fire()
 
         self.assertEqual(gun.temperature, gun.temperature_limit)
+
+
+class AutoShotHeatTests(unittest.TestCase):
+    def _auto_gun(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        gun.fire_mode = FireMode.AUTO
+        return gun
+
+    def test_consecutive_auto_shots_increase_heat_progressively(self):
+        gun = self._auto_gun()
+
+        gun.try_fire()
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 0.5)
+        self.assertEqual(gun.auto_shot_streak, 1)
+        gun.cooldown_remaining = 0.0
+        gun.try_fire()
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 1.1)
+        self.assertEqual(gun.auto_shot_streak, 2)
+        gun.cooldown_remaining = 0.0
+        gun.try_fire()
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 1.8)
+        self.assertEqual(gun.auto_shot_streak, 3)
+
+    def test_streak_decays_once_per_full_idle_second(self):
+        gun = self._auto_gun()
+        for _ in range(3):
+            gun.try_fire()
+            gun.cooldown_remaining = 0.0
+        self.assertEqual(gun.auto_shot_streak, 3)
+
+        gun.update(1.0)
+        self.assertEqual(gun.auto_shot_streak, 2)
+        gun.update(0.5)
+        self.assertEqual(gun.auto_shot_streak, 2)
+        gun.update(0.5)
+        self.assertEqual(gun.auto_shot_streak, 1)
+
+    def test_streak_never_goes_below_zero(self):
+        gun = self._auto_gun()
+        gun.try_fire()
+
+        gun.update(100.0)
+
+        self.assertEqual(gun.auto_shot_streak, 0)
 
 
 if __name__ == "__main__":
