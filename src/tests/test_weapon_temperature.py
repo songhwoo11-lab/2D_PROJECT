@@ -109,5 +109,32 @@ class AutoShotHeatTests(unittest.TestCase):
         self.assertEqual(gun.auto_shot_streak, 0)
 
 
+class FireableCoolingTests(unittest.TestCase):
+    def test_temperature_drops_005_per_frame_while_fireable(self):
+        gun = Gun()
+        gun.temperature = 100.0
+
+        gun.update(0.0)
+
+        self.assertAlmostEqual(gun.temperature, 99.95)
+
+    def test_cooling_accumulates_over_frames(self):
+        gun = Gun()
+        gun.temperature = 100.0
+
+        for _ in range(20):
+            gun.update(0.0)
+
+        self.assertAlmostEqual(gun.temperature, 99.0)
+
+    def test_cooling_does_not_go_below_minimum(self):
+        gun = Gun()
+        gun.temperature = MIN_TEMPERATURE + 0.01
+
+        gun.update(0.0)
+
+        self.assertEqual(gun.temperature, MIN_TEMPERATURE)
+
+
 if __name__ == "__main__":
     unittest.main()

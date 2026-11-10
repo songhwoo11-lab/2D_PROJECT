@@ -8,6 +8,7 @@ from game_config import (
     AUTO_SHOT_HEAT_BASE,
     AUTO_SHOT_HEAT_STEP,
     AUTO_STREAK_DECAY_SECONDS,
+    COOLING_PER_FRAME_FIREABLE,
     FPS,
     MIN_TEMPERATURE,
     PISTOL_DAMAGE,
@@ -105,6 +106,15 @@ class Gun:
             if self.reload_remaining <= 1e-9:
                 self._finish_reload()
         self._decay_auto_streak(delta_time)
+        self._cool(delta_time)
+
+    def _cool(self, delta_time):
+        if self.overheated:
+            return
+        self.temperature = max(
+            MIN_TEMPERATURE,
+            self.temperature - COOLING_PER_FRAME_FIREABLE,
+        )
 
     def _decay_auto_streak(self, delta_time):
         if self.auto_shot_streak <= 0:
