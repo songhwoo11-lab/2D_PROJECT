@@ -6,7 +6,7 @@ from enemy import Enemy, EnemyType
 from game_config import WORLD_HEIGHT, WORLD_WIDTH
 import game_world
 from player import Player
-from pickup import MagazinePickup
+from pickup import HealthPickup, MagazinePickup
 from weapon import Gun
 from waves import WaveDirector
 
@@ -216,6 +216,95 @@ class BattleSceneRewardTests(unittest.TestCase):
             self.scene.gun.spec.magazine_size,
         )
         self.assertEqual(len(self.scene.pickups), 1)
+
+
+class BattleSceneHealthDropTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _defeat_one_enemy(self):
+        enemy = self.scene._spawn_wave_enemy(
+            EnemyType.BASIC,
+            self.scene.player.x + 300,
+            self.scene.player.y,
+        )
+        enemy.hp = 0
+        self.scene.update(0.0)
+
+    def test_damaged_player_can_receive_a_health_drop(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(len(self.scene.health_pickups), 1)
+        self.assertEqual(self.scene.health_pickups[0].amount, 10)
+
+    def test_full_hp_player_never_receives_a_health_drop(self):
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(self.scene.health_pickups, [])
+
+    def test_no_health_drop_when_two_are_already_on_the_map(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+        self.scene.health_pickups = [
+            HealthPickup(0.0, 0.0),
+            HealthPickup(10.0, 10.0),
+        ]
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(len(self.scene.health_pickups), 2)
+
+    def test_collected_health_items_no_longer_count_toward_the_limit(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+        self.scene.health_pickups = [
+            HealthPickup(0.0, 0.0),
+            HealthPickup(10.0, 10.0),
+        ]
+        self.scene.health_pickups.pop()
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(len(self.scene.health_pickups), 2)
+
+    def test_walking_over_health_restores_ten_hp(self):
+        self.scene.player.hp = 50
+        self.scene.health_pickups.append(
+            HealthPickup(self.scene.player.x, self.scene.player.y)
+        )
+
+        self.scene._update_pickups()
+
+        self.assertEqual(self.scene.player.hp, 60)
+        self.assertEqual(self.scene.health_pickups, [])
+
+    def test_health_pickup_respects_the_max_hp(self):
+        self.scene.player.hp = 95
+        self.scene.health_pickups.append(
+            HealthPickup(self.scene.player.x, self.scene.player.y)
+        )
+
+        self.scene._update_pickups()
+
+        self.assertEqual(self.scene.player.hp, self.scene.player.max_hp)
+        self.assertEqual(self.scene.health_pickups, [])
+
+    def test_full_hp_player_leaves_the_health_pickup_on_the_map(self):
+        self.scene.health_pickups.append(
+            HealthPickup(self.scene.player.x, self.scene.player.y)
+        )
+
+        self.scene._update_pickups()
+
+        self.assertEqual(len(self.scene.health_pickups), 1)
 
 
 if __name__ == "__main__":

@@ -50,6 +50,13 @@ class Player:
         self.hp = max(0, self.hp - amount)
         return self.is_defeated
 
+    def heal(self, amount):
+        if amount < 0:
+            raise ValueError("heal amount must be non-negative")
+        previous_hp = self.hp
+        self.hp = min(self.max_hp, self.hp + amount)
+        return self.hp - previous_hp
+
     def set_movement(self, move_x, move_y, delta_time):
         if not math.isfinite(delta_time) or delta_time < 0:
             raise ValueError("delta_time must be a finite non-negative number")

@@ -2,9 +2,12 @@ import random
 import unittest
 
 from pickup import (
+    HealthPickup,
     MagazinePickup,
+    health_drop_chance,
     magazine_drop_chance,
     roll_coin_reward,
+    roll_health_drop,
     roll_magazine_drop,
 )
 
@@ -79,6 +82,46 @@ class MagazinePickupTests(unittest.TestCase):
             MagazinePickup(0.0, 0.0, 0)
         with self.assertRaises(ValueError):
             MagazinePickup(0.0, 0.0, 5, radius=-1)
+
+
+class HealthDropChanceTests(unittest.TestCase):
+    def test_chance_equals_the_missing_hp_ratio(self):
+        self.assertEqual(health_drop_chance(100, 100), 0.0)
+        self.assertAlmostEqual(health_drop_chance(90, 100), 0.1)
+        self.assertAlmostEqual(health_drop_chance(25, 100), 0.75)
+        self.assertEqual(health_drop_chance(0, 100), 1.0)
+
+    def test_chance_is_clamped_to_zero_and_one(self):
+        self.assertEqual(health_drop_chance(150, 100), 0.0)
+        self.assertEqual(health_drop_chance(-10, 100), 1.0)
+
+    def test_drop_roll_uses_the_missing_hp_chance(self):
+        self.assertTrue(roll_health_drop(50, 100, StubRandom(roll=0.49)))
+        self.assertFalse(roll_health_drop(50, 100, StubRandom(roll=0.51)))
+        self.assertFalse(roll_health_drop(100, 100, StubRandom(roll=0.0)))
+
+    def test_invalid_max_hp_is_rejected(self):
+        with self.assertRaises(ValueError):
+            health_drop_chance(10, 0)
+
+
+class HealthPickupTests(unittest.TestCase):
+    def test_health_pickup_heals_ten_by_default(self):
+        pickup = HealthPickup(100.0, 100.0)
+
+        self.assertEqual(pickup.amount, 10)
+
+    def test_health_pickup_uses_the_shared_collection_range(self):
+        pickup = HealthPickup(100.0, 100.0)
+        player = PlayerStub(110.0, 100.0)
+
+        self.assertTrue(pickup.can_collect(player))
+
+    def test_invalid_health_pickup_values_are_rejected(self):
+        with self.assertRaises(ValueError):
+            HealthPickup(0.0, 0.0, amount=0)
+        with self.assertRaises(ValueError):
+            HealthPickup(0.0, 0.0, radius=-1)
 
 
 if __name__ == "__main__":

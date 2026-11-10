@@ -10,6 +10,7 @@ from enemy_types import AssassinEnemy, create_enemy
 import game_world
 from game_camera import Camera
 from game_config import (
+    HEALTH_PICKUP_LIMIT,
     MAGAZINE_REFILL_RATIO,
     PLAYER_RADIUS,
     SCREEN_HEIGHT,
@@ -19,7 +20,13 @@ from game_config import (
 )
 from hud import draw_centered_text, draw_hud
 from player import Player
-from pickup import MagazinePickup, roll_coin_reward, roll_magazine_drop
+from pickup import (
+    HealthPickup,
+    MagazinePickup,
+    roll_coin_reward,
+    roll_health_drop,
+    roll_magazine_drop,
+)
 from shot_result import HitResult
 from spawn_warning import SpawnWarning
 from waves import (
@@ -109,6 +116,7 @@ class BattleScene:
         self.waves_cleared = False
         self.coins = 0
         self.pickups = []
+        self.health_pickups = []
 
         game_world.clear()
         game_world.add_object(self.player, depth=1)
@@ -167,6 +175,15 @@ class BattleScene:
                     self._magazine_refill_amount(),
                 )
             )
+        if (
+            len(self.health_pickups) < HEALTH_PICKUP_LIMIT
+            and roll_health_drop(
+                self.player.hp,
+                self.player.max_hp,
+                self.random_source,
+            )
+        ):
+            self.health_pickups.append(HealthPickup(enemy.x, enemy.y))
 
     def _update_pickups(self):
         remaining = []
@@ -176,6 +193,13 @@ class BattleScene:
                     continue
             remaining.append(pickup)
         self.pickups = remaining
+        remaining_health = []
+        for pickup in self.health_pickups:
+            if pickup.can_collect(self.player):
+                if self.player.heal(pickup.amount) > 0:
+                    continue
+            remaining_health.append(pickup)
+        self.health_pickups = remaining_health
 
     def _alive_enemy_count(self):
         return sum(
@@ -339,6 +363,7 @@ class BattleScene:
         self.waves_cleared = False
         self.coins = 0
         self.pickups = []
+        self.health_pickups = []
         game_world.clear()
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
@@ -535,28 +560,33 @@ class BattleScene:
             )
 
     def _draw_pickups(self, draw_rectangle):
-        for pickup in self.pickups:
-            screen_x, screen_y = self.camera.world_to_screen(
-                pickup.x,
-                pickup.y,
-            )
-            size = pickup.radius * 2
-            if not (
-                -size <= screen_x <= SCREEN_WIDTH + size
-                and -size <= screen_y <= SCREEN_HEIGHT + size
-            ):
-                continue
-            draw_rectangle(
-                screen_x - pickup.radius,
-                screen_y - pickup.radius,
-                screen_x + pickup.radius,
-                screen_y + pickup.radius,
-                235,
-                190,
-                65,
-                255,
-                True,
-            )
+        groups = (
+            (self.pickups, (235, 190, 65)),
+            (self.health_pickups, (235, 70, 70)),
+        )
+        for pickups, color in groups:
+            for pickup in pickups:
+                screen_x, screen_y = self.camera.world_to_screen(
+                    pickup.x,
+                    pickup.y,
+                )
+                size = pickup.radius * 2
+                if not (
+                    -size <= screen_x <= SCREEN_WIDTH + size
+                    and -size <= screen_y <= SCREEN_HEIGHT + size
+                ):
+                    continue
+                draw_rectangle(
+                    screen_x - pickup.radius,
+                    screen_y - pickup.radius,
+                    screen_x + pickup.radius,
+                    screen_y + pickup.radius,
+                    color[0],
+                    color[1],
+                    color[2],
+                    255,
+                    True,
+                )
 
     def _draw_wave_banner(self):
         if self.wave_banner_remaining <= 0.0 or not self.wave_banner_text:

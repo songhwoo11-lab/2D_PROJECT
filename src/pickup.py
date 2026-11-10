@@ -1,4 +1,4 @@
-"""Coin rewards and magazine pickups dropped by defeated enemies."""
+"""Coin rewards and pickups dropped by defeated enemies."""
 
 import math
 import random
@@ -6,6 +6,7 @@ import random
 from game_config import (
     COIN_REWARD_MAX,
     COIN_REWARD_MIN,
+    HEALTH_PICKUP_HEAL,
     MAGAZINE_DROP_TIERS,
     PICKUP_COLLECT_MARGIN,
     PICKUP_RADIUS,
@@ -31,17 +32,26 @@ def roll_magazine_drop(total_ammo, random_source=None):
     return rng.random() < magazine_drop_chance(total_ammo)
 
 
-class MagazinePickup:
-    """Ammunition lying on the map, collected by walking close to it."""
+def health_drop_chance(hp, max_hp):
+    if max_hp <= 0:
+        raise ValueError("max_hp must be positive")
+    missing_hp = min(max(max_hp - hp, 0), max_hp)
+    return missing_hp / max_hp
 
-    def __init__(self, x, y, amount, radius=PICKUP_RADIUS):
-        if amount <= 0:
-            raise ValueError("pickup amount must be positive")
+
+def roll_health_drop(hp, max_hp, random_source=None):
+    rng = random_source if random_source is not None else random
+    return rng.random() < health_drop_chance(hp, max_hp)
+
+
+class Pickup:
+    """An item lying on the map, collected by walking close to it."""
+
+    def __init__(self, x, y, radius=PICKUP_RADIUS):
         if radius < 0:
             raise ValueError("pickup radius must be non-negative")
         self.x = float(x)
         self.y = float(y)
-        self.amount = int(amount)
         self.radius = float(radius)
 
     def can_collect(self, player):
@@ -50,3 +60,19 @@ class MagazinePickup:
             distance
             <= player.radius + self.radius + PICKUP_COLLECT_MARGIN
         )
+
+
+class MagazinePickup(Pickup):
+    def __init__(self, x, y, amount, radius=PICKUP_RADIUS):
+        if amount <= 0:
+            raise ValueError("pickup amount must be positive")
+        super().__init__(x, y, radius)
+        self.amount = int(amount)
+
+
+class HealthPickup(Pickup):
+    def __init__(self, x, y, amount=HEALTH_PICKUP_HEAL, radius=PICKUP_RADIUS):
+        if amount <= 0:
+            raise ValueError("pickup amount must be positive")
+        super().__init__(x, y, radius)
+        self.amount = int(amount)
