@@ -21,7 +21,6 @@ from game_config import (
     PISTOL_RELOAD_SECONDS,
     PISTOL_STARTING_AMMO,
     PISTOL_TEMPERATURE_LIMIT,
-    SINGLE_SHOT_HEAT,
 )
 
 
@@ -217,14 +216,12 @@ class Gun:
         fire_interval_frames = self.spec.fire_interval_frames
         if self.fire_mode is FireMode.SINGLE:
             fire_interval_frames *= 2
-            self._add_heat(SINGLE_SHOT_HEAT)
-        else:
-            self.auto_shot_streak += 1
-            self._auto_idle_seconds = 0.0
-            self._add_heat(
-                AUTO_SHOT_HEAT_BASE
-                + AUTO_SHOT_HEAT_STEP * (self.auto_shot_streak - 1)
-            )
+        self.auto_shot_streak += 1
+        self._auto_idle_seconds = 0.0
+        self._add_heat(
+            AUTO_SHOT_HEAT_BASE
+            + AUTO_SHOT_HEAT_STEP * (self.auto_shot_streak - 1)
+        )
         self.cooldown_remaining = fire_interval_frames / FPS
         return True
 

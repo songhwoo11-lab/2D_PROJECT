@@ -38,14 +38,37 @@ class SingleShotHeatTests(unittest.TestCase):
         gun.infinite_ammo = True
         return gun
 
-    def test_each_single_shot_adds_half_a_degree(self):
+    def test_consecutive_single_shots_increase_heat_progressively(self):
         gun = self._ready_gun()
 
         self.assertTrue(gun.try_fire())
         self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 0.5)
+        self.assertEqual(gun.auto_shot_streak, 1)
         gun.cooldown_remaining = 0.0
         self.assertTrue(gun.try_fire())
-        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 1.0)
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 1.1)
+        self.assertEqual(gun.auto_shot_streak, 2)
+        gun.cooldown_remaining = 0.0
+        self.assertTrue(gun.try_fire())
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 1.8)
+        self.assertEqual(gun.auto_shot_streak, 3)
+
+    def test_single_shot_heat_matches_auto_shot_heat(self):
+        single_gun = self._ready_gun()
+        auto_gun = self._ready_gun()
+        auto_gun.fire_mode = FireMode.AUTO
+
+        for _ in range(3):
+            single_gun.try_fire()
+            auto_gun.try_fire()
+            single_gun.cooldown_remaining = 0.0
+            auto_gun.cooldown_remaining = 0.0
+
+        self.assertAlmostEqual(single_gun.temperature, auto_gun.temperature)
+        self.assertEqual(
+            single_gun.auto_shot_streak,
+            auto_gun.auto_shot_streak,
+        )
 
     def test_blocked_shot_does_not_add_heat(self):
         gun = self._ready_gun()
@@ -107,6 +130,51 @@ class AutoShotHeatTests(unittest.TestCase):
         gun.update(100.0)
 
         self.assertEqual(gun.auto_shot_streak, 0)
+
+
+class FireModeHeatPersistenceTests(unittest.TestCase):
+    def _ready_gun(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        return gun
+
+    def test_switching_to_auto_keeps_the_heat_increase(self):
+        gun = self._ready_gun()
+        gun.try_fire()
+        gun.cooldown_remaining = 0.0
+
+        gun.toggle_mode()
+        gun.try_fire()
+
+        self.assertEqual(gun.auto_shot_streak, 2)
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 1.1)
+
+    def test_switching_to_single_keeps_the_heat_increase(self):
+        gun = self._ready_gun()
+        gun.fire_mode = FireMode.AUTO
+        gun.try_fire()
+        gun.cooldown_remaining = 0.0
+        gun.try_fire()
+        gun.cooldown_remaining = 0.0
+
+        gun.toggle_mode()
+        gun.try_fire()
+
+        self.assertEqual(gun.auto_shot_streak, 3)
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 1.8)
+
+    def test_repeated_mode_switching_does_not_reset_the_streak(self):
+        gun = self._ready_gun()
+        gun.try_fire()
+        gun.cooldown_remaining = 0.0
+        gun.try_fire()
+        gun.cooldown_remaining = 0.0
+
+        gun.toggle_mode()
+        gun.toggle_mode()
+        gun.toggle_mode()
+
+        self.assertEqual(gun.auto_shot_streak, 2)
 
 
 class FireableCoolingTests(unittest.TestCase):
