@@ -44,7 +44,7 @@
 | 게임 로비 화면 | `image/game_lobby.png` |
 | 인-게임 화면 | `image/in_game.png` |
 
-모든 총기에서 발사하는 총알은 `image/bullet.png`를 공통으로 사용한다. 게임 글꼴은 `image/font/PuzzleSansSuper.ttf`를 사용한다.
+모든 총기에서 발사하는 총알은 `image/bullet.png`를 공통으로 사용한다. 게임 글꼴은 `image/font/MulmaruMono.ttf`를 사용한다.
 
 9단계의 애니메이션 적용은 위의 정적 이미지가 애니메이션 이미지라는 뜻이 아니다. 별도의 애니메이션 리소스가 준비되기 전까지는 해당 이미지를 정적으로 표시하고, 애니메이션을 적용할 때도 게임 진행 로직이 특정 이미지나 애니메이션 리소스에 종속되지 않게 한다.
 

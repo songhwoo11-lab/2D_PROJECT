@@ -42,7 +42,7 @@ def main():
             str(ASSET_DIRECTORY / "health potion.png")
         )
         hud_font = pico2d.load_font(
-            str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
+            str(ASSET_DIRECTORY / "font" / "MulmaruMono.ttf"),
             20,
         )
         hit_feedback_font = pico2d.load_font(
@@ -50,7 +50,7 @@ def main():
             SHOT_FEEDBACK_FONT_SIZE,
         )
         debug_font = pico2d.load_font(
-            str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
+            str(ASSET_DIRECTORY / "font" / "MulmaruMono.ttf"),
             DEBUG_FONT_SIZE,
         )
         enemy_images = {
