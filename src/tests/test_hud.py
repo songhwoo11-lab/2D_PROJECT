@@ -104,10 +104,10 @@ class DamageReductionTextTests(unittest.TestCase):
 
 
 class DamageReductionTimeTextTests(unittest.TestCase):
-    def test_full_duration_is_shown_as_two_minutes(self):
-        gun = make_gun(damage_reduction_remaining=120.0)
+    def test_full_duration_is_shown_as_one_and_a_half_minutes(self):
+        gun = make_gun(damage_reduction_remaining=90.0)
 
-        self.assertEqual(damage_reduction_time_text(gun), "02:00")
+        self.assertEqual(damage_reduction_time_text(gun), "01:30")
 
     def test_remaining_time_is_shown_as_minutes_and_seconds(self):
         gun = make_gun(damage_reduction_remaining=61.0)

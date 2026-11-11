@@ -13,6 +13,7 @@ from game_config import (
     FPS,
     MIN_TEMPERATURE,
     OVERHEAT_INITIAL_REDUCTION,
+    OVERHEAT_REDUCTION_CURVE_EXPONENT,
     OVERHEAT_REDUCTION_HOLD_SECONDS,
     OVERHEAT_REDUCTION_RECOVERY_SECONDS,
     PISTOL_DAMAGE,
@@ -110,15 +111,15 @@ class Gun:
         recovery_elapsed = elapsed - OVERHEAT_REDUCTION_HOLD_SECONDS
         if recovery_elapsed >= OVERHEAT_REDUCTION_RECOVERY_SECONDS:
             return 0.0
-        return (
-            40.0
-            * math.cos(
-                math.pi
+        curve = (
+            math.exp(OVERHEAT_REDUCTION_CURVE_EXPONENT)
+            - math.exp(
+                OVERHEAT_REDUCTION_CURVE_EXPONENT
                 * recovery_elapsed
                 / OVERHEAT_REDUCTION_RECOVERY_SECONDS
             )
-            + 40.0
-        ) / 100.0
+        ) / (math.exp(OVERHEAT_REDUCTION_CURVE_EXPONENT) - 1.0)
+        return OVERHEAT_INITIAL_REDUCTION * curve
 
     @property
     def damage_reduction_remaining(self):

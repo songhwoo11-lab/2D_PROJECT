@@ -335,25 +335,37 @@ class OverheatDamageReductionTests(unittest.TestCase):
         self.assertAlmostEqual(gun.damage_multiplier, 0.2)
         self.assertAlmostEqual(gun.effective_damage, gun.spec.damage * 0.2)
 
-    def test_reduction_is_held_for_one_minute(self):
+    def test_reduction_is_held_for_thirty_seconds(self):
         gun = self._recovered_gun()
 
-        gun.update(59.0)
+        gun.update(29.0)
 
         self.assertAlmostEqual(gun.damage_reduction, 0.8)
 
-    def test_reduction_follows_sine_curve_after_hold(self):
+    def test_reduction_follows_an_exponential_curve_after_the_hold(self):
+        gun = self._recovered_gun()
+
+        gun.update(45.0)
+
+        self.assertAlmostEqual(gun.damage_reduction, 0.753179, places=6)
+        self.assertAlmostEqual(gun.damage_multiplier, 0.246821, places=6)
+
+    def test_reduction_decreases_slowly_then_steeply(self):
+        gun = self._recovered_gun()
+
+        gun.update(60.0)
+        halfway_reduction = gun.damage_reduction
+        gun.update(30.0)
+
+        self.assertAlmostEqual(gun.damage_reduction, 0.0)
+        first_half_drop = 0.8 - halfway_reduction
+        second_half_drop = halfway_reduction
+        self.assertGreater(second_half_drop, first_half_drop)
+
+    def test_reduction_is_gone_after_ninety_seconds(self):
         gun = self._recovered_gun()
 
         gun.update(90.0)
-
-        self.assertAlmostEqual(gun.damage_reduction, 0.4, places=6)
-        self.assertAlmostEqual(gun.damage_multiplier, 0.6, places=6)
-
-    def test_reduction_is_gone_after_two_minutes(self):
-        gun = self._recovered_gun()
-
-        gun.update(120.0)
 
         self.assertAlmostEqual(gun.damage_reduction, 0.0)
         self.assertAlmostEqual(gun.damage_multiplier, 1.0)
@@ -382,7 +394,7 @@ class OverheatDamageReductionTests(unittest.TestCase):
     def test_remaining_reduction_time_counts_down(self):
         gun = self._recovered_gun()
 
-        gun.update(60.0)
+        gun.update(30.0)
 
         self.assertAlmostEqual(gun.damage_reduction_remaining, 60.0)
 
