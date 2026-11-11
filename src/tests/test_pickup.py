@@ -1,6 +1,7 @@
 import random
 import unittest
 
+from game_config import PICKUP_DRAW_SIZE
 from pickup import (
     HealthPickup,
     MagazinePickup,
@@ -10,6 +11,14 @@ from pickup import (
     roll_health_drop,
     roll_magazine_drop,
 )
+
+
+class FakeImage:
+    def __init__(self):
+        self.draws = []
+
+    def draw(self, x, y, w=None, h=None):
+        self.draws.append((x, y, w, h))
 
 
 class StubRandom:
@@ -82,6 +91,31 @@ class MagazinePickupTests(unittest.TestCase):
             MagazinePickup(0.0, 0.0, 0)
         with self.assertRaises(ValueError):
             MagazinePickup(0.0, 0.0, 5, radius=-1)
+
+
+class PickupImageTests(unittest.TestCase):
+    def test_pickup_draws_its_image_centered_on_the_screen_position(self):
+        image = FakeImage()
+        pickup = MagazinePickup(100.0, 100.0, 5, image=image)
+
+        drawn = pickup.draw(40.0, 60.0)
+
+        self.assertTrue(drawn)
+        self.assertEqual(image.draws, [(40.0, 60.0, PICKUP_DRAW_SIZE, PICKUP_DRAW_SIZE)])
+
+    def test_health_pickup_draws_its_image(self):
+        image = FakeImage()
+        pickup = HealthPickup(100.0, 100.0, image=image)
+
+        drawn = pickup.draw(10.0, 20.0)
+
+        self.assertTrue(drawn)
+        self.assertEqual(len(image.draws), 1)
+
+    def test_pickup_without_image_draws_nothing(self):
+        pickup = MagazinePickup(100.0, 100.0, 5)
+
+        self.assertFalse(pickup.draw(10.0, 20.0))
 
 
 class HealthDropChanceTests(unittest.TestCase):

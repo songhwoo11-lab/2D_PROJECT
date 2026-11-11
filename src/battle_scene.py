@@ -14,6 +14,7 @@ from game_camera import Camera
 from game_config import (
     HEALTH_PICKUP_LIMIT,
     MAGAZINE_PICKUP_AMMO,
+    PICKUP_DRAW_SIZE,
     PLAYER_RADIUS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -95,6 +96,8 @@ class BattleScene:
         enemy_draw_rectangle=None,
         enemy_draw_circle=None,
         arrow_image=None,
+        ammo_image=None,
+        health_image=None,
         random_source=None,
         total_waves=None,
         wave_spawn_rate=None,
@@ -114,6 +117,8 @@ class BattleScene:
         self.enemy_draw_rectangle = enemy_draw_rectangle
         self.enemy_draw_circle = enemy_draw_circle
         self.arrow_image = arrow_image
+        self.ammo_image = ammo_image
+        self.health_image = health_image
         self.initial_player_position = (player.x, player.y)
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
@@ -208,6 +213,7 @@ class BattleScene:
                     enemy.x,
                     enemy.y,
                     self._magazine_pickup_amount(),
+                    image=self.ammo_image,
                 )
             )
         if (
@@ -218,7 +224,9 @@ class BattleScene:
                 self.random_source,
             )
         ):
-            self.health_pickups.append(HealthPickup(enemy.x, enemy.y))
+            self.health_pickups.append(
+                HealthPickup(enemy.x, enemy.y, image=self.health_image)
+            )
 
     def _update_pickups(self):
         remaining = []
@@ -726,11 +734,14 @@ class BattleScene:
                     pickup.x,
                     pickup.y,
                 )
-                size = pickup.radius * 2
                 if not (
-                    -size <= screen_x <= SCREEN_WIDTH + size
-                    and -size <= screen_y <= SCREEN_HEIGHT + size
+                    -PICKUP_DRAW_SIZE <= screen_x <= SCREEN_WIDTH + PICKUP_DRAW_SIZE
+                    and -PICKUP_DRAW_SIZE
+                    <= screen_y
+                    <= SCREEN_HEIGHT + PICKUP_DRAW_SIZE
                 ):
+                    continue
+                if pickup.draw(screen_x, screen_y):
                     continue
                 draw_rectangle(
                     screen_x - pickup.radius,

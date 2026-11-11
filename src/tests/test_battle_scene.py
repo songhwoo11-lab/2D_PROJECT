@@ -3,7 +3,7 @@ import unittest
 
 from battle_scene import BattleResult, BattleScene
 from enemy import Enemy, EnemyType
-from game_config import WORLD_HEIGHT, WORLD_WIDTH
+from game_config import PICKUP_DRAW_SIZE, WORLD_HEIGHT, WORLD_WIDTH
 import game_world
 from player import Player
 from pickup import HealthPickup, MagazinePickup
@@ -17,7 +17,11 @@ class FakeBackground:
 
 
 class FakeImage:
-    pass
+    def __init__(self):
+        self.draws = []
+
+    def draw(self, x, y, w=None, h=None):
+        self.draws.append((x, y, w, h))
 
 
 class FakeFont:
@@ -222,6 +226,103 @@ class BattleSceneRewardTests(unittest.TestCase):
         )
         self.assertEqual(self.scene.gun.reserve_ammo, 50)
         self.assertEqual(len(self.scene.pickups), 0)
+
+
+class BattleScenePickupImageTests(unittest.TestCase):
+    def setUp(self):
+        self.ammo_image = FakeImage()
+        self.health_image = FakeImage()
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+        self.scene.ammo_image = self.ammo_image
+        self.scene.health_image = self.health_image
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _defeat_one_enemy(self):
+        enemy = self.scene._spawn_wave_enemy(
+            EnemyType.BASIC,
+            self.scene.player.x + 300,
+            self.scene.player.y,
+        )
+        enemy.hp = 0
+        self.scene.update(0.0)
+
+    def test_magazine_drop_uses_the_ammo_image(self):
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(len(self.scene.pickups), 1)
+        self.assertIs(self.scene.pickups[0].image, self.ammo_image)
+
+    def test_health_drop_uses_the_health_image(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(len(self.scene.health_pickups), 1)
+        self.assertIs(self.scene.health_pickups[0].image, self.health_image)
+
+    def test_pickups_are_drawn_with_their_images(self):
+        self.scene.pickups.append(
+            MagazinePickup(
+                self.scene.player.x,
+                self.scene.player.y,
+                10,
+                image=self.ammo_image,
+            )
+        )
+        self.scene.health_pickups.append(
+            HealthPickup(
+                self.scene.player.x,
+                self.scene.player.y,
+                image=self.health_image,
+            )
+        )
+        rectangles = []
+
+        self.scene._draw_pickups(
+            lambda x1, y1, x2, y2, *args: rectangles.append((x1, y1, x2, y2))
+        )
+
+        self.assertEqual(len(self.ammo_image.draws), 1)
+        self.assertEqual(len(self.health_image.draws), 1)
+        self.assertEqual(rectangles, [])
+
+    def test_pickup_images_are_drawn_at_the_pickup_position(self):
+        pickup = MagazinePickup(
+            self.scene.player.x,
+            self.scene.player.y,
+            10,
+            image=self.ammo_image,
+        )
+        self.scene.pickups.append(pickup)
+
+        self.scene._draw_pickups(lambda *args: None)
+
+        screen_x, screen_y, width, height = self.ammo_image.draws[0]
+        expected_x, expected_y = self.scene.camera.world_to_screen(
+            self.scene.player.x,
+            self.scene.player.y,
+        )
+        self.assertAlmostEqual(screen_x, expected_x)
+        self.assertAlmostEqual(screen_y, expected_y)
+        self.assertEqual(width, PICKUP_DRAW_SIZE)
+        self.assertEqual(height, PICKUP_DRAW_SIZE)
+
+    def test_pickup_without_image_falls_back_to_a_rectangle(self):
+        self.scene.pickups.append(
+            MagazinePickup(self.scene.player.x, self.scene.player.y, 10)
+        )
+        rectangles = []
+
+        self.scene._draw_pickups(
+            lambda x1, y1, x2, y2, *args: rectangles.append((x1, y1, x2, y2))
+        )
+
+        self.assertEqual(len(rectangles), 1)
 
 
 class BattleSceneHealthDropTests(unittest.TestCase):

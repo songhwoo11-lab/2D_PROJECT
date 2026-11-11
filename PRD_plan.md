@@ -38,6 +38,8 @@
 | 소총 | `image/rifle.png` |
 | 기관총 | `image/machineGun.png` |
 | 총알 | `image/bullet.png` |
+| 탄창 드롭 | `image/ammo.png` |
+| 회복 아이템 드롭 | `image/health potion.png` |
 | 게임 시작 화면 | `image/game_start.png` |
 | 게임 로비 화면 | `image/game_lobby.png` |
 | 인-게임 화면 | `image/in_game.png` |

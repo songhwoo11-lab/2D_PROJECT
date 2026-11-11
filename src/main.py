@@ -37,6 +37,10 @@ def main():
         gun_image = pico2d.load_image(str(ASSET_DIRECTORY / "gun.png"))
         bullet_image = pico2d.load_image(str(ASSET_DIRECTORY / "bullet.png"))
         arrow_image = pico2d.load_image(str(ASSET_DIRECTORY / "arrow.png"))
+        ammo_image = pico2d.load_image(str(ASSET_DIRECTORY / "ammo.png"))
+        health_image = pico2d.load_image(
+            str(ASSET_DIRECTORY / "health potion.png")
+        )
         hud_font = pico2d.load_font(
             str(ASSET_DIRECTORY / "font" / "PuzzleSansSuper.ttf"),
             20,
@@ -84,6 +88,8 @@ def main():
             enemy_draw_rectangle=pico2d.draw_rectangle,
             enemy_draw_circle=pico2d.draw_circle,
             arrow_image=arrow_image,
+            ammo_image=ammo_image,
+            health_image=health_image,
             total_waves=development_total_waves(),
             wave_spawn_rate=development_spawn_rate(),
         )
