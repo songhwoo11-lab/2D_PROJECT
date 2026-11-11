@@ -63,10 +63,10 @@ class FireStatusTextTests(unittest.TestCase):
 
         self.assertEqual(fire_status_text(gun), "OVERHEAT")
 
-    def test_ready_is_shown_when_gun_can_fire(self):
+    def test_ready_is_not_shown_when_gun_can_fire(self):
         gun = make_gun(can_fire=True)
 
-        self.assertEqual(fire_status_text(gun), "READY")
+        self.assertIsNone(fire_status_text(gun))
 
     def test_no_status_is_shown_during_fire_cooldown(self):
         gun = make_gun(can_fire=False, reloading=False)
@@ -84,7 +84,7 @@ class RecordingFont:
         self.draws = []
 
     def draw(self, x, y, text, color=(255, 255, 255)):
-        self.draws.append((x, y, text))
+        self.draws.append((x, y, text, color))
 
 
 class HudLayoutTests(unittest.TestCase):
@@ -114,7 +114,13 @@ class HudLayoutTests(unittest.TestCase):
     def _text_draw(self, font, text):
         for draw_call in font.draws:
             if draw_call[2] == text:
-                return draw_call
+                return draw_call[:3]
+        self.fail("text {!r} was not drawn".format(text))
+
+    def _text_color(self, font, text):
+        for draw_call in font.draws:
+            if draw_call[2] == text:
+                return draw_call[3]
         self.fail("text {!r} was not drawn".format(text))
 
     def test_temperature_bar_is_in_the_bottom_right_corner(self):
@@ -145,27 +151,116 @@ class HudLayoutTests(unittest.TestCase):
         self.assertGreater(x, SCREEN_WIDTH / 2)
         self.assertLess(y, SCREEN_HEIGHT / 2)
 
-    def test_ready_status_is_in_the_bottom_right(self):
+    def test_ready_status_is_not_drawn(self):
         gun = make_gun(can_fire=True)
 
         font, _ = self._draw_hud(gun)
 
-        x, y, text = self._text_draw(font, "READY")
-        self.assertEqual(x, SCREEN_WIDTH - hud.HUD_MARGIN - self.TEXT_WIDTH)
-        self.assertEqual(y, hud.HUD_ROW_HIGH)
-        self.assertGreater(x, SCREEN_WIDTH / 2)
-        self.assertLess(y, SCREEN_HEIGHT / 2)
+        self.assertFalse(
+            any(draw_call[2] == "READY" for draw_call in font.draws)
+        )
 
-    def test_overheat_status_is_in_the_bottom_right(self):
-        gun = make_gun(fire_blocked=True, can_fire=False)
+    def test_temperature_warning_is_centered_on_the_gauge_at_170(self):
+        gun = make_gun(temperature=170.0)
+
+        font, _ = self._draw_hud(gun)
+
+        x, y, text = self._text_draw(font, "WARNING!")
+        bar_left = SCREEN_WIDTH - hud.HUD_MARGIN - hud.TEMPERATURE_BAR_WIDTH
+        self.assertEqual(
+            x,
+            bar_left + (hud.TEMPERATURE_BAR_WIDTH - self.TEXT_WIDTH) / 2,
+        )
+        self.assertEqual(
+            y,
+            hud.HUD_MARGIN + hud.TEMPERATURE_BAR_HEIGHT / 2,
+        )
+        self.assertEqual(
+            self._text_color(font, "WARNING!"),
+            hud.TEMPERATURE_WARNING_YELLOW_COLOR,
+        )
+
+    def test_temperature_warning_is_yellow_below_180(self):
+        gun = make_gun(temperature=179.9)
+
+        font, _ = self._draw_hud(gun)
+
+        self.assertEqual(
+            self._text_color(font, "WARNING!"),
+            hud.TEMPERATURE_WARNING_YELLOW_COLOR,
+        )
+
+    def test_temperature_warning_is_red_from_180(self):
+        gun = make_gun(temperature=180.0)
+
+        font, _ = self._draw_hud(gun)
+
+        self.assertEqual(
+            self._text_color(font, "WARNING!"),
+            hud.TEMPERATURE_WARNING_RED_COLOR,
+        )
+
+    def test_temperature_warning_is_red_at_199(self):
+        gun = make_gun(temperature=199.0)
+
+        font, _ = self._draw_hud(gun)
+
+        self.assertEqual(
+            self._text_color(font, "WARNING!"),
+            hud.TEMPERATURE_WARNING_RED_COLOR,
+        )
+
+    def test_temperature_warning_is_hidden_below_170(self):
+        gun = make_gun(temperature=169.9)
+
+        font, _ = self._draw_hud(gun)
+
+        self.assertFalse(
+            any(draw_call[2] == "WARNING!" for draw_call in font.draws)
+        )
+
+    def test_temperature_warning_is_hidden_at_the_limit(self):
+        gun = make_gun(temperature=200.0)
+
+        font, _ = self._draw_hud(gun)
+
+        self.assertFalse(
+            any(draw_call[2] == "WARNING!" for draw_call in font.draws)
+        )
+
+    def test_overheat_status_is_centered_on_the_gauge(self):
+        gun = make_gun(
+            temperature=200.0,
+            fire_blocked=True,
+            can_fire=False,
+        )
 
         font, _ = self._draw_hud(gun)
 
         x, y, text = self._text_draw(font, "OVERHEAT")
-        self.assertEqual(x, SCREEN_WIDTH - hud.HUD_MARGIN - self.TEXT_WIDTH)
-        self.assertEqual(y, hud.HUD_ROW_HIGH)
-        self.assertGreater(x, SCREEN_WIDTH / 2)
-        self.assertLess(y, SCREEN_HEIGHT / 2)
+        bar_left = SCREEN_WIDTH - hud.HUD_MARGIN - hud.TEMPERATURE_BAR_WIDTH
+        self.assertEqual(
+            x,
+            bar_left + (hud.TEMPERATURE_BAR_WIDTH - self.TEXT_WIDTH) / 2,
+        )
+        self.assertEqual(
+            y,
+            hud.HUD_MARGIN + hud.TEMPERATURE_BAR_HEIGHT / 2,
+        )
+
+    def test_overheat_hides_the_temperature_warning(self):
+        gun = make_gun(
+            temperature=190.0,
+            fire_blocked=True,
+            can_fire=False,
+        )
+
+        font, _ = self._draw_hud(gun)
+
+        self._text_draw(font, "OVERHEAT")
+        self.assertFalse(
+            any(draw_call[2] == "WARNING!" for draw_call in font.draws)
+        )
 
     def test_wave_text_stays_at_the_top_of_the_screen(self):
         gun = make_gun()

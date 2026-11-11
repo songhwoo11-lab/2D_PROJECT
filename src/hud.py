@@ -9,6 +9,12 @@ from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, TOTAL_WAVES
 
 TEMPERATURE_BAR_WIDTH = 200
 TEMPERATURE_BAR_HEIGHT = 8
+TEMPERATURE_WARNING_THRESHOLD = 160.0
+TEMPERATURE_WARNING_RED_THRESHOLD = 180.0
+TEMPERATURE_WARNING_TEXT = "WARNING!"
+TEMPERATURE_WARNING_YELLOW_COLOR = (255, 225, 90)
+TEMPERATURE_WARNING_RED_COLOR = (255, 70, 60)
+OVERHEAT_COLOR = (255, 70, 60)
 HUD_MARGIN = 20
 HUD_ROW_LOW = 45
 HUD_ROW_HIGH = 70
@@ -67,9 +73,29 @@ def coin_text(coins):
 def fire_status_text(gun):
     if gun.fire_blocked:
         return "OVERHEAT"
-    if gun.can_fire:
-        return "READY"
     return None
+
+
+def temperature_warning_color(gun):
+    if gun.temperature >= gun.temperature_limit:
+        return None
+    if gun.temperature >= TEMPERATURE_WARNING_RED_THRESHOLD:
+        return TEMPERATURE_WARNING_RED_COLOR
+    if gun.temperature >= TEMPERATURE_WARNING_THRESHOLD:
+        return TEMPERATURE_WARNING_YELLOW_COLOR
+    return None
+
+
+def _draw_gauge_centered_text(font, bar_left, bar_bottom, text, color):
+    x = bar_left + (
+        TEMPERATURE_BAR_WIDTH - _measure_text_width(font, text)
+    ) / 2
+    font.draw(
+        x,
+        bar_bottom + TEMPERATURE_BAR_HEIGHT / 2,
+        text,
+        color,
+    )
 
 
 def _draw_temperature(font, gun, draw_rectangle):
@@ -104,7 +130,23 @@ def _draw_temperature(font, gun, draw_rectangle):
     _draw_right_text(font, HUD_ROW_LOW, temperature_text(gun))
     status = fire_status_text(gun)
     if status is not None:
-        _draw_right_text(font, HUD_ROW_HIGH, status)
+        _draw_gauge_centered_text(
+            font,
+            bar_left,
+            bar_bottom,
+            status,
+            OVERHEAT_COLOR,
+        )
+    else:
+        warning_color = temperature_warning_color(gun)
+        if warning_color is not None:
+            _draw_gauge_centered_text(
+                font,
+                bar_left,
+                bar_bottom,
+                TEMPERATURE_WARNING_TEXT,
+                warning_color,
+            )
 
 
 def draw_hud(
