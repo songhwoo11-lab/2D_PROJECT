@@ -382,21 +382,37 @@ class OverheatDamageReductionTests(unittest.TestCase):
 
         self.assertEqual(gun.damage_reduction_remaining, 0.0)
 
-    def test_remaining_reduction_time_starts_at_the_full_duration(self):
+    def test_hold_time_starts_at_thirty_seconds(self):
         gun = self._recovered_gun()
 
         self.assertAlmostEqual(
             gun.damage_reduction_remaining,
-            OVERHEAT_REDUCTION_HOLD_SECONDS
-            + OVERHEAT_REDUCTION_RECOVERY_SECONDS,
+            OVERHEAT_REDUCTION_HOLD_SECONDS,
         )
 
-    def test_remaining_reduction_time_counts_down(self):
+    def test_hold_time_counts_down(self):
         gun = self._recovered_gun()
 
-        gun.update(30.0)
+        gun.update(15.0)
 
-        self.assertAlmostEqual(gun.damage_reduction_remaining, 60.0)
+        self.assertAlmostEqual(gun.damage_reduction_remaining, 15.0)
+
+    def test_recovery_time_starts_at_sixty_seconds(self):
+        gun = self._recovered_gun()
+
+        gun.update(OVERHEAT_REDUCTION_HOLD_SECONDS)
+
+        self.assertAlmostEqual(
+            gun.damage_reduction_remaining,
+            OVERHEAT_REDUCTION_RECOVERY_SECONDS,
+        )
+
+    def test_recovery_time_counts_down(self):
+        gun = self._recovered_gun()
+
+        gun.update(60.0)
+
+        self.assertAlmostEqual(gun.damage_reduction_remaining, 30.0)
 
     def test_remaining_reduction_time_reaches_zero(self):
         gun = self._recovered_gun()

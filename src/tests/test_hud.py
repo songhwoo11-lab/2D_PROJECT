@@ -104,10 +104,15 @@ class DamageReductionTextTests(unittest.TestCase):
 
 
 class DamageReductionTimeTextTests(unittest.TestCase):
-    def test_full_duration_is_shown_as_one_and_a_half_minutes(self):
-        gun = make_gun(damage_reduction_remaining=90.0)
+    def test_hold_time_is_shown_from_thirty_seconds(self):
+        gun = make_gun(damage_reduction_remaining=30.0)
 
-        self.assertEqual(damage_reduction_time_text(gun), "01:30")
+        self.assertEqual(damage_reduction_time_text(gun), "00:30")
+
+    def test_recovery_time_is_shown_from_sixty_seconds(self):
+        gun = make_gun(damage_reduction_remaining=60.0)
+
+        self.assertEqual(damage_reduction_time_text(gun), "01:00")
 
     def test_remaining_time_is_shown_as_minutes_and_seconds(self):
         gun = make_gun(damage_reduction_remaining=61.0)
@@ -306,13 +311,13 @@ class HudLayoutTests(unittest.TestCase):
     def test_damage_reduction_time_is_shown_to_the_left_of_the_reduction(self):
         gun = make_gun(
             damage_reduction=0.8,
-            damage_reduction_remaining=90.0,
+            damage_reduction_remaining=60.0,
         )
 
         font, _ = self._draw_hud(gun)
 
         reduction_x, reduction_y, _ = self._text_draw(font, "DMG -80%")
-        time_x, time_y, _ = self._text_draw(font, "01:30")
+        time_x, time_y, _ = self._text_draw(font, "01:00")
         self.assertEqual(time_y, hud.HUD_ROW_HIGH)
         self.assertEqual(time_y, reduction_y)
         self.assertEqual(
@@ -320,7 +325,7 @@ class HudLayoutTests(unittest.TestCase):
             reduction_x - hud.DAMAGE_REDUCTION_TIME_GAP - self.TEXT_WIDTH,
         )
         self.assertEqual(
-            self._text_color(font, "01:30"),
+            self._text_color(font, "01:00"),
             hud.DAMAGE_REDUCTION_COLOR,
         )
 

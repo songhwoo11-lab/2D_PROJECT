@@ -126,11 +126,10 @@ class Gun:
         elapsed = self._damage_reduction_elapsed
         if elapsed is None:
             return 0.0
-        total_seconds = (
-            OVERHEAT_REDUCTION_HOLD_SECONDS
-            + OVERHEAT_REDUCTION_RECOVERY_SECONDS
-        )
-        return max(0.0, total_seconds - elapsed)
+        if elapsed < OVERHEAT_REDUCTION_HOLD_SECONDS:
+            return OVERHEAT_REDUCTION_HOLD_SECONDS - elapsed
+        recovery_elapsed = elapsed - OVERHEAT_REDUCTION_HOLD_SECONDS
+        return max(0.0, OVERHEAT_REDUCTION_RECOVERY_SECONDS - recovery_elapsed)
 
     @property
     def damage_multiplier(self):
