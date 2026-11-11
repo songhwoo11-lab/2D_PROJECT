@@ -21,6 +21,7 @@ TEMPERATURE_WARNING_TEXT = "WARNING!"
 TEMPERATURE_WARNING_YELLOW_COLOR = (255, 225, 90)
 TEMPERATURE_WARNING_RED_COLOR = (255, 70, 60)
 OVERHEAT_COLOR = (255, 70, 60)
+HP_TRAIL_COLOR = (245, 150, 80)
 HUD_MARGIN = 20
 HUD_ROW_LOW = 55
 HUD_ROW_HIGH = 85
@@ -170,6 +171,12 @@ def draw_hud(
     hp_bar_width = 200
     hp_bar_height = HP_BAR_HEIGHT
     hp_ratio = min(max(player.hp / player.max_hp, 0.0), 1.0)
+    hp_trail = getattr(player, "hp_trail", None)
+    hp_trail_ratio = (
+        hp_ratio
+        if hp_trail is None
+        else min(max(hp_trail.value / player.max_hp, 0.0), 1.0)
+    )
 
     draw_rectangle(
         hp_bar_left,
@@ -179,6 +186,15 @@ def draw_hud(
         55,
         45,
         45,
+        255,
+        True,
+    )
+    draw_rectangle(
+        hp_bar_left,
+        hp_bar_bottom,
+        hp_bar_left + hp_bar_width * hp_trail_ratio,
+        hp_bar_bottom + hp_bar_height,
+        *HP_TRAIL_COLOR,
         255,
         True,
     )

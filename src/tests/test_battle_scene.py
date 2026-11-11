@@ -541,6 +541,35 @@ class BattleSceneFlowTests(unittest.TestCase):
         self.assertFalse(self.scene.exit_requested)
 
 
+class BattleSceneHpTrailTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+
+    def tearDown(self):
+        game_world.clear()
+
+    def test_player_hp_trail_lingers_after_damage(self):
+        self.scene.player.take_damage(20)
+
+        self.scene.update(0.1)
+
+        self.assertEqual(self.scene.player.hp, 80)
+        self.assertEqual(self.scene.player.hp_trail.value, 100)
+
+    def test_enemy_hp_trail_lingers_after_damage(self):
+        enemy = self.scene.spawn_enemy(
+            EnemyType.BASIC,
+            WORLD_WIDTH / 2,
+            WORLD_HEIGHT / 2,
+        )
+        enemy.take_damage(5)
+
+        self.scene.update(0.1)
+
+        self.assertEqual(enemy.hp, 15)
+        self.assertEqual(enemy.hp_trail.value, enemy.max_hp)
+
+
 class BattleSceneRecordTests(unittest.TestCase):
     def setUp(self):
         self.scene = make_scene(total_waves=1, spawn_rate=1000)

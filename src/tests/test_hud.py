@@ -90,14 +90,15 @@ class RecordingFont:
 class HudLayoutTests(unittest.TestCase):
     TEXT_WIDTH = 60
 
-    def _draw_hud(self, gun):
+    def _draw_hud(self, gun, player=None):
         font = RecordingFont()
         rectangles = []
 
         def draw_rectangle(x1, y1, x2, y2, r, g, b, a, filled):
             rectangles.append((x1, y1, x2, y2))
 
-        player = SimpleNamespace(hp=100, max_hp=100)
+        if player is None:
+            player = SimpleNamespace(hp=100, max_hp=100)
         with mock.patch.object(hud, "_measure_text_width", return_value=self.TEXT_WIDTH):
             hud.draw_hud(
                 player,
@@ -128,7 +129,7 @@ class HudLayoutTests(unittest.TestCase):
 
         _, rectangles = self._draw_hud(gun)
 
-        bar = rectangles[2]
+        bar = rectangles[3]
         self.assertEqual(
             bar,
             (
@@ -144,7 +145,7 @@ class HudLayoutTests(unittest.TestCase):
 
         _, rectangles = self._draw_hud(gun)
 
-        x1, y1, x2, y2 = rectangles[2]
+        x1, y1, x2, y2 = rectangles[3]
         self.assertEqual(y2 - y1, hud.HUD_FONT_SIZE)
 
     def test_hp_bar_thickness_matches_the_hud_font_size(self):
@@ -154,6 +155,39 @@ class HudLayoutTests(unittest.TestCase):
 
         x1, y1, x2, y2 = rectangles[0]
         self.assertEqual(y2 - y1, hud.HUD_FONT_SIZE)
+
+    def test_hp_trailing_bar_follows_the_delayed_value(self):
+        gun = make_gun()
+        player = SimpleNamespace(
+            hp=60,
+            max_hp=100,
+            hp_trail=SimpleNamespace(value=80.0),
+        )
+
+        _, rectangles = self._draw_hud(gun, player)
+
+        background = rectangles[0]
+        trailing = rectangles[1]
+        current = rectangles[2]
+        self.assertEqual(background[0], hud.HUD_MARGIN)
+        self.assertAlmostEqual(
+            trailing[2] - trailing[0],
+            (background[2] - background[0]) * 0.8,
+        )
+        self.assertAlmostEqual(
+            current[2] - current[0],
+            (background[2] - background[0]) * 0.6,
+        )
+        self.assertGreater(trailing[2], current[2])
+
+    def test_hp_trailing_bar_uses_the_current_hp_without_an_animation_tracker(self):
+        gun = make_gun()
+
+        _, rectangles = self._draw_hud(gun)
+
+        trailing = rectangles[1]
+        current = rectangles[2]
+        self.assertEqual(trailing, current)
 
     def test_temperature_text_is_right_aligned_in_the_bottom_right(self):
         gun = make_gun()

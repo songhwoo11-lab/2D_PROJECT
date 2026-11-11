@@ -6,10 +6,12 @@ import math
 
 import game_world
 from game_config import DISTANCE_EPSILON, FPS
+from hp_trail import HpTrail
 
 
 ENEMY_DEFAULT_MOVE_SPEED = 70.0
 ENEMY_DEFAULT_RADIUS = 16.0
+ENEMY_HP_TRAIL_COLOR = (255, 170, 70)
 
 
 class EnemyType(Enum):
@@ -90,6 +92,7 @@ class Enemy:
         self.stats = stats
         self.max_hp = float(stats.max_hp)
         self.hp = self.max_hp
+        self.hp_trail = HpTrail(self.hp, self.max_hp)
         self.attack_damage = float(stats.attack_damage)
         self.attack_interval = float(stats.attack_interval)
         self.move_speed = float(stats.move_speed)
@@ -113,7 +116,14 @@ class Enemy:
             raise ValueError("stat multiplier must be non-negative")
         self.max_hp *= multiplier
         self.hp = self.max_hp
+        self.hp_trail.reset(self.hp, self.max_hp)
         self.attack_damage *= multiplier
+
+    def update_hp_trail(self, delta_time):
+        self.hp_trail.update(self.hp, delta_time)
+
+    def reset_hp_trail(self):
+        self.hp_trail.reset(self.hp, self.max_hp)
 
     def take_damage(self, amount):
         if amount < 0:
@@ -264,6 +274,15 @@ class Enemy:
         bar_height = 4
         bar_left = x - self.radius
         bar_bottom = y + self.radius + 3
+        self.draw_rectangle(
+            bar_left,
+            bar_bottom,
+            bar_left + bar_width * self.hp_trail.ratio,
+            bar_bottom + bar_height,
+            *ENEMY_HP_TRAIL_COLOR,
+            alpha,
+            True,
+        )
         self.draw_rectangle(
             bar_left,
             bar_bottom,

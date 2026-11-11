@@ -413,6 +413,7 @@ class BattleScene:
             )
         elif action == "reset_hp":
             self.player.hp = self.player.max_hp
+            self.player.reset_hp_trail()
         elif action == "reset_map":
             self.reset_map()
         elif action == "remove_all_enemies":
@@ -437,6 +438,7 @@ class BattleScene:
     def reset_map(self):
         self.player.x, self.player.y = self.initial_player_position
         self.player.hp = self.player.max_hp
+        self.player.reset_hp_trail()
         self.player.aim_angle = 0.0
         self.player.set_movement(0, 0, 0.0)
         self.gun.reset()
@@ -487,6 +489,7 @@ class BattleScene:
             if isinstance(obj, Bullet)
         ]
         game_world.update()
+        self._update_hp_trails(delta_time)
         self._record_shot_feedback(bullets)
         if self.player.is_defeated:
             self._finish(BattleResult.DEFEAT)
@@ -549,6 +552,13 @@ class BattleScene:
                     SHOT_FEEDBACK_DURATION,
                 )
             )
+
+    def _update_hp_trails(self, delta_time):
+        self.player.update_hp_trail(delta_time)
+        for layer in game_world.world:
+            for obj in layer:
+                if isinstance(obj, Enemy):
+                    obj.update_hp_trail(delta_time)
 
     def _remove_defeated_enemies(self):
         defeated = [

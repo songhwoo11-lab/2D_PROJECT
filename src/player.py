@@ -9,6 +9,7 @@ from game_config import (
     WORLD_HEIGHT,
     WORLD_WIDTH,
 )
+from hp_trail import HpTrail
 
 
 class Player:
@@ -28,6 +29,7 @@ class Player:
         self.image = image
         self.max_hp = int(max_hp)
         self.hp = self.max_hp
+        self.hp_trail = HpTrail(self.hp, self.max_hp)
         self.speed = float(speed)
         self.radius = float(radius)
         self.aim_angle = 0.0
@@ -56,6 +58,12 @@ class Player:
         previous_hp = self.hp
         self.hp = min(self.max_hp, self.hp + amount)
         return self.hp - previous_hp
+
+    def update_hp_trail(self, delta_time):
+        self.hp_trail.update(self.hp, delta_time)
+
+    def reset_hp_trail(self):
+        self.hp_trail.reset(self.hp, self.max_hp)
 
     def set_movement(self, move_x, move_y, delta_time):
         if not math.isfinite(delta_time) or delta_time < 0:
