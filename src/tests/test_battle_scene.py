@@ -174,7 +174,7 @@ class BattleSceneRewardTests(unittest.TestCase):
 
         self.assertEqual(self.scene.coins, 4)
         self.assertEqual(len(self.scene.pickups), 1)
-        self.assertEqual(self.scene.pickups[0].amount, 5)
+        self.assertEqual(self.scene.pickups[0].amount, 10)
 
     def test_no_magazine_drops_at_three_hundred_or_more_ammo(self):
         self.scene.random_source = StubRandom(coin=2, roll=0.0)
@@ -186,27 +186,31 @@ class BattleSceneRewardTests(unittest.TestCase):
         self.assertEqual(self.scene.coins, 2)
         self.assertEqual(self.scene.pickups, [])
 
-    def test_walking_over_a_magazine_refills_the_gun(self):
+    def test_walking_over_a_magazine_adds_reserve_ammo(self):
         self.scene.gun.magazine_ammo = 2
+        self.scene.gun.reserve_ammo = 40
         self.scene.pickups.append(
             MagazinePickup(
                 self.scene.player.x,
                 self.scene.player.y,
-                5,
+                10,
             )
         )
 
         self.scene._update_pickups()
 
-        self.assertEqual(self.scene.gun.magazine_ammo, 7)
+        self.assertEqual(self.scene.gun.magazine_ammo, 2)
+        self.assertEqual(self.scene.gun.reserve_ammo, 50)
         self.assertEqual(self.scene.pickups, [])
 
-    def test_full_magazine_leaves_the_pickup_on_the_map(self):
+    def test_full_magazine_still_takes_the_pickup(self):
+        self.scene.gun.magazine_ammo = self.scene.gun.spec.magazine_size
+        self.scene.gun.reserve_ammo = 40
         self.scene.pickups.append(
             MagazinePickup(
                 self.scene.player.x,
                 self.scene.player.y,
-                5,
+                10,
             )
         )
 
@@ -216,7 +220,8 @@ class BattleSceneRewardTests(unittest.TestCase):
             self.scene.gun.magazine_ammo,
             self.scene.gun.spec.magazine_size,
         )
-        self.assertEqual(len(self.scene.pickups), 1)
+        self.assertEqual(self.scene.gun.reserve_ammo, 50)
+        self.assertEqual(len(self.scene.pickups), 0)
 
 
 class BattleSceneHealthDropTests(unittest.TestCase):

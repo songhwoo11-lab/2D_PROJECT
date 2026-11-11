@@ -198,12 +198,11 @@ class Gun:
         self.reserve_ammo -= loaded
         self.reload_remaining = 0.0
 
-    def refill_magazine(self, amount):
+    def add_reserve_ammo(self, amount):
         if amount < 0:
-            raise ValueError("refill amount must be non-negative")
-        space = self.spec.magazine_size - self.magazine_ammo
-        added = min(int(amount), space)
-        self.magazine_ammo += added
+            raise ValueError("reserve amount must be non-negative")
+        added = int(amount)
+        self.reserve_ammo += added
         return added
 
     def try_fire(self):

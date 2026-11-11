@@ -13,7 +13,7 @@ import game_world
 from game_camera import Camera
 from game_config import (
     HEALTH_PICKUP_LIMIT,
-    MAGAZINE_REFILL_RATIO,
+    MAGAZINE_PICKUP_AMMO,
     PLAYER_RADIUS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -197,8 +197,8 @@ class BattleScene:
         )
         return enemy
 
-    def _magazine_refill_amount(self):
-        return max(1, int(self.gun.spec.magazine_size * MAGAZINE_REFILL_RATIO))
+    def _magazine_pickup_amount(self):
+        return MAGAZINE_PICKUP_AMMO
 
     def _reward_enemy_defeat(self, enemy):
         self.coins += roll_coin_reward(self.random_source)
@@ -207,7 +207,7 @@ class BattleScene:
                 MagazinePickup(
                     enemy.x,
                     enemy.y,
-                    self._magazine_refill_amount(),
+                    self._magazine_pickup_amount(),
                 )
             )
         if (
@@ -224,7 +224,7 @@ class BattleScene:
         remaining = []
         for pickup in self.pickups:
             if pickup.can_collect(self.player):
-                if self.gun.refill_magazine(pickup.amount) > 0:
+                if self.gun.add_reserve_ammo(pickup.amount) > 0:
                     continue
             remaining.append(pickup)
         self.pickups = remaining
