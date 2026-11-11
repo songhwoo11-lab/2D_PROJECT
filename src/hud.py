@@ -12,6 +12,8 @@ TEMPERATURE_BAR_HEIGHT = 8
 HUD_MARGIN = 20
 HUD_ROW_LOW = 45
 HUD_ROW_HIGH = 70
+HUD_WAVE_Y = SCREEN_HEIGHT - 25
+HUD_REMAINING_ENEMIES_Y = HUD_WAVE_Y - 25
 
 
 def _measure_text_width(font, text):
@@ -52,6 +54,10 @@ def temperature_text(gun):
 
 def wave_text(wave, total=TOTAL_WAVES):
     return "WAVE {}/{}".format(wave, total)
+
+
+def remaining_enemies_text(count):
+    return "ENEMIES LEFT {}".format(count)
 
 
 def coin_text(coins):
@@ -109,6 +115,7 @@ def draw_hud(
     wave=None,
     total_waves=TOTAL_WAVES,
     coins=None,
+    remaining_enemies=None,
 ):
     hp_bar_left = HUD_MARGIN
     hp_bar_bottom = HUD_MARGIN
@@ -162,4 +169,10 @@ def draw_hud(
         _draw_centered_text(font, 10, "RELOAD")
     _draw_temperature(font, gun, draw_rectangle)
     if wave is not None:
-        _draw_centered_text(font, SCREEN_HEIGHT - 25, wave_text(wave, total_waves))
+        _draw_centered_text(font, HUD_WAVE_Y, wave_text(wave, total_waves))
+    if remaining_enemies is not None:
+        _draw_centered_text(
+            font,
+            HUD_REMAINING_ENEMIES_Y,
+            remaining_enemies_text(remaining_enemies),
+        )

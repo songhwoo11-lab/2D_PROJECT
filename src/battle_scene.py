@@ -252,6 +252,13 @@ class BattleScene:
             if isinstance(obj, Enemy) and obj.is_alive
         )
 
+    def _remaining_enemy_count(self):
+        unspawned = (
+            self.wave_director.total_to_spawn
+            - self.wave_director.spawned_count
+        )
+        return self._alive_enemy_count() + len(self.spawn_warnings) + unspawned
+
     def _update_waves(self, delta_time):
         if self.waves_cleared:
             return
@@ -629,6 +636,7 @@ class BattleScene:
             wave=self.wave_director.current_wave,
             total_waves=self.wave_director.total_waves,
             coins=self.coins,
+            remaining_enemies=self._remaining_enemy_count(),
         )
         if self.debug_mode:
             self._draw_debug_menu(draw_rectangle)

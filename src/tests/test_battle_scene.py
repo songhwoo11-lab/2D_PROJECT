@@ -136,6 +136,22 @@ class BattleSceneWaveTests(unittest.TestCase):
         self.assertEqual(enemy.max_hp, 40)
         self.assertEqual(enemy.attack_damage, 16)
 
+    def test_remaining_enemy_count_includes_queued_warnings_and_alive(self):
+        total = self.scene.wave_director.total_to_spawn
+        self.assertEqual(self.scene._remaining_enemy_count(), total)
+
+        self.scene.update(0.1)
+        self.assertEqual(self.scene._remaining_enemy_count(), total)
+
+        self.scene.update(0.5)
+        enemies = alive_enemies()
+        self.assertEqual(len(enemies), total)
+
+        for enemy in enemies[:3]:
+            enemy.hp = 0
+
+        self.assertEqual(self.scene._remaining_enemy_count(), total - 3)
+
     def test_reset_map_restores_the_first_wave(self):
         self.scene.update(0.1)
         self.scene.waves_cleared = True

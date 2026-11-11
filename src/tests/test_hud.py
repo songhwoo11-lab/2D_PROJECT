@@ -4,7 +4,13 @@ from unittest import mock
 
 import hud
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
-from hud import coin_text, fire_status_text, temperature_text, wave_text
+from hud import (
+    coin_text,
+    fire_status_text,
+    remaining_enemies_text,
+    temperature_text,
+    wave_text,
+)
 
 
 def make_gun(**overrides):
@@ -41,6 +47,14 @@ class WaveTextTests(unittest.TestCase):
 class CoinTextTests(unittest.TestCase):
     def test_coin_text_shows_the_current_balance(self):
         self.assertEqual(coin_text(123), "COINS 123")
+
+
+class RemainingEnemiesTextTests(unittest.TestCase):
+    def test_remaining_enemies_text_shows_the_count(self):
+        self.assertEqual(remaining_enemies_text(12), "ENEMIES LEFT 12")
+
+    def test_remaining_enemies_text_shows_zero(self):
+        self.assertEqual(remaining_enemies_text(0), "ENEMIES LEFT 0")
 
 
 class FireStatusTextTests(unittest.TestCase):
@@ -93,6 +107,7 @@ class HudLayoutTests(unittest.TestCase):
                 wave=1,
                 total_waves=30,
                 coins=7,
+                remaining_enemies=12,
             )
         return font, rectangles
 
@@ -159,6 +174,17 @@ class HudLayoutTests(unittest.TestCase):
 
         x, y, text = self._text_draw(font, "WAVE 1/30")
         self.assertEqual(y, SCREEN_HEIGHT - 25)
+        self.assertGreater(y, SCREEN_HEIGHT / 2)
+
+    def test_remaining_enemies_are_centered_below_the_wave_text(self):
+        gun = make_gun()
+
+        font, _ = self._draw_hud(gun)
+
+        x, y, text = self._text_draw(font, "ENEMIES LEFT 12")
+        self.assertEqual(x, (SCREEN_WIDTH - self.TEXT_WIDTH) / 2)
+        self.assertEqual(y, hud.HUD_REMAINING_ENEMIES_Y)
+        self.assertLess(y, SCREEN_HEIGHT - 25)
         self.assertGreater(y, SCREEN_HEIGHT / 2)
 
 
