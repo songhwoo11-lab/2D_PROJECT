@@ -7,6 +7,7 @@ import random
 from enemy import EnemyType
 from game_config import (
     TOTAL_WAVES,
+    WAVE_ENEMIES_PER_WAVE,
     WAVE_SPAWN_RATE_PER_SECOND,
     WAVE_STAT_MULTIPLIER_EVERY,
     WAVE_STAT_MULTIPLIER_FACTOR,
@@ -23,90 +24,60 @@ SPAWN_RADIUS_RANGES = {
 
 
 # Each entry applies to a 10-wave cycle: index 0 -> waves 1, 11, 21, ...
-# Values are (total enemy count, ((type, percent), ...)).
-WAVE_GROUPS = (
+# Values are ((type, percent), ...). Wave n always spawns n * 10 enemies.
+WAVE_GROUP_RATIOS = (
+    ((EnemyType.BASIC, 100),),
+    ((EnemyType.BASIC, 90), (EnemyType.ARCHER, 10)),
     (
-        100,
-        ((EnemyType.BASIC, 100),),
+        (EnemyType.BASIC, 80),
+        (EnemyType.TANKER, 10),
+        (EnemyType.ARCHER, 10),
     ),
     (
-        120,
-        ((EnemyType.BASIC, 90), (EnemyType.ARCHER, 10)),
+        (EnemyType.BASIC, 70),
+        (EnemyType.EXPLOSIVE, 10),
+        (EnemyType.TANKER, 10),
+        (EnemyType.ARCHER, 10),
     ),
     (
-        140,
-        (
-            (EnemyType.BASIC, 80),
-            (EnemyType.TANKER, 10),
-            (EnemyType.ARCHER, 10),
-        ),
+        (EnemyType.BASIC, 60),
+        (EnemyType.EXPLOSIVE, 10),
+        (EnemyType.TANKER, 10),
+        (EnemyType.ASSASSIN, 10),
+        (EnemyType.ARCHER, 10),
     ),
     (
-        160,
-        (
-            (EnemyType.BASIC, 70),
-            (EnemyType.EXPLOSIVE, 10),
-            (EnemyType.TANKER, 10),
-            (EnemyType.ARCHER, 10),
-        ),
+        (EnemyType.BASIC, 50),
+        (EnemyType.EXPLOSIVE, 10),
+        (EnemyType.TANKER, 20),
+        (EnemyType.ASSASSIN, 10),
+        (EnemyType.ARCHER, 10),
     ),
     (
-        180,
-        (
-            (EnemyType.BASIC, 60),
-            (EnemyType.EXPLOSIVE, 10),
-            (EnemyType.TANKER, 10),
-            (EnemyType.ASSASSIN, 10),
-            (EnemyType.ARCHER, 10),
-        ),
+        (EnemyType.BASIC, 40),
+        (EnemyType.EXPLOSIVE, 30),
+        (EnemyType.TANKER, 20),
+        (EnemyType.ARCHER, 10),
     ),
     (
-        200,
-        (
-            (EnemyType.BASIC, 50),
-            (EnemyType.EXPLOSIVE, 10),
-            (EnemyType.TANKER, 20),
-            (EnemyType.ASSASSIN, 10),
-            (EnemyType.ARCHER, 10),
-        ),
+        (EnemyType.BASIC, 30),
+        (EnemyType.EXPLOSIVE, 10),
+        (EnemyType.TANKER, 30),
+        (EnemyType.ASSASSIN, 20),
+        (EnemyType.ARCHER, 10),
     ),
     (
-        230,
-        (
-            (EnemyType.BASIC, 40),
-            (EnemyType.EXPLOSIVE, 30),
-            (EnemyType.TANKER, 20),
-            (EnemyType.ARCHER, 10),
-        ),
+        (EnemyType.BASIC, 20),
+        (EnemyType.EXPLOSIVE, 10),
+        (EnemyType.TANKER, 20),
+        (EnemyType.ARCHER, 50),
     ),
     (
-        270,
-        (
-            (EnemyType.BASIC, 30),
-            (EnemyType.EXPLOSIVE, 10),
-            (EnemyType.TANKER, 30),
-            (EnemyType.ASSASSIN, 20),
-            (EnemyType.ARCHER, 10),
-        ),
-    ),
-    (
-        300,
-        (
-            (EnemyType.BASIC, 20),
-            (EnemyType.EXPLOSIVE, 10),
-            (EnemyType.TANKER, 20),
-            (EnemyType.ARCHER, 50),
-        ),
-    ),
-    (
-        500,
-        (
-            (EnemyType.BASIC, 20),
-            (EnemyType.EXPLOSIVE, 20),
-            (EnemyType.TANKER, 20),
-            (EnemyType.ASSASSIN, 20),
-            (EnemyType.ARCHER, 20),
-        ),
+        (EnemyType.BASIC, 20),
+        (EnemyType.EXPLOSIVE, 20),
+        (EnemyType.TANKER, 20),
+        (EnemyType.ASSASSIN, 20),
+        (EnemyType.ARCHER, 20),
     ),
 )
 
@@ -120,17 +91,18 @@ def validate_wave(wave):
 
 def wave_group(wave):
     validate_wave(wave)
-    return WAVE_GROUPS[(wave - 1) % len(WAVE_GROUPS)]
+    return WAVE_GROUP_RATIOS[(wave - 1) % len(WAVE_GROUP_RATIOS)]
 
 
 def wave_enemy_count(wave):
-    return wave_group(wave)[0]
+    validate_wave(wave)
+    return wave * WAVE_ENEMIES_PER_WAVE
 
 
 def wave_composition(wave):
-    total, entries = wave_group(wave)
+    total = wave_enemy_count(wave)
     composition = OrderedDict()
-    for enemy_type, percent in entries:
+    for enemy_type, percent in wave_group(wave):
         composition[enemy_type] = total * percent // 100
     if sum(composition.values()) != total:
         raise ValueError(

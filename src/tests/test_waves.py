@@ -19,29 +19,50 @@ from waves import (
 
 class WaveCompositionTests(unittest.TestCase):
     def test_first_wave_is_all_basic_enemies(self):
-        self.assertEqual(wave_enemy_count(1), 100)
-        self.assertEqual(wave_composition(1), {EnemyType.BASIC: 100})
+        self.assertEqual(wave_enemy_count(1), 10)
+        self.assertEqual(wave_composition(1), {EnemyType.BASIC: 10})
 
     def test_second_wave_adds_archers(self):
         composition = wave_composition(2)
 
-        self.assertEqual(wave_enemy_count(2), 120)
-        self.assertEqual(composition[EnemyType.BASIC], 108)
-        self.assertEqual(composition[EnemyType.ARCHER], 12)
+        self.assertEqual(wave_enemy_count(2), 20)
+        self.assertEqual(composition[EnemyType.BASIC], 18)
+        self.assertEqual(composition[EnemyType.ARCHER], 2)
 
-    def test_final_cycle_wave_has_500_enemies(self):
+    def test_tenth_wave_has_one_hundred_enemies(self):
         composition = wave_composition(10)
 
-        self.assertEqual(wave_enemy_count(10), 500)
+        self.assertEqual(wave_enemy_count(10), 100)
         for enemy_type in EnemyType:
-            self.assertEqual(composition[enemy_type], 100)
+            self.assertEqual(composition[enemy_type], 20)
 
-    def test_composition_repeats_every_ten_waves(self):
+    def test_every_wave_spawns_ten_enemies_per_wave_number(self):
+        for wave in range(1, TOTAL_WAVES + 1):
+            self.assertEqual(
+                wave_enemy_count(wave),
+                wave * 10,
+                msg="wave {}".format(wave),
+            )
+
+    def test_ratios_repeat_every_ten_waves(self):
+        def ratios(wave):
+            composition = wave_composition(wave)
+            total = sum(composition.values())
+            return {
+                enemy_type: count / total
+                for enemy_type, count in composition.items()
+            }
+
         for offset in range(10):
             self.assertEqual(
-                wave_composition(1 + offset),
-                wave_composition(11 + offset),
+                ratios(1 + offset),
+                ratios(11 + offset),
                 msg="wave {} vs {}".format(1 + offset, 11 + offset),
+            )
+            self.assertEqual(
+                ratios(1 + offset),
+                ratios(21 + offset),
+                msg="wave {} vs {}".format(1 + offset, 21 + offset),
             )
 
     def test_every_wave_composition_sums_to_its_count(self):
@@ -95,12 +116,14 @@ class WaveDirectorTests(unittest.TestCase):
         director = WaveDirector(random_source=random.Random(0))
 
         self.assertEqual(director.current_wave, 1)
-        self.assertEqual(director.total_to_spawn, 100)
+        self.assertEqual(director.total_to_spawn, 10)
         self.assertEqual(director.spawned_count, 0)
         self.assertFalse(director.all_spawned)
 
     def test_spawns_fifty_enemies_per_second(self):
         director = WaveDirector(random_source=random.Random(0))
+        for _ in range(9):
+            director.advance()
 
         spawned = sum(
             len(director.pending_spawns(1.0 / 60.0)) for _ in range(60)
@@ -115,7 +138,7 @@ class WaveDirectorTests(unittest.TestCase):
         while not director.all_spawned:
             spawned += len(director.pending_spawns(0.1))
 
-        self.assertEqual(spawned, 100)
+        self.assertEqual(spawned, 10)
         self.assertTrue(director.all_spawned)
 
     def test_advance_loads_the_next_wave(self):
@@ -124,7 +147,7 @@ class WaveDirectorTests(unittest.TestCase):
         self.assertTrue(director.advance())
 
         self.assertEqual(director.current_wave, 2)
-        self.assertEqual(director.total_to_spawn, 120)
+        self.assertEqual(director.total_to_spawn, 20)
         self.assertEqual(director.spawned_count, 0)
         self.assertFalse(director.all_spawned)
 
