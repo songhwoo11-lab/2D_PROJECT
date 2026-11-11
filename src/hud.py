@@ -4,11 +4,17 @@ import ctypes
 
 import pico2d
 
-from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, TOTAL_WAVES
+from game_config import (
+    HUD_FONT_SIZE,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    TOTAL_WAVES,
+)
 
 
 TEMPERATURE_BAR_WIDTH = 200
-TEMPERATURE_BAR_HEIGHT = 8
+TEMPERATURE_BAR_HEIGHT = HUD_FONT_SIZE
+HP_BAR_HEIGHT = HUD_FONT_SIZE
 TEMPERATURE_WARNING_THRESHOLD = 160.0
 TEMPERATURE_WARNING_RED_THRESHOLD = 180.0
 TEMPERATURE_WARNING_TEXT = "WARNING!"
@@ -16,8 +22,8 @@ TEMPERATURE_WARNING_YELLOW_COLOR = (255, 225, 90)
 TEMPERATURE_WARNING_RED_COLOR = (255, 70, 60)
 OVERHEAT_COLOR = (255, 70, 60)
 HUD_MARGIN = 20
-HUD_ROW_LOW = 45
-HUD_ROW_HIGH = 70
+HUD_ROW_LOW = 55
+HUD_ROW_HIGH = 85
 HUD_WAVE_Y = SCREEN_HEIGHT - 25
 HUD_REMAINING_ENEMIES_Y = HUD_WAVE_Y - 25
 
@@ -162,7 +168,7 @@ def draw_hud(
     hp_bar_left = HUD_MARGIN
     hp_bar_bottom = HUD_MARGIN
     hp_bar_width = 200
-    hp_bar_height = 10
+    hp_bar_height = HP_BAR_HEIGHT
     hp_ratio = min(max(player.hp / player.max_hp, 0.0), 1.0)
 
     draw_rectangle(

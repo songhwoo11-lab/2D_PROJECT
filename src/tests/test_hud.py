@@ -139,6 +139,22 @@ class HudLayoutTests(unittest.TestCase):
             ),
         )
 
+    def test_temperature_bar_thickness_matches_the_hud_font_size(self):
+        gun = make_gun()
+
+        _, rectangles = self._draw_hud(gun)
+
+        x1, y1, x2, y2 = rectangles[2]
+        self.assertEqual(y2 - y1, hud.HUD_FONT_SIZE)
+
+    def test_hp_bar_thickness_matches_the_hud_font_size(self):
+        gun = make_gun()
+
+        _, rectangles = self._draw_hud(gun)
+
+        x1, y1, x2, y2 = rectangles[0]
+        self.assertEqual(y2 - y1, hud.HUD_FONT_SIZE)
+
     def test_temperature_text_is_right_aligned_in_the_bottom_right(self):
         gun = make_gun()
 
@@ -150,6 +166,33 @@ class HudLayoutTests(unittest.TestCase):
         self.assertEqual(y, hud.HUD_ROW_LOW)
         self.assertGreater(x, SCREEN_WIDTH / 2)
         self.assertLess(y, SCREEN_HEIGHT / 2)
+        self.assertGreaterEqual(
+            y - hud.HUD_FONT_SIZE / 2,
+            hud.HUD_MARGIN + hud.TEMPERATURE_BAR_HEIGHT,
+        )
+
+    def test_hp_text_is_above_the_hp_bar(self):
+        gun = make_gun()
+
+        font, _ = self._draw_hud(gun)
+
+        x, y, text = self._text_draw(font, "HP 100/100")
+        self.assertGreaterEqual(
+            y - hud.HUD_FONT_SIZE / 2,
+            hud.HUD_MARGIN + hud.HP_BAR_HEIGHT,
+        )
+
+    def test_coin_text_is_above_the_hp_text(self):
+        gun = make_gun()
+
+        font, _ = self._draw_hud(gun)
+
+        _, hp_y, _ = self._text_draw(font, "HP 100/100")
+        _, coin_y, _ = self._text_draw(font, "COINS 7")
+        self.assertGreaterEqual(
+            coin_y - hud.HUD_FONT_SIZE / 2,
+            hp_y + hud.HUD_FONT_SIZE / 2,
+        )
 
     def test_ready_status_is_not_drawn(self):
         gun = make_gun(can_fire=True)
@@ -160,8 +203,8 @@ class HudLayoutTests(unittest.TestCase):
             any(draw_call[2] == "READY" for draw_call in font.draws)
         )
 
-    def test_temperature_warning_is_centered_on_the_gauge_at_170(self):
-        gun = make_gun(temperature=170.0)
+    def test_temperature_warning_is_centered_on_the_gauge_at_160(self):
+        gun = make_gun(temperature=160.0)
 
         font, _ = self._draw_hud(gun)
 
@@ -210,8 +253,8 @@ class HudLayoutTests(unittest.TestCase):
             hud.TEMPERATURE_WARNING_RED_COLOR,
         )
 
-    def test_temperature_warning_is_hidden_below_170(self):
-        gun = make_gun(temperature=169.9)
+    def test_temperature_warning_is_hidden_below_160(self):
+        gun = make_gun(temperature=159.9)
 
         font, _ = self._draw_hud(gun)
 

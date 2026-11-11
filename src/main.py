@@ -7,6 +7,7 @@ from dev_settings import development_spawn_rate, development_total_waves
 from enemy import EnemyType
 from game_config import (
     FRAME_TIME,
+    HUD_FONT_SIZE,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     WORLD_HEIGHT,
@@ -43,7 +44,7 @@ def main():
         )
         hud_font = pico2d.load_font(
             str(ASSET_DIRECTORY / "font" / "MulmaruMono.ttf"),
-            20,
+            HUD_FONT_SIZE,
         )
         hit_feedback_font = pico2d.load_font(
             str(ASSET_DIRECTORY / "font" / "BMEuljiro10yearslater.ttf"),
