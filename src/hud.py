@@ -9,6 +9,9 @@ from game_config import SCREEN_HEIGHT, SCREEN_WIDTH, TOTAL_WAVES
 
 TEMPERATURE_BAR_WIDTH = 200
 TEMPERATURE_BAR_HEIGHT = 8
+HUD_MARGIN = 20
+HUD_ROW_LOW = 45
+HUD_ROW_HIGH = 70
 
 
 def _measure_text_width(font, text):
@@ -27,6 +30,11 @@ def _measure_text_width(font, text):
 
 def _draw_centered_text(font, y, text, color=(255, 255, 255)):
     x = (SCREEN_WIDTH - _measure_text_width(font, text)) / 2
+    font.draw(x, y, text, color)
+
+
+def _draw_right_text(font, y, text, color=(255, 255, 255)):
+    x = SCREEN_WIDTH - HUD_MARGIN - _measure_text_width(font, text)
     font.draw(x, y, text, color)
 
 
@@ -59,8 +67,8 @@ def fire_status_text(gun):
 
 
 def _draw_temperature(font, gun, draw_rectangle):
-    bar_left = (SCREEN_WIDTH - TEMPERATURE_BAR_WIDTH) / 2
-    bar_bottom = 95
+    bar_left = SCREEN_WIDTH - HUD_MARGIN - TEMPERATURE_BAR_WIDTH
+    bar_bottom = HUD_MARGIN
     ratio = min(
         max(gun.temperature / gun.temperature_limit, 0.0),
         1.0,
@@ -87,10 +95,10 @@ def _draw_temperature(font, gun, draw_rectangle):
         255,
         True,
     )
-    _draw_centered_text(font, 85, temperature_text(gun))
+    _draw_right_text(font, HUD_ROW_LOW, temperature_text(gun))
     status = fire_status_text(gun)
     if status is not None:
-        _draw_centered_text(font, 110, status)
+        _draw_right_text(font, HUD_ROW_HIGH, status)
 
 
 def draw_hud(
@@ -102,8 +110,8 @@ def draw_hud(
     total_waves=TOTAL_WAVES,
     coins=None,
 ):
-    hp_bar_left = 20
-    hp_bar_bottom = 20
+    hp_bar_left = HUD_MARGIN
+    hp_bar_bottom = HUD_MARGIN
     hp_bar_width = 200
     hp_bar_height = 10
     hp_ratio = min(max(player.hp / player.max_hp, 0.0), 1.0)
@@ -130,9 +138,14 @@ def draw_hud(
         255,
         True,
     )
-    font.draw(20, 45, "HP {}/{}".format(player.hp, player.max_hp), (255, 255, 255))
+    font.draw(
+        HUD_MARGIN,
+        HUD_ROW_LOW,
+        "HP {}/{}".format(player.hp, player.max_hp),
+        (255, 255, 255),
+    )
     if coins is not None:
-        font.draw(20, 70, coin_text(coins), (255, 220, 100))
+        font.draw(HUD_MARGIN, HUD_ROW_HIGH, coin_text(coins), (255, 220, 100))
 
     ammo_text = (
         "AMMO INF"

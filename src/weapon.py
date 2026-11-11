@@ -73,8 +73,7 @@ class Gun:
         self.infinite_ammo = False
         self.temperature = MIN_TEMPERATURE
         self.overheated = False
-        self.auto_shot_streak = 0
-        self._auto_idle_seconds = 0.0
+        self._reset_auto_streak()
         self._damage_reduction_elapsed = None
 
     @property
@@ -151,6 +150,7 @@ class Gun:
             if self.temperature <= MIN_TEMPERATURE:
                 self.temperature = MIN_TEMPERATURE
                 self.overheated = False
+                self._reset_auto_streak()
                 self._damage_reduction_elapsed = 0.0
             return
         self.temperature = max(
@@ -168,6 +168,10 @@ class Gun:
             + OVERHEAT_REDUCTION_RECOVERY_SECONDS
         ):
             self._damage_reduction_elapsed = None
+
+    def _reset_auto_streak(self):
+        self.auto_shot_streak = 0
+        self._auto_idle_seconds = 0.0
 
     def _decay_auto_streak(self, delta_time):
         if self.auto_shot_streak <= 0:

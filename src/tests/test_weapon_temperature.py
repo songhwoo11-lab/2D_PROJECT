@@ -186,6 +186,60 @@ class OverheatTests(unittest.TestCase):
         self.assertFalse(gun.overheated)
 
 
+class OverheatAutoStreakResetTests(unittest.TestCase):
+    def _overheated_auto_gun(self, streak):
+        gun = Gun()
+        gun.infinite_ammo = True
+        gun.fire_mode = FireMode.AUTO
+        for _ in range(streak):
+            gun.try_fire()
+            gun.cooldown_remaining = 0.0
+        gun.temperature = gun.temperature_limit
+        gun.overheated = True
+        return gun
+
+    def test_streak_is_kept_while_the_gun_is_still_cooling(self):
+        gun = self._overheated_auto_gun(3)
+        gun.temperature = MIN_TEMPERATURE + 1.0
+
+        gun.update(0.0)
+
+        self.assertEqual(gun.auto_shot_streak, 3)
+        self.assertTrue(gun.overheated)
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 0.5)
+
+    def test_streak_is_reset_when_the_gun_becomes_fireable_again(self):
+        gun = self._overheated_auto_gun(3)
+        gun.temperature = MIN_TEMPERATURE + 0.5
+
+        gun.update(0.0)
+
+        self.assertFalse(gun.overheated)
+        self.assertTrue(gun.can_fire)
+        self.assertEqual(gun.auto_shot_streak, 0)
+
+    def test_heat_per_shot_returns_to_the_base_amount_after_recovery(self):
+        gun = self._overheated_auto_gun(3)
+        gun.temperature = MIN_TEMPERATURE + 0.5
+        gun.update(0.0)
+        gun.temperature = MIN_TEMPERATURE
+
+        gun.cooldown_remaining = 0.0
+        gun.try_fire()
+
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 0.5)
+        self.assertEqual(gun.auto_shot_streak, 1)
+
+    def test_streak_is_reset_after_a_full_recovery_from_the_limit(self):
+        gun = self._overheated_auto_gun(5)
+
+        for _ in range(380):
+            gun.update(0.0)
+
+        self.assertFalse(gun.overheated)
+        self.assertEqual(gun.auto_shot_streak, 0)
+
+
 class OverheatDamageReductionTests(unittest.TestCase):
     def _recovered_gun(self):
         gun = Gun()
