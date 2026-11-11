@@ -71,6 +71,7 @@ class Gun:
         self.reload_remaining = 0.0
         self.fire_mode = FireMode.SINGLE
         self.infinite_ammo = False
+        self.heat_enabled = True
         self.temperature = MIN_TEMPERATURE
         self.overheated = False
         self._reset_auto_streak()
@@ -229,6 +230,8 @@ class Gun:
         return True
 
     def _add_heat(self, amount):
+        if not self.heat_enabled:
+            return
         self.temperature = min(
             self.temperature_limit,
             self.temperature + max(0.0, amount),

@@ -327,6 +327,7 @@ class BattleScene:
         if key == "f1":
             self.debug_mode = not self.debug_mode
             self.gun.infinite_ammo = self.debug_mode
+            self.gun.heat_enabled = not self.debug_mode
         elif key == "e":
             self.gun.toggle_mode()
         elif key == "r":
@@ -434,6 +435,7 @@ class BattleScene:
         self.player.set_movement(0, 0, 0.0)
         self.gun.reset()
         self.gun.infinite_ammo = self.debug_mode
+        self.gun.heat_enabled = not self.debug_mode
         self.keys.clear()
         self.mouse_held = False
         self._mouse_pressed = False
