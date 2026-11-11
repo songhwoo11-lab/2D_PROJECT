@@ -1,6 +1,11 @@
 import unittest
 
-from game_config import MIN_TEMPERATURE, PISTOL_TEMPERATURE_LIMIT
+from game_config import (
+    MIN_TEMPERATURE,
+    OVERHEAT_REDUCTION_HOLD_SECONDS,
+    OVERHEAT_REDUCTION_RECOVERY_SECONDS,
+    PISTOL_TEMPERATURE_LIMIT,
+)
 from weapon import FireMode, Gun
 
 
@@ -359,6 +364,37 @@ class OverheatDamageReductionTests(unittest.TestCase):
         gun.reset()
 
         self.assertAlmostEqual(gun.damage_multiplier, 1.0)
+
+    def test_remaining_reduction_time_is_zero_without_overheat(self):
+        gun = Gun()
+
+        self.assertEqual(gun.damage_reduction_remaining, 0.0)
+
+    def test_remaining_reduction_time_starts_at_the_full_duration(self):
+        gun = self._recovered_gun()
+
+        self.assertAlmostEqual(
+            gun.damage_reduction_remaining,
+            OVERHEAT_REDUCTION_HOLD_SECONDS
+            + OVERHEAT_REDUCTION_RECOVERY_SECONDS,
+        )
+
+    def test_remaining_reduction_time_counts_down(self):
+        gun = self._recovered_gun()
+
+        gun.update(60.0)
+
+        self.assertAlmostEqual(gun.damage_reduction_remaining, 60.0)
+
+    def test_remaining_reduction_time_reaches_zero(self):
+        gun = self._recovered_gun()
+
+        gun.update(
+            OVERHEAT_REDUCTION_HOLD_SECONDS
+            + OVERHEAT_REDUCTION_RECOVERY_SECONDS
+        )
+
+        self.assertEqual(gun.damage_reduction_remaining, 0.0)
 
 
 if __name__ == "__main__":

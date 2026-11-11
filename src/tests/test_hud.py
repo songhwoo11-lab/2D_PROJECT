@@ -6,6 +6,8 @@ import hud
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import (
     coin_text,
+    damage_reduction_text,
+    damage_reduction_time_text,
     fire_status_text,
     remaining_enemies_text,
     temperature_text,
@@ -24,6 +26,8 @@ def make_gun(**overrides):
         "magazine_ammo": 10,
         "reserve_ammo": 90,
         "fire_mode": SimpleNamespace(value="single"),
+        "damage_reduction": 0.0,
+        "damage_reduction_remaining": 0.0,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -77,6 +81,53 @@ class FireStatusTextTests(unittest.TestCase):
         gun = make_gun(can_fire=False, reloading=True)
 
         self.assertIsNone(fire_status_text(gun))
+
+
+class DamageReductionTextTests(unittest.TestCase):
+    def test_no_damage_reduction_is_not_shown(self):
+        self.assertIsNone(damage_reduction_text(make_gun()))
+
+    def test_reduction_is_shown_as_a_percentage(self):
+        gun = make_gun(damage_reduction=0.8)
+
+        self.assertEqual(damage_reduction_text(gun), "DMG -80%")
+
+    def test_reduction_is_rounded_to_a_whole_percentage(self):
+        gun = make_gun(damage_reduction=0.404)
+
+        self.assertEqual(damage_reduction_text(gun), "DMG -40%")
+
+    def test_negligible_reduction_is_not_shown(self):
+        gun = make_gun(damage_reduction=0.004)
+
+        self.assertIsNone(damage_reduction_text(gun))
+
+
+class DamageReductionTimeTextTests(unittest.TestCase):
+    def test_full_duration_is_shown_as_two_minutes(self):
+        gun = make_gun(damage_reduction_remaining=120.0)
+
+        self.assertEqual(damage_reduction_time_text(gun), "02:00")
+
+    def test_remaining_time_is_shown_as_minutes_and_seconds(self):
+        gun = make_gun(damage_reduction_remaining=61.0)
+
+        self.assertEqual(damage_reduction_time_text(gun), "01:01")
+
+    def test_partial_seconds_round_up(self):
+        gun = make_gun(damage_reduction_remaining=60.2)
+
+        self.assertEqual(damage_reduction_time_text(gun), "01:01")
+
+    def test_last_second_is_shown_as_one_second(self):
+        gun = make_gun(damage_reduction_remaining=0.2)
+
+        self.assertEqual(damage_reduction_time_text(gun), "00:01")
+
+    def test_no_reduction_is_not_shown(self):
+        gun = make_gun(damage_reduction_remaining=0.0)
+
+        self.assertIsNone(damage_reduction_time_text(gun))
 
 
 class RecordingFont:
@@ -226,6 +277,63 @@ class HudLayoutTests(unittest.TestCase):
         self.assertGreaterEqual(
             coin_y - hud.HUD_FONT_SIZE / 2,
             hp_y + hud.HUD_FONT_SIZE / 2,
+        )
+
+    def test_damage_reduction_is_shown_in_the_bottom_right(self):
+        gun = make_gun(damage_reduction=0.8)
+
+        font, _ = self._draw_hud(gun)
+
+        x, y, text = self._text_draw(font, "DMG -80%")
+        self.assertEqual(x, SCREEN_WIDTH - hud.HUD_MARGIN - self.TEXT_WIDTH)
+        self.assertEqual(y, hud.HUD_ROW_HIGH)
+        self.assertGreater(x, SCREEN_WIDTH / 2)
+        self.assertLess(y, SCREEN_HEIGHT / 2)
+        self.assertEqual(
+            self._text_color(font, "DMG -80%"),
+            hud.DAMAGE_REDUCTION_COLOR,
+        )
+
+    def test_damage_reduction_is_not_shown_when_fully_recovered(self):
+        gun = make_gun(damage_reduction=0.0)
+
+        font, _ = self._draw_hud(gun)
+
+        self.assertFalse(
+            any("DMG" in draw_call[2] for draw_call in font.draws)
+        )
+
+    def test_damage_reduction_time_is_shown_to_the_left_of_the_reduction(self):
+        gun = make_gun(
+            damage_reduction=0.8,
+            damage_reduction_remaining=90.0,
+        )
+
+        font, _ = self._draw_hud(gun)
+
+        reduction_x, reduction_y, _ = self._text_draw(font, "DMG -80%")
+        time_x, time_y, _ = self._text_draw(font, "01:30")
+        self.assertEqual(time_y, hud.HUD_ROW_HIGH)
+        self.assertEqual(time_y, reduction_y)
+        self.assertEqual(
+            time_x,
+            reduction_x - hud.DAMAGE_REDUCTION_TIME_GAP - self.TEXT_WIDTH,
+        )
+        self.assertEqual(
+            self._text_color(font, "01:30"),
+            hud.DAMAGE_REDUCTION_COLOR,
+        )
+
+    def test_damage_reduction_time_is_not_shown_without_a_reduction(self):
+        gun = make_gun(
+            damage_reduction=0.0,
+            damage_reduction_remaining=30.0,
+        )
+
+        font, _ = self._draw_hud(gun)
+
+        self.assertFalse(
+            any(draw_call[2] == "00:30" for draw_call in font.draws)
         )
 
     def test_ready_status_is_not_drawn(self):

@@ -1,6 +1,7 @@
 """HUD rendering using the configured game font."""
 
 import ctypes
+import math
 
 import pico2d
 
@@ -22,6 +23,8 @@ TEMPERATURE_WARNING_YELLOW_COLOR = (255, 225, 90)
 TEMPERATURE_WARNING_RED_COLOR = (255, 70, 60)
 OVERHEAT_COLOR = (255, 70, 60)
 HP_TRAIL_COLOR = (245, 150, 80)
+DAMAGE_REDUCTION_COLOR = (255, 120, 100)
+DAMAGE_REDUCTION_TIME_GAP = 12
 HUD_MARGIN = 20
 HUD_ROW_LOW = 55
 HUD_ROW_HIGH = 85
@@ -51,6 +54,7 @@ def _draw_centered_text(font, y, text, color=(255, 255, 255)):
 def _draw_right_text(font, y, text, color=(255, 255, 255)):
     x = SCREEN_WIDTH - HUD_MARGIN - _measure_text_width(font, text)
     font.draw(x, y, text, color)
+    return x
 
 
 def draw_centered_text(font, y, text, color=(255, 255, 255)):
@@ -91,6 +95,22 @@ def temperature_warning_color(gun):
     if gun.temperature >= TEMPERATURE_WARNING_THRESHOLD:
         return TEMPERATURE_WARNING_YELLOW_COLOR
     return None
+
+
+def damage_reduction_text(gun):
+    percent = round(gun.damage_reduction * 100)
+    if percent <= 0:
+        return None
+    return "DMG -{}%".format(percent)
+
+
+def damage_reduction_time_text(gun):
+    remaining = gun.damage_reduction_remaining
+    if remaining <= 0:
+        return None
+    total_seconds = math.ceil(remaining)
+    minutes, seconds = divmod(total_seconds, 60)
+    return "{:02d}:{:02d}".format(minutes, seconds)
 
 
 def _draw_gauge_centered_text(font, bar_left, bar_bottom, text, color):
@@ -135,6 +155,27 @@ def _draw_temperature(font, gun, draw_rectangle):
         True,
     )
     _draw_right_text(font, HUD_ROW_LOW, temperature_text(gun))
+    reduction_text = damage_reduction_text(gun)
+    if reduction_text is not None:
+        reduction_x = _draw_right_text(
+            font,
+            HUD_ROW_HIGH,
+            reduction_text,
+            DAMAGE_REDUCTION_COLOR,
+        )
+        time_text = damage_reduction_time_text(gun)
+        if time_text is not None:
+            time_x = (
+                reduction_x
+                - DAMAGE_REDUCTION_TIME_GAP
+                - _measure_text_width(font, time_text)
+            )
+            font.draw(
+                time_x,
+                HUD_ROW_HIGH,
+                time_text,
+                DAMAGE_REDUCTION_COLOR,
+            )
     status = fire_status_text(gun)
     if status is not None:
         _draw_gauge_centered_text(
