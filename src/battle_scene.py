@@ -216,6 +216,7 @@ class BattleScene:
                     enemy.y,
                     self._magazine_pickup_amount(),
                     image=self.ammo_image,
+                    phase=self._pickup_bob_phase(),
                 )
             )
         if (
@@ -227,12 +228,21 @@ class BattleScene:
             )
         ):
             self.health_pickups.append(
-                HealthPickup(enemy.x, enemy.y, image=self.health_image)
+                HealthPickup(
+                    enemy.x,
+                    enemy.y,
+                    image=self.health_image,
+                    phase=self._pickup_bob_phase(),
+                )
             )
 
-    def _update_pickups(self):
+    def _pickup_bob_phase(self):
+        return self.random_source.uniform(0.0, 2.0 * math.pi)
+
+    def _update_pickups(self, delta_time):
         remaining = []
         for pickup in self.pickups:
+            pickup.update(delta_time)
             if pickup.can_collect(self.player):
                 if self.gun.add_reserve_ammo(pickup.amount) > 0:
                     continue
@@ -240,6 +250,7 @@ class BattleScene:
         self.pickups = remaining
         remaining_health = []
         for pickup in self.health_pickups:
+            pickup.update(delta_time)
             if pickup.can_collect(self.player):
                 if self.player.heal(pickup.amount) > 0:
                     continue
@@ -534,7 +545,7 @@ class BattleScene:
                     depth=2,
                 )
         self._remove_defeated_enemies()
-        self._update_pickups()
+        self._update_pickups(delta_time)
         self._update_waves(delta_time)
         self.wave_banner_remaining = max(
             0.0,

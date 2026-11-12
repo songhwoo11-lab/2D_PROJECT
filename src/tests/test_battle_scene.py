@@ -40,6 +40,9 @@ class StubRandom:
     def random(self):
         return self.roll
 
+    def uniform(self, minimum, maximum):
+        return self.roll * (maximum - minimum) + minimum
+
 
 def make_scene(total_waves, spawn_rate):
     scene = BattleScene(
@@ -217,7 +220,7 @@ class BattleSceneRewardTests(unittest.TestCase):
             )
         )
 
-        self.scene._update_pickups()
+        self.scene._update_pickups(0.0)
 
         self.assertEqual(self.scene.gun.magazine_ammo, 2)
         self.assertEqual(self.scene.gun.reserve_ammo, 50)
@@ -234,7 +237,7 @@ class BattleSceneRewardTests(unittest.TestCase):
             )
         )
 
-        self.scene._update_pickups()
+        self.scene._update_pickups(0.0)
 
         self.assertEqual(
             self.scene.gun.magazine_ammo,
@@ -404,7 +407,7 @@ class BattleSceneHealthDropTests(unittest.TestCase):
             HealthPickup(self.scene.player.x, self.scene.player.y)
         )
 
-        self.scene._update_pickups()
+        self.scene._update_pickups(0.0)
 
         self.assertEqual(self.scene.player.hp, 60)
         self.assertEqual(self.scene.health_pickups, [])
@@ -415,7 +418,7 @@ class BattleSceneHealthDropTests(unittest.TestCase):
             HealthPickup(self.scene.player.x, self.scene.player.y)
         )
 
-        self.scene._update_pickups()
+        self.scene._update_pickups(0.0)
 
         self.assertEqual(self.scene.player.hp, self.scene.player.max_hp)
         self.assertEqual(self.scene.health_pickups, [])
@@ -425,7 +428,7 @@ class BattleSceneHealthDropTests(unittest.TestCase):
             HealthPickup(self.scene.player.x, self.scene.player.y)
         )
 
-        self.scene._update_pickups()
+        self.scene._update_pickups(0.0)
 
         self.assertEqual(len(self.scene.health_pickups), 1)
 

@@ -1,7 +1,8 @@
+import math
 import random
 import unittest
 
-from game_config import PICKUP_DRAW_SIZE
+from game_config import PICKUP_BOB_AMPLITUDE, PICKUP_BOB_PERIOD_SECONDS, PICKUP_DRAW_SIZE
 from pickup import (
     HealthPickup,
     MagazinePickup,
@@ -31,6 +32,9 @@ class StubRandom:
 
     def random(self):
         return self.roll
+
+    def uniform(self, minimum, maximum):
+        return self.roll * (maximum - minimum) + minimum
 
 
 class PlayerStub:
@@ -137,6 +141,87 @@ class HealthDropChanceTests(unittest.TestCase):
     def test_invalid_max_hp_is_rejected(self):
         with self.assertRaises(ValueError):
             health_drop_chance(10, 0)
+
+
+class PickupBobAnimationTests(unittest.TestCase):
+    def test_offset_starts_at_zero(self):
+        pickup = MagazinePickup(100.0, 100.0, 5)
+
+        self.assertAlmostEqual(pickup.bob_offset, 0.0)
+
+    def test_offset_follows_a_sine_curve(self):
+        pickup = MagazinePickup(100.0, 100.0, 5)
+        angular_speed = 2.0 * math.pi / PICKUP_BOB_PERIOD_SECONDS
+
+        for elapsed in (0.1, 0.3, 0.5, 0.9):
+            probe = MagazinePickup(100.0, 100.0, 5)
+            probe.update(elapsed)
+
+            self.assertAlmostEqual(
+                probe.bob_offset,
+                PICKUP_BOB_AMPLITUDE * math.sin(angular_speed * elapsed),
+                places=9,
+            )
+
+    def test_offset_stays_within_the_amplitude(self):
+        pickup = MagazinePickup(100.0, 100.0, 5)
+
+        for _ in range(200):
+            pickup.update(1.0 / 60.0)
+
+            self.assertLessEqual(abs(pickup.bob_offset), PICKUP_BOB_AMPLITUDE)
+            self.assertGreaterEqual(
+                pickup.bob_offset,
+                -PICKUP_BOB_AMPLITUDE,
+            )
+
+    def test_offset_repeats_every_period(self):
+        pickup = MagazinePickup(100.0, 100.0, 5)
+
+        pickup.update(PICKUP_BOB_PERIOD_SECONDS)
+        offset = pickup.bob_offset
+        pickup.update(PICKUP_BOB_PERIOD_SECONDS)
+
+        self.assertAlmostEqual(pickup.bob_offset, offset, places=9)
+
+    def test_movement_stays_close_to_the_drop_position(self):
+        pickup = MagazinePickup(100.0, 100.0, 5)
+
+        for _ in range(200):
+            pickup.update(1.0 / 60.0)
+
+            self.assertLess(abs(pickup.bob_offset), PICKUP_BOB_AMPLITUDE + 1e-9)
+            self.assertEqual(pickup.y, 100.0)
+
+    def test_phase_offset_shifts_the_movement(self):
+        first = MagazinePickup(100.0, 100.0, 5)
+        second = MagazinePickup(100.0, 100.0, 5, phase=math.pi)
+
+        first.update(0.25)
+        second.update(0.25)
+
+        self.assertAlmostEqual(first.bob_offset, -second.bob_offset, places=9)
+
+    def test_negative_delta_time_is_rejected(self):
+        pickup = MagazinePickup(100.0, 100.0, 5)
+
+        with self.assertRaises(ValueError):
+            pickup.update(-0.1)
+
+    def test_drawn_image_is_vertically_offset(self):
+        image = FakeImage()
+        pickup = MagazinePickup(100.0, 100.0, 5, image=image)
+        pickup.update(PICKUP_BOB_PERIOD_SECONDS / 4.0)
+
+        pickup.draw(200.0, 300.0)
+
+        drawn_x, drawn_y, _, _ = image.draws[0]
+        self.assertEqual(drawn_x, 200.0)
+        self.assertAlmostEqual(
+            drawn_y,
+            300.0 + PICKUP_BOB_AMPLITUDE,
+            places=9,
+        )
 
 
 class HealthPickupTests(unittest.TestCase):
