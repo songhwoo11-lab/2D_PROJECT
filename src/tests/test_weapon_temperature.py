@@ -1,6 +1,9 @@
 import unittest
 
 from game_config import (
+    COOLING_ACCELERATION_SCALE_SECONDS,
+    COOLING_PER_SECOND_BLOCKED,
+    COOLING_PER_SECOND_FIREABLE,
     FRAME_TIME,
     MIN_TEMPERATURE,
     OVERHEAT_REDUCTION_HOLD_SECONDS,
@@ -230,13 +233,13 @@ class DebugHeatTests(unittest.TestCase):
 
 
 class FireableCoolingTests(unittest.TestCase):
-    def test_temperature_drops_005_per_frame_while_fireable(self):
+    def test_temperature_drops_at_the_base_rate_right_after_a_shot(self):
         gun = Gun()
         gun.temperature = 100.0
 
         gun.update(FRAME_TIME)
 
-        self.assertAlmostEqual(gun.temperature, 99.95)
+        self.assertAlmostEqual(gun.temperature, 99.95, places=5)
 
     def test_cooling_accumulates_over_frames(self):
         gun = Gun()
@@ -245,7 +248,7 @@ class FireableCoolingTests(unittest.TestCase):
         for _ in range(20):
             gun.update(FRAME_TIME)
 
-        self.assertAlmostEqual(gun.temperature, 99.0)
+        self.assertAlmostEqual(gun.temperature, 98.998406, places=5)
 
     def test_cooling_does_not_go_below_minimum(self):
         gun = Gun()
@@ -254,6 +257,84 @@ class FireableCoolingTests(unittest.TestCase):
         gun.update(FRAME_TIME)
 
         self.assertEqual(gun.temperature, MIN_TEMPERATURE)
+
+
+class CoolingAccelerationTests(unittest.TestCase):
+    def test_cooling_rate_starts_at_the_base_rate(self):
+        gun = Gun()
+
+        self.assertAlmostEqual(
+            gun.cooling_rate,
+            COOLING_PER_SECOND_FIREABLE,
+        )
+
+    def test_cooling_rate_grows_quadratically_while_idle(self):
+        gun = Gun()
+        gun.update(COOLING_ACCELERATION_SCALE_SECONDS)
+
+        self.assertAlmostEqual(
+            gun.cooling_rate,
+            COOLING_PER_SECOND_FIREABLE * 2.0,
+        )
+        gun.update(COOLING_ACCELERATION_SCALE_SECONDS)
+        self.assertAlmostEqual(
+            gun.cooling_rate,
+            COOLING_PER_SECOND_FIREABLE * 5.0,
+        )
+
+    def test_idle_cooling_speeds_up_over_time(self):
+        gun = Gun()
+        gun.temperature = 100.0
+
+        gun.update(1.0)
+        first_drop = 100.0 - gun.temperature
+        gun.temperature = 100.0
+        gun.update(1.0)
+        second_drop = 100.0 - gun.temperature
+
+        self.assertGreater(second_drop, first_drop)
+
+    def test_firing_resets_the_cooling_acceleration(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        gun.update(10.0)
+        accelerated_rate = gun.cooling_rate
+
+        gun.try_fire()
+
+        self.assertGreater(accelerated_rate, COOLING_PER_SECOND_FIREABLE)
+        self.assertAlmostEqual(gun.cooling_rate, COOLING_PER_SECOND_FIREABLE)
+
+    def test_firing_raises_the_temperature_again_before_cooling_resets(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        gun.temperature = 60.0
+        gun.update(10.0)
+        temperature_before_shot = gun.temperature
+
+        gun.try_fire()
+
+        self.assertGreater(gun.temperature, temperature_before_shot)
+        self.assertAlmostEqual(gun.cooling_rate, COOLING_PER_SECOND_FIREABLE)
+
+    def test_blocked_cooling_rate_is_not_accelerated(self):
+        gun = Gun()
+        gun.overheated = True
+        gun.temperature = 100.0
+        gun.update(1.0)
+
+        self.assertAlmostEqual(
+            gun.temperature,
+            100.0 - COOLING_PER_SECOND_BLOCKED * 1.0,
+        )
+
+    def test_reset_clears_the_cooling_acceleration(self):
+        gun = Gun()
+        gun.update(10.0)
+
+        gun.reset()
+
+        self.assertAlmostEqual(gun.cooling_rate, COOLING_PER_SECOND_FIREABLE)
 
 
 class OverheatTests(unittest.TestCase):

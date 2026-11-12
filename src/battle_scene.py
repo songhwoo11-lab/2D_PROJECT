@@ -214,6 +214,8 @@ class BattleScene:
 
     def _reward_enemy_defeat(self, enemy):
         self.coins += roll_coin_reward(self.random_source)
+        if self._drop_health_pickup(enemy):
+            return
         if roll_magazine_drop(self.gun.total_ammo, self.random_source):
             self.pickups.append(
                 MagazinePickup(
@@ -224,22 +226,26 @@ class BattleScene:
                     phase=self._pickup_bob_phase(),
                 )
             )
-        if (
-            len(self.health_pickups) < HEALTH_PICKUP_LIMIT
-            and roll_health_drop(
-                self.player.hp,
-                self.player.max_hp,
-                self.random_source,
-            )
+
+    def _drop_health_pickup(self, enemy):
+        """Drop a health potion. Returns True when it was dropped."""
+        if len(self.health_pickups) >= HEALTH_PICKUP_LIMIT:
+            return False
+        if not roll_health_drop(
+            self.player.hp,
+            self.player.max_hp,
+            self.random_source,
         ):
-            self.health_pickups.append(
-                HealthPickup(
-                    enemy.x,
-                    enemy.y,
-                    image=self.health_image,
-                    phase=self._pickup_bob_phase(),
-                )
+            return False
+        self.health_pickups.append(
+            HealthPickup(
+                enemy.x,
+                enemy.y,
+                image=self.health_image,
+                phase=self._pickup_bob_phase(),
             )
+        )
+        return True
 
     def _pickup_bob_phase(self):
         return self.random_source.uniform(0.0, 2.0 * math.pi)

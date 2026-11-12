@@ -52,6 +52,19 @@ class StubRandom:
         return self.roll * (maximum - minimum) + minimum
 
 
+class SequenceStubRandom(StubRandom):
+    """Random stub that returns a fixed sequence of roll values."""
+
+    def __init__(self, coin=1, rolls=None):
+        super().__init__(coin=coin, roll=1.0)
+        self.rolls = list(rolls or [])
+
+    def random(self):
+        if self.rolls:
+            return self.rolls.pop(0)
+        return self.roll
+
+
 def make_scene(total_waves, spawn_rate):
     scene = BattleScene(
         Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
@@ -216,6 +229,53 @@ class BattleSceneRewardTests(unittest.TestCase):
 
         self.assertEqual(self.scene.coins, 2)
         self.assertEqual(self.scene.pickups, [])
+
+    def test_health_drop_replaces_the_magazine_drop(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = SequenceStubRandom(coin=1, rolls=[0.0])
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(len(self.scene.health_pickups), 1)
+        self.assertEqual(self.scene.pickups, [])
+
+    def test_magazine_drop_replaces_the_health_drop(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = SequenceStubRandom(
+            coin=1,
+            rolls=[0.9, 0.0],
+        )
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(len(self.scene.pickups), 1)
+        self.assertEqual(self.scene.health_pickups, [])
+
+    def test_only_one_drop_type_appears_per_enemy(self):
+        self.scene.player.hp = 50
+
+        for rolls in ([0.0], [0.9, 0.0], [0.9, 0.9], [0.0, 0.0]):
+            self.scene.pickups = []
+            self.scene.health_pickups = []
+            self.scene.random_source = SequenceStubRandom(coin=1, rolls=list(rolls))
+
+            self._defeat_one_enemy()
+
+            total = len(self.scene.pickups) + len(self.scene.health_pickups)
+            self.assertLessEqual(total, 1, "한 번의 처치로 두 종류가 함께 드롭되면 안 된다")
+
+    def test_health_drop_is_skipped_when_the_map_limit_is_reached(self):
+        self.scene.player.hp = 50
+        self.scene.health_pickups = [
+            HealthPickup(0.0, 0.0),
+            HealthPickup(10.0, 10.0),
+        ]
+        self.scene.random_source = SequenceStubRandom(coin=1, rolls=[0.0, 0.0])
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(len(self.scene.health_pickups), 2)
+        self.assertEqual(len(self.scene.pickups), 1)
 
     def test_walking_over_a_magazine_adds_reserve_ammo(self):
         self.scene.gun.magazine_ammo = 2

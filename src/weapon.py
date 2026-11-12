@@ -8,6 +8,7 @@ from game_config import (
     AUTO_SHOT_HEAT_BASE,
     AUTO_SHOT_HEAT_STEP,
     AUTO_STREAK_DECAY_SECONDS,
+    COOLING_ACCELERATION_SCALE_SECONDS,
     COOLING_PER_SECOND_BLOCKED,
     COOLING_PER_SECOND_FIREABLE,
     MIN_TEMPERATURE,
@@ -70,6 +71,7 @@ class Gun:
         self.heat_enabled = True
         self.temperature = MIN_TEMPERATURE
         self.overheated = False
+        self._idle_seconds = 0.0
         self._reset_auto_streak()
         self._damage_reduction_elapsed = None
 
@@ -144,9 +146,19 @@ class Gun:
             self.reload_remaining = max(0.0, self.reload_remaining - delta_time)
             if self.reload_remaining <= 1e-9:
                 self._finish_reload()
+        self._idle_seconds += delta_time
         self._decay_auto_streak(delta_time)
         self._update_damage_reduction(delta_time)
         self._cool(delta_time)
+
+    @property
+    def cooling_rate(self):
+        """Temperature drop per second while the gun is not overheating.
+
+        The rate grows quadratically the longer the gun stays idle.
+        """
+        ramp = self._idle_seconds / COOLING_ACCELERATION_SCALE_SECONDS
+        return COOLING_PER_SECOND_FIREABLE * (1.0 + ramp * ramp)
 
     def _cool(self, delta_time):
         if self.overheated:
@@ -162,7 +174,7 @@ class Gun:
             return
         self.temperature = max(
             MIN_TEMPERATURE,
-            self.temperature - COOLING_PER_SECOND_FIREABLE * delta_time,
+            self.temperature - self.cooling_rate * delta_time,
         )
 
     def _update_damage_reduction(self, delta_time):
@@ -231,6 +243,7 @@ class Gun:
             AUTO_SHOT_HEAT_BASE
             + AUTO_SHOT_HEAT_STEP * (self.auto_shot_streak - 1)
         )
+        self._idle_seconds = 0.0
         self.cooldown_remaining = fire_interval
         return True
 
