@@ -104,15 +104,15 @@ class DamageReductionTextTests(unittest.TestCase):
 
 
 class DamageReductionTimeTextTests(unittest.TestCase):
-    def test_hold_time_is_shown_from_thirty_seconds(self):
-        gun = make_gun(damage_reduction_remaining=30.0)
+    def test_hold_time_is_shown_from_ten_seconds(self):
+        gun = make_gun(damage_reduction_remaining=10.0)
 
-        self.assertEqual(damage_reduction_time_text(gun), "00:30")
+        self.assertEqual(damage_reduction_time_text(gun), "00:10")
 
-    def test_recovery_time_is_shown_from_sixty_seconds(self):
-        gun = make_gun(damage_reduction_remaining=60.0)
+    def test_recovery_time_is_shown_from_fifty_seconds(self):
+        gun = make_gun(damage_reduction_remaining=50.0)
 
-        self.assertEqual(damage_reduction_time_text(gun), "01:00")
+        self.assertEqual(damage_reduction_time_text(gun), "00:50")
 
     def test_remaining_time_is_shown_as_minutes_and_seconds(self):
         gun = make_gun(damage_reduction_remaining=61.0)
@@ -120,9 +120,9 @@ class DamageReductionTimeTextTests(unittest.TestCase):
         self.assertEqual(damage_reduction_time_text(gun), "01:01")
 
     def test_partial_seconds_round_up(self):
-        gun = make_gun(damage_reduction_remaining=60.2)
+        gun = make_gun(damage_reduction_remaining=50.2)
 
-        self.assertEqual(damage_reduction_time_text(gun), "01:01")
+        self.assertEqual(damage_reduction_time_text(gun), "00:51")
 
     def test_last_second_is_shown_as_one_second(self):
         gun = make_gun(damage_reduction_remaining=0.2)
