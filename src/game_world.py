@@ -2,8 +2,10 @@
 
 import math
 
+from game_config import UI_SCALE
+
 world = [[], []]
-_SPATIAL_CELL_SIZE = 64.0
+_SPATIAL_CELL_SIZE = 64.0 * UI_SCALE
 _spatial_cells = None
 _spatial_positions = None
 _spatial_max_radius = 0.0

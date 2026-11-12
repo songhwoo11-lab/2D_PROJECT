@@ -18,6 +18,7 @@ from game_config import (
     PLAYER_RADIUS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    UI_SCALE,
     WORLD_HEIGHT,
     WORLD_WIDTH,
 )
@@ -42,7 +43,7 @@ from weapon import Gun
 
 SHOT_FEEDBACK_DURATION = 0.8
 SHOT_FEEDBACK_COLOR = (255, 0, 0)
-SHOT_FEEDBACK_FONT_SIZE = 12
+SHOT_FEEDBACK_FONT_SIZE = 12 * UI_SCALE
 WAVE_BANNER_SECONDS = 2.5
 WAVE_STRENGTH_BANNER_SECONDS = 3.5
 
@@ -58,13 +59,13 @@ class BattleResult(Enum):
     VICTORY = "victory"
     DEFEAT = "defeat"
     QUIT = "quit"
-DEBUG_MENU_WIDTH = 190
-DEBUG_MENU_LEFT = SCREEN_WIDTH - DEBUG_MENU_WIDTH - 8
-DEBUG_BUTTON_TOP = 42
-DEBUG_BUTTON_HEIGHT = 26
-DEBUG_BUTTON_SPACING = 30
-DEBUG_BUTTON_TEXT_Y_OFFSET = 5
-DEBUG_FONT_SIZE = 15
+DEBUG_MENU_WIDTH = 190 * UI_SCALE
+DEBUG_MENU_LEFT = SCREEN_WIDTH - DEBUG_MENU_WIDTH - 8 * UI_SCALE
+DEBUG_BUTTON_TOP = 42 * UI_SCALE
+DEBUG_BUTTON_HEIGHT = 26 * UI_SCALE
+DEBUG_BUTTON_SPACING = 30 * UI_SCALE
+DEBUG_BUTTON_TEXT_Y_OFFSET = 5 * UI_SCALE
+DEBUG_FONT_SIZE = 15 * UI_SCALE
 DEBUG_MENU_ITEMS = (
     ("spawn_basic", "Basic Enemy"),
     ("spawn_explosive", "Explosive Enemy"),
@@ -380,13 +381,18 @@ class BattleScene:
 
     def _debug_button_bounds(self, index):
         top = DEBUG_BUTTON_TOP + index * DEBUG_BUTTON_SPACING
-        return DEBUG_MENU_LEFT + 8, top, SCREEN_WIDTH - 8, top + DEBUG_BUTTON_HEIGHT
+        return (
+            DEBUG_MENU_LEFT + 8 * UI_SCALE,
+            top,
+            SCREEN_WIDTH - 8 * UI_SCALE,
+            top + DEBUG_BUTTON_HEIGHT,
+        )
 
     def _handle_debug_click(self, screen_x, screen_y):
         menu_bottom = DEBUG_BUTTON_TOP + len(DEBUG_MENU_ITEMS) * DEBUG_BUTTON_SPACING
         if not (
-            DEBUG_MENU_LEFT <= screen_x <= SCREEN_WIDTH - 8
-            and 8 <= screen_y <= menu_bottom
+            DEBUG_MENU_LEFT <= screen_x <= SCREEN_WIDTH - 8 * UI_SCALE
+            and 8 * UI_SCALE <= screen_y <= menu_bottom
         ):
             return False
 
@@ -511,7 +517,7 @@ class BattleScene:
         self._mouse_pressed = False
         if fired:
             if self.bullet_image is not None:
-                muzzle_offset = PLAYER_RADIUS + 14
+                muzzle_offset = PLAYER_RADIUS + 14 * UI_SCALE
                 game_world.add_object(
                     Bullet(
                         self.player.x
@@ -547,7 +553,7 @@ class BattleScene:
             self.shot_feedbacks.append(
                 (
                     target.x - target.radius,
-                    target.y + target.radius + 4,
+                    target.y + target.radius + 4 * UI_SCALE,
                     result_labels[bullet.hit_result],
                     SHOT_FEEDBACK_DURATION,
                 )
@@ -632,8 +638,8 @@ class BattleScene:
                 flip,
                 gun_x,
                 gun_y,
-                42,
-                24,
+                42 * UI_SCALE,
+                24 * UI_SCALE,
             )
         if self.hud_font is None:
             raise RuntimeError("BattleScene.draw requires a loaded HUD font")
@@ -663,7 +669,7 @@ class BattleScene:
                 warning.x,
                 warning.y,
             )
-            margin = warning.radius + 20
+            margin = warning.radius + 20 * UI_SCALE
             if not (
                 -margin <= screen_x <= SCREEN_WIDTH + margin
                 and -margin <= screen_y <= SCREEN_HEIGHT + margin
@@ -672,7 +678,7 @@ class BattleScene:
             self.enemy_draw_circle(
                 screen_x,
                 screen_y,
-                round(warning.radius + 6 * warning.progress),
+                round(warning.radius + 6 * UI_SCALE * warning.progress),
                 255,
                 60,
                 60,
@@ -680,14 +686,14 @@ class BattleScene:
             )
 
     def _draw_pause_menu(self, draw_rectangle):
-        left = SCREEN_WIDTH / 2 - 150
-        right = SCREEN_WIDTH / 2 + 150
-        bottom = SCREEN_HEIGHT / 2 - 85
-        top = SCREEN_HEIGHT / 2 + 85
+        left = SCREEN_WIDTH / 2 - 150 * UI_SCALE
+        right = SCREEN_WIDTH / 2 + 150 * UI_SCALE
+        bottom = SCREEN_HEIGHT / 2 - 85 * UI_SCALE
+        top = SCREEN_HEIGHT / 2 + 85 * UI_SCALE
         draw_rectangle(left, bottom, right, top, 20, 25, 35, 225, True)
         draw_centered_text(
             self.hud_font,
-            SCREEN_HEIGHT / 2 + 52,
+            SCREEN_HEIGHT / 2 + 52 * UI_SCALE,
             "PAUSED",
             (255, 220, 80),
         )
@@ -699,7 +705,7 @@ class BattleScene:
             )
             draw_centered_text(
                 self.hud_font,
-                SCREEN_HEIGHT / 2 + 12 - index * 34,
+                SCREEN_HEIGHT / 2 + 12 * UI_SCALE - index * 34 * UI_SCALE,
                 label,
                 color,
             )
@@ -718,7 +724,7 @@ class BattleScene:
         )
         draw_centered_text(
             self.hud_font,
-            SCREEN_HEIGHT / 2 + 40,
+            SCREEN_HEIGHT / 2 + 40 * UI_SCALE,
             RESULT_TITLES[self.result.value],
             (255, 220, 80),
         )
@@ -736,7 +742,7 @@ class BattleScene:
         )
         draw_centered_text(
             self.hud_font,
-            SCREEN_HEIGHT / 2 - 40,
+            SCREEN_HEIGHT / 2 - 40 * UI_SCALE,
             "PRESS ENTER TO RETURN TO LOBBY",
             (255, 255, 255),
         )
@@ -778,7 +784,7 @@ class BattleScene:
             return
         draw_centered_text(
             self.hud_font,
-            SCREEN_HEIGHT - 130,
+            SCREEN_HEIGHT - 130 * UI_SCALE,
             self.wave_banner_text,
             (255, 220, 80),
         )
@@ -790,7 +796,7 @@ class BattleScene:
             x, y = obj.x, obj.y
         else:
             x, y = screen_position
-        margin = max(getattr(obj, "radius", 0), 12)
+        margin = max(getattr(obj, "radius", 0), 12 * UI_SCALE)
         return (
             -margin <= x <= SCREEN_WIDTH + margin
             and -margin <= y <= SCREEN_HEIGHT + margin
@@ -818,9 +824,9 @@ class BattleScene:
         menu_bottom = DEBUG_BUTTON_TOP + len(DEBUG_MENU_ITEMS) * DEBUG_BUTTON_SPACING
         draw_rectangle(
             DEBUG_MENU_LEFT,
-            SCREEN_HEIGHT - menu_bottom - 8,
-            SCREEN_WIDTH - 8,
-            SCREEN_HEIGHT - 8,
+            SCREEN_HEIGHT - menu_bottom - 8 * UI_SCALE,
+            SCREEN_WIDTH - 8 * UI_SCALE,
+            SCREEN_HEIGHT - 8 * UI_SCALE,
             25,
             30,
             40,
@@ -828,8 +834,8 @@ class BattleScene:
             True,
         )
         self.debug_font.draw(
-            DEBUG_MENU_LEFT + 8,
-            SCREEN_HEIGHT - 30,
+            DEBUG_MENU_LEFT + 8 * UI_SCALE,
+            SCREEN_HEIGHT - 30 * UI_SCALE,
             "DEBUG MODE",
             (255, 220, 80),
         )
@@ -842,7 +848,7 @@ class BattleScene:
                 + DEBUG_BUTTON_TEXT_Y_OFFSET
             )
             self.debug_font.draw(
-                left + 6,
+                left + 6 * UI_SCALE,
                 text_y,
                 label,
                 (255, 255, 255),

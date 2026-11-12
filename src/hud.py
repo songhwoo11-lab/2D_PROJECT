@@ -10,11 +10,13 @@ from game_config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     TOTAL_WAVES,
+    UI_SCALE,
 )
 
 
-TEMPERATURE_BAR_WIDTH = 200
+TEMPERATURE_BAR_WIDTH = 200 * UI_SCALE
 TEMPERATURE_BAR_HEIGHT = HUD_FONT_SIZE
+HP_BAR_WIDTH = 200 * UI_SCALE
 HP_BAR_HEIGHT = HUD_FONT_SIZE
 TEMPERATURE_WARNING_THRESHOLD = 160.0
 TEMPERATURE_WARNING_RED_THRESHOLD = 180.0
@@ -24,12 +26,15 @@ TEMPERATURE_WARNING_RED_COLOR = (255, 70, 60)
 OVERHEAT_COLOR = (255, 70, 60)
 HP_TRAIL_COLOR = (245, 150, 80)
 DAMAGE_REDUCTION_COLOR = (255, 120, 100)
-DAMAGE_REDUCTION_TIME_GAP = 12
-HUD_MARGIN = 20
-HUD_ROW_LOW = 55
-HUD_ROW_HIGH = 85
-HUD_WAVE_Y = SCREEN_HEIGHT - 25
-HUD_REMAINING_ENEMIES_Y = HUD_WAVE_Y - 25
+DAMAGE_REDUCTION_TIME_GAP = 12 * UI_SCALE
+HUD_MARGIN = 20 * UI_SCALE
+HUD_ROW_LOW = 55 * UI_SCALE
+HUD_ROW_HIGH = 85 * UI_SCALE
+HUD_AMMO_Y = 60 * UI_SCALE
+HUD_MODE_Y = 35 * UI_SCALE
+HUD_RELOAD_Y = 10 * UI_SCALE
+HUD_WAVE_Y = SCREEN_HEIGHT - 25 * UI_SCALE
+HUD_REMAINING_ENEMIES_Y = HUD_WAVE_Y - 25 * UI_SCALE
 
 
 def _measure_text_width(font, text):
@@ -209,7 +214,7 @@ def draw_hud(
 ):
     hp_bar_left = HUD_MARGIN
     hp_bar_bottom = HUD_MARGIN
-    hp_bar_width = 200
+    hp_bar_width = HP_BAR_WIDTH
     hp_bar_height = HP_BAR_HEIGHT
     hp_ratio = min(max(player.hp / player.max_hp, 0.0), 1.0)
     hp_trail = getattr(player, "hp_trail", None)
@@ -264,14 +269,14 @@ def draw_hud(
         if gun.infinite_ammo
         else "AMMO {}/{}".format(gun.magazine_ammo, gun.reserve_ammo)
     )
-    _draw_centered_text(font, 60, ammo_text)
+    _draw_centered_text(font, HUD_AMMO_Y, ammo_text)
     _draw_centered_text(
         font,
-        35,
+        HUD_MODE_Y,
         "MODE: {}".format(gun.fire_mode.value.upper()),
     )
     if gun.reloading:
-        _draw_centered_text(font, 10, "RELOAD")
+        _draw_centered_text(font, HUD_RELOAD_Y, "RELOAD")
     _draw_temperature(font, gun, draw_rectangle)
     if wave is not None:
         _draw_centered_text(font, HUD_WAVE_Y, wave_text(wave, total_waves))

@@ -458,7 +458,7 @@ class HudLayoutTests(unittest.TestCase):
         font, _ = self._draw_hud(gun)
 
         x, y, text = self._text_draw(font, "WAVE 1/30")
-        self.assertEqual(y, SCREEN_HEIGHT - 25)
+        self.assertEqual(y, hud.HUD_WAVE_Y)
         self.assertGreater(y, SCREEN_HEIGHT / 2)
 
     def test_remaining_enemies_are_centered_below_the_wave_text(self):
@@ -469,7 +469,7 @@ class HudLayoutTests(unittest.TestCase):
         x, y, text = self._text_draw(font, "ENEMIES LEFT 12")
         self.assertEqual(x, (SCREEN_WIDTH - self.TEXT_WIDTH) / 2)
         self.assertEqual(y, hud.HUD_REMAINING_ENEMIES_Y)
-        self.assertLess(y, SCREEN_HEIGHT - 25)
+        self.assertLess(y, hud.HUD_WAVE_Y)
         self.assertGreater(y, SCREEN_HEIGHT / 2)
 
 

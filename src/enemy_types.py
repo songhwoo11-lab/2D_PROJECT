@@ -8,7 +8,7 @@ from arrow import Arrow
 import game_world
 from enemy import ENEMY_STATS, Enemy, EnemyType
 from explosion import Explosion, ExplosionTarget
-from game_config import DISTANCE_EPSILON, FPS
+from game_config import DISTANCE_EPSILON, FPS, UI_SCALE
 
 
 class BasicEnemy(Enemy):
@@ -36,8 +36,8 @@ class TankerEnemy(Enemy):
 
 
 class AssassinEnemy(Enemy):
-    FADE_DISTANCE = 150.0
-    HEALTH_BAR_DISTANCE = 100.0
+    FADE_DISTANCE = 150.0 * UI_SCALE
+    HEALTH_BAR_DISTANCE = 100.0 * UI_SCALE
     HIT_FLASH_DURATION_SECONDS = 0.2
 
     def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
@@ -140,7 +140,7 @@ class ArcherEnemy(Enemy):
     CHARGE_SPEED_MULTIPLIER = 2
     WARNING_DURATION_FRAMES = 15
     CHARGE_DECAY_SPEED = 1.0 / (ENEMY_STATS[EnemyType.ARCHER].attack_interval * FPS)
-    ARROW_MAX_DISTANCE = 600.0
+    ARROW_MAX_DISTANCE = 600.0 * UI_SCALE
 
     def __init__(
         self,
@@ -238,13 +238,13 @@ class ArcherEnemy(Enemy):
         x, y = self._screen_position or (self.x, self.y)
         bar_width = self.radius * 2
         bar_left = x - self.radius
-        bar_bottom = y + self.radius + 9
+        bar_bottom = y + self.radius + 9 * UI_SCALE
         color = (255, 220, 40) if self.is_attack_warning else (80, 200, 255)
         self.draw_rectangle(
             bar_left,
             bar_bottom,
             bar_left + bar_width * self.attack_charge,
-            bar_bottom + 3,
+            bar_bottom + 3 * UI_SCALE,
             *color,
             255,
             True,
@@ -252,8 +252,8 @@ class ArcherEnemy(Enemy):
 
 
 class ExplosiveEnemy(Enemy):
-    PLAYER_ATTACK_RADIUS = 50.0
-    DEATH_EXPLOSION_RADIUS = 50.0
+    PLAYER_ATTACK_RADIUS = 50.0 * UI_SCALE
+    DEATH_EXPLOSION_RADIUS = 50.0 * UI_SCALE
 
     def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
         super().__init__(

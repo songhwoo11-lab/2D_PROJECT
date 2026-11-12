@@ -3,7 +3,7 @@ import unittest
 from collections import Counter
 
 from enemy import EnemyType
-from game_config import TOTAL_WAVES
+from game_config import TOTAL_WAVES, UI_SCALE
 from waves import (
     SPAWN_RADIUS_RANGES,
     WaveDirector,
@@ -144,17 +144,26 @@ class WaveDirectorTests(unittest.TestCase):
 
 class SpawnRadiusTests(unittest.TestCase):
     def test_radius_ranges_match_the_product_requirements(self):
-        self.assertEqual(SPAWN_RADIUS_RANGES[EnemyType.BASIC], (500.0, 1000.0))
+        self.assertEqual(
+            SPAWN_RADIUS_RANGES[EnemyType.BASIC],
+            (500.0 * UI_SCALE, 1000.0 * UI_SCALE),
+        )
         self.assertEqual(
             SPAWN_RADIUS_RANGES[EnemyType.EXPLOSIVE],
-            (800.0, 1000.0),
+            (800.0 * UI_SCALE, 1000.0 * UI_SCALE),
         )
-        self.assertEqual(SPAWN_RADIUS_RANGES[EnemyType.TANKER], (200.0, 500.0))
+        self.assertEqual(
+            SPAWN_RADIUS_RANGES[EnemyType.TANKER],
+            (200.0 * UI_SCALE, 500.0 * UI_SCALE),
+        )
         self.assertEqual(
             SPAWN_RADIUS_RANGES[EnemyType.ASSASSIN],
-            (200.0, 300.0),
+            (200.0 * UI_SCALE, 300.0 * UI_SCALE),
         )
-        self.assertEqual(SPAWN_RADIUS_RANGES[EnemyType.ARCHER], (600.0, 800.0))
+        self.assertEqual(
+            SPAWN_RADIUS_RANGES[EnemyType.ARCHER],
+            (600.0 * UI_SCALE, 800.0 * UI_SCALE),
+        )
 
     def test_assassin_spawns_within_its_radius_band(self):
         random_source = random.Random(7)
@@ -169,8 +178,8 @@ class SpawnRadiusTests(unittest.TestCase):
                 random_source,
             )
             distance = ((x - player_x) ** 2 + (y - player_y) ** 2) ** 0.5
-            self.assertGreaterEqual(distance, 200.0 - 1e-9)
-            self.assertLessEqual(distance, 300.0 + 1e-9)
+            self.assertGreaterEqual(distance, 200.0 * UI_SCALE - 1e-9)
+            self.assertLessEqual(distance, 300.0 * UI_SCALE + 1e-9)
 
     def test_spawn_positions_never_leave_the_map(self):
         random_source = random.Random(11)

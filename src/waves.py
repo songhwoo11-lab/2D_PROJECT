@@ -7,6 +7,7 @@ import random
 from enemy import EnemyType
 from game_config import (
     TOTAL_WAVES,
+    UI_SCALE,
     WAVE_SPAWN_RATE_PER_SECOND,
     WAVE_STAT_MULTIPLIER_EVERY,
     WAVE_STAT_MULTIPLIER_FACTOR,
@@ -14,11 +15,11 @@ from game_config import (
 
 
 SPAWN_RADIUS_RANGES = {
-    EnemyType.BASIC: (500.0, 1000.0),
-    EnemyType.EXPLOSIVE: (800.0, 1000.0),
-    EnemyType.TANKER: (200.0, 500.0),
-    EnemyType.ASSASSIN: (200.0, 300.0),
-    EnemyType.ARCHER: (600.0, 800.0),
+    EnemyType.BASIC: (500.0 * UI_SCALE, 1000.0 * UI_SCALE),
+    EnemyType.EXPLOSIVE: (800.0 * UI_SCALE, 1000.0 * UI_SCALE),
+    EnemyType.TANKER: (200.0 * UI_SCALE, 500.0 * UI_SCALE),
+    EnemyType.ASSASSIN: (200.0 * UI_SCALE, 300.0 * UI_SCALE),
+    EnemyType.ARCHER: (600.0 * UI_SCALE, 800.0 * UI_SCALE),
 }
 
 
