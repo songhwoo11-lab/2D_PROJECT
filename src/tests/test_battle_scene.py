@@ -87,7 +87,7 @@ class BattleSceneWaveTests(unittest.TestCase):
     def test_spawning_creates_warnings_before_enemies(self):
         self.scene.update(0.1)
 
-        self.assertEqual(len(self.scene.spawn_warnings), 100)
+        self.assertEqual(len(self.scene.spawn_warnings), 10)
         self.assertEqual(alive_enemies(), [])
 
     def test_enemies_appear_after_warning_expires(self):
@@ -96,7 +96,7 @@ class BattleSceneWaveTests(unittest.TestCase):
         self.scene.update(0.5)
 
         self.assertEqual(self.scene.spawn_warnings, [])
-        self.assertEqual(len(alive_enemies()), 100)
+        self.assertEqual(len(alive_enemies()), 10)
 
     def test_clearing_every_enemy_finishes_the_last_wave(self):
         self.scene.update(0.1)
