@@ -71,6 +71,7 @@ class Gun:
         self.reload_remaining = 0.0
         self.fire_mode = FireMode.SINGLE
         self.infinite_ammo = False
+        self.heat_enabled = True
         self.temperature = MIN_TEMPERATURE
         self.overheated = False
         self._reset_auto_streak()
@@ -227,8 +228,9 @@ class Gun:
         fire_interval_frames = self.spec.fire_interval_frames
         if self.fire_mode is FireMode.SINGLE:
             fire_interval_frames *= 2
-        self.auto_shot_streak += 1
-        self._auto_idle_seconds = 0.0
+        if self.heat_enabled:
+            self.auto_shot_streak += 1
+            self._auto_idle_seconds = 0.0
         self._add_heat(
             AUTO_SHOT_HEAT_BASE
             + AUTO_SHOT_HEAT_STEP * (self.auto_shot_streak - 1)
@@ -237,6 +239,8 @@ class Gun:
         return True
 
     def _add_heat(self, amount):
+        if not self.heat_enabled:
+            return
         self.temperature = min(
             self.temperature_limit,
             self.temperature + max(0.0, amount),

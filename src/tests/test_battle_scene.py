@@ -570,6 +570,45 @@ class BattleSceneHpTrailTests(unittest.TestCase):
         self.assertEqual(enemy.hp_trail.value, enemy.max_hp)
 
 
+class BattleSceneDebugTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+
+    def tearDown(self):
+        game_world.clear()
+
+    def test_debug_mode_enables_infinite_ammo_and_disables_heat(self):
+        gun = self.scene.gun
+        temperature = gun.temperature
+
+        self.scene.key_down("f1")
+
+        self.assertTrue(self.scene.debug_mode)
+        self.assertTrue(gun.infinite_ammo)
+        self.assertFalse(gun.heat_enabled)
+        self.assertTrue(gun.try_fire())
+        self.assertEqual(gun.temperature, temperature)
+
+    def test_leaving_debug_mode_restores_heat(self):
+        self.scene.key_down("f1")
+        self.scene.key_up("f1")
+
+        self.scene.key_down("f1")
+
+        self.assertFalse(self.scene.debug_mode)
+        self.assertFalse(self.scene.gun.infinite_ammo)
+        self.assertTrue(self.scene.gun.heat_enabled)
+
+    def test_reset_map_keeps_heat_disabled_in_debug_mode(self):
+        self.scene.key_down("f1")
+
+        self.scene.reset_map()
+
+        self.assertTrue(self.scene.debug_mode)
+        self.assertTrue(self.scene.gun.infinite_ammo)
+        self.assertFalse(self.scene.gun.heat_enabled)
+
+
 class BattleSceneRecordTests(unittest.TestCase):
     def setUp(self):
         self.scene = make_scene(total_waves=1, spawn_rate=1000)

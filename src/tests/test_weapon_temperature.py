@@ -182,6 +182,52 @@ class FireModeHeatPersistenceTests(unittest.TestCase):
         self.assertEqual(gun.auto_shot_streak, 2)
 
 
+class DebugHeatTests(unittest.TestCase):
+    def test_new_gun_has_heat_enabled(self):
+        self.assertTrue(Gun().heat_enabled)
+
+    def test_disabled_heat_keeps_single_shot_temperature(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        gun.heat_enabled = False
+
+        self.assertTrue(gun.try_fire())
+
+        self.assertEqual(gun.temperature, MIN_TEMPERATURE)
+
+    def test_disabled_heat_keeps_auto_shot_temperature(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        gun.fire_mode = FireMode.AUTO
+        gun.heat_enabled = False
+
+        for _ in range(5):
+            self.assertTrue(gun.try_fire())
+            gun.cooldown_remaining = 0.0
+
+        self.assertEqual(gun.temperature, MIN_TEMPERATURE)
+
+    def test_reenabling_heat_restores_temperature_gain(self):
+        gun = Gun()
+        gun.infinite_ammo = True
+        gun.heat_enabled = False
+        gun.try_fire()
+        gun.cooldown_remaining = 0.0
+
+        gun.heat_enabled = True
+        self.assertTrue(gun.try_fire())
+
+        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 0.5)
+
+    def test_reset_reenables_heat(self):
+        gun = Gun()
+        gun.heat_enabled = False
+
+        gun.reset()
+
+        self.assertTrue(gun.heat_enabled)
+
+
 class FireableCoolingTests(unittest.TestCase):
     def test_temperature_drops_005_per_frame_while_fireable(self):
         gun = Gun()
