@@ -5,12 +5,12 @@ from enum import Enum
 import math
 
 import game_world
-from game_config import DISTANCE_EPSILON, FPS, UI_SCALE
+from game_config import CHARACTER_SCALE, DISTANCE_EPSILON, FPS, UI_SCALE
 from hp_trail import HpTrail
 
 
 ENEMY_DEFAULT_MOVE_SPEED = 70.0 * UI_SCALE
-ENEMY_DEFAULT_RADIUS = 16.0 * UI_SCALE
+ENEMY_DEFAULT_RADIUS = 16.0 * UI_SCALE * CHARACTER_SCALE
 ENEMY_HP_TRAIL_COLOR = (255, 170, 70)
 
 

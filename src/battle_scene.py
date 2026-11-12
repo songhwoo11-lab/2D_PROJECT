@@ -12,6 +12,7 @@ from enemy_types import AssassinEnemy, create_enemy
 import game_world
 from game_camera import Camera
 from game_config import (
+    CHARACTER_SCALE,
     HEALTH_PICKUP_LIMIT,
     MAGAZINE_PICKUP_AMMO,
     PICKUP_DRAW_SIZE,
@@ -638,8 +639,8 @@ class BattleScene:
                 flip,
                 gun_x,
                 gun_y,
-                42 * UI_SCALE,
-                24 * UI_SCALE,
+                42 * UI_SCALE * CHARACTER_SCALE,
+                24 * UI_SCALE * CHARACTER_SCALE,
             )
         if self.hud_font is None:
             raise RuntimeError("BattleScene.draw requires a loaded HUD font")
