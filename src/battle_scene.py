@@ -448,7 +448,7 @@ class BattleScene:
         self.player.hp = self.player.max_hp
         self.player.reset_hp_trail()
         self.player.aim_angle = 0.0
-        self.player.set_movement(0, 0, 0.0)
+        self.player.set_movement(0, 0)
         self.gun.reset()
         self.gun.infinite_ammo = self.debug_mode
         self.gun.heat_enabled = not self.debug_mode
@@ -490,14 +490,14 @@ class BattleScene:
         self.gun.update(delta_time)
         move_x = int("d" in self.keys) - int("a" in self.keys)
         move_y = int("w" in self.keys) - int("s" in self.keys)
-        self.player.set_movement(move_x, move_y, delta_time)
+        self.player.set_movement(move_x, move_y)
         bullets = [
             obj
             for layer in game_world.world
             for obj in layer
             if isinstance(obj, Bullet)
         ]
-        game_world.update()
+        game_world.update(delta_time)
         self._update_hp_trails(delta_time)
         self._record_shot_feedback(bullets)
         if self.player.is_defeated:

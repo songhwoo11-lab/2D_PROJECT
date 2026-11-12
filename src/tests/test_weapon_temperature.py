@@ -1,6 +1,7 @@
 import unittest
 
 from game_config import (
+    FRAME_TIME,
     MIN_TEMPERATURE,
     OVERHEAT_REDUCTION_HOLD_SECONDS,
     OVERHEAT_REDUCTION_RECOVERY_SECONDS,
@@ -233,7 +234,7 @@ class FireableCoolingTests(unittest.TestCase):
         gun = Gun()
         gun.temperature = 100.0
 
-        gun.update(0.0)
+        gun.update(FRAME_TIME)
 
         self.assertAlmostEqual(gun.temperature, 99.95)
 
@@ -242,7 +243,7 @@ class FireableCoolingTests(unittest.TestCase):
         gun.temperature = 100.0
 
         for _ in range(20):
-            gun.update(0.0)
+            gun.update(FRAME_TIME)
 
         self.assertAlmostEqual(gun.temperature, 99.0)
 
@@ -250,7 +251,7 @@ class FireableCoolingTests(unittest.TestCase):
         gun = Gun()
         gun.temperature = MIN_TEMPERATURE + 0.01
 
-        gun.update(0.0)
+        gun.update(FRAME_TIME)
 
         self.assertEqual(gun.temperature, MIN_TEMPERATURE)
 
@@ -275,7 +276,7 @@ class OverheatTests(unittest.TestCase):
         gun.overheated = True
         gun.temperature = gun.temperature_limit
 
-        gun.update(0.0)
+        gun.update(FRAME_TIME)
 
         self.assertAlmostEqual(
             gun.temperature,
@@ -287,7 +288,7 @@ class OverheatTests(unittest.TestCase):
         gun.overheated = True
         gun.temperature = MIN_TEMPERATURE + 0.5
 
-        gun.update(0.0)
+        gun.update(FRAME_TIME)
 
         self.assertEqual(gun.temperature, MIN_TEMPERATURE)
         self.assertFalse(gun.overheated)
@@ -299,7 +300,7 @@ class OverheatTests(unittest.TestCase):
         gun.temperature = gun.temperature_limit
 
         for _ in range(380):
-            gun.update(0.0)
+            gun.update(FRAME_TIME)
 
         self.assertEqual(gun.temperature, MIN_TEMPERATURE)
         self.assertFalse(gun.overheated)
@@ -321,7 +322,7 @@ class OverheatAutoStreakResetTests(unittest.TestCase):
         gun = self._overheated_auto_gun(3)
         gun.temperature = MIN_TEMPERATURE + 1.0
 
-        gun.update(0.0)
+        gun.update(FRAME_TIME)
 
         self.assertEqual(gun.auto_shot_streak, 3)
         self.assertTrue(gun.overheated)
@@ -331,7 +332,7 @@ class OverheatAutoStreakResetTests(unittest.TestCase):
         gun = self._overheated_auto_gun(3)
         gun.temperature = MIN_TEMPERATURE + 0.5
 
-        gun.update(0.0)
+        gun.update(FRAME_TIME)
 
         self.assertFalse(gun.overheated)
         self.assertTrue(gun.can_fire)
@@ -340,7 +341,7 @@ class OverheatAutoStreakResetTests(unittest.TestCase):
     def test_heat_per_shot_returns_to_the_base_amount_after_recovery(self):
         gun = self._overheated_auto_gun(3)
         gun.temperature = MIN_TEMPERATURE + 0.5
-        gun.update(0.0)
+        gun.update(FRAME_TIME)
         gun.temperature = MIN_TEMPERATURE
 
         gun.cooldown_remaining = 0.0
@@ -353,7 +354,7 @@ class OverheatAutoStreakResetTests(unittest.TestCase):
         gun = self._overheated_auto_gun(5)
 
         for _ in range(380):
-            gun.update(0.0)
+            gun.update(FRAME_TIME)
 
         self.assertFalse(gun.overheated)
         self.assertEqual(gun.auto_shot_streak, 0)
@@ -364,7 +365,7 @@ class OverheatDamageReductionTests(unittest.TestCase):
         gun = Gun()
         gun.overheated = True
         gun.temperature = MIN_TEMPERATURE + 0.5
-        gun.update(0.0)
+        gun.update(FRAME_TIME)
         return gun
 
     def test_gun_without_overheat_has_full_damage(self):

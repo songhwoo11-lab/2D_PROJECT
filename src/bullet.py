@@ -3,7 +3,7 @@
 import math
 
 import game_world
-from game_config import BULLET_SIZE, BULLET_SPEED, FPS, PISTOL_DAMAGE, WORLD_HEIGHT, WORLD_WIDTH
+from game_config import BULLET_SIZE, BULLET_SPEED, PISTOL_DAMAGE, WORLD_HEIGHT, WORLD_WIDTH
 from enemy import Enemy
 from shot_result import HitResult, damage_for_result, roll_hit_result
 
@@ -35,8 +35,8 @@ class Bullet:
     def set_screen_position(self, screen_x, screen_y):
         self._screen_position = (screen_x, screen_y)
 
-    def update(self):
-        distance = self.speed / FPS
+    def update(self, delta_time):
+        distance = self.speed * delta_time
         self.x += math.cos(self.angle) * distance
         self.y += math.sin(self.angle) * distance
         for layer in tuple(game_world.world):

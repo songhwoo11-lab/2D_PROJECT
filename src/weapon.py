@@ -8,20 +8,20 @@ from game_config import (
     AUTO_SHOT_HEAT_BASE,
     AUTO_SHOT_HEAT_STEP,
     AUTO_STREAK_DECAY_SECONDS,
-    COOLING_PER_FRAME_BLOCKED,
-    COOLING_PER_FRAME_FIREABLE,
-    FPS,
+    COOLING_PER_SECOND_BLOCKED,
+    COOLING_PER_SECOND_FIREABLE,
     MIN_TEMPERATURE,
     OVERHEAT_INITIAL_REDUCTION,
     OVERHEAT_REDUCTION_CURVE_EXPONENT,
     OVERHEAT_REDUCTION_HOLD_SECONDS,
     OVERHEAT_REDUCTION_RECOVERY_SECONDS,
     PISTOL_DAMAGE,
-    PISTOL_FIRE_INTERVAL_FRAMES,
+    PISTOL_FIRE_INTERVAL_SECONDS,
     PISTOL_MAGAZINE_SIZE,
     PISTOL_RELOAD_SECONDS,
     PISTOL_STARTING_AMMO,
     PISTOL_TEMPERATURE_LIMIT,
+    SINGLE_FIRE_INTERVAL_MULTIPLIER,
 )
 
 
@@ -29,21 +29,17 @@ from game_config import (
 class WeaponSpec:
     name: str
     damage: int
-    fire_interval_frames: int
+    fire_interval_seconds: float
     reload_seconds: float
     temperature_limit: float
     magazine_size: int
     starting_ammo: int
 
-    @property
-    def fire_interval_seconds(self):
-        return self.fire_interval_frames / FPS
-
 
 PISTOL = WeaponSpec(
     name="Pistol",
     damage=PISTOL_DAMAGE,
-    fire_interval_frames=PISTOL_FIRE_INTERVAL_FRAMES,
+    fire_interval_seconds=PISTOL_FIRE_INTERVAL_SECONDS,
     reload_seconds=PISTOL_RELOAD_SECONDS,
     temperature_limit=PISTOL_TEMPERATURE_LIMIT,
     magazine_size=PISTOL_MAGAZINE_SIZE,
@@ -149,14 +145,14 @@ class Gun:
             if self.reload_remaining <= 1e-9:
                 self._finish_reload()
         self._decay_auto_streak(delta_time)
-        self._cool(delta_time)
         self._update_damage_reduction(delta_time)
+        self._cool(delta_time)
 
     def _cool(self, delta_time):
         if self.overheated:
             self.temperature = max(
                 MIN_TEMPERATURE,
-                self.temperature - COOLING_PER_FRAME_BLOCKED,
+                self.temperature - COOLING_PER_SECOND_BLOCKED * delta_time,
             )
             if self.temperature <= MIN_TEMPERATURE:
                 self.temperature = MIN_TEMPERATURE
@@ -166,7 +162,7 @@ class Gun:
             return
         self.temperature = max(
             MIN_TEMPERATURE,
-            self.temperature - COOLING_PER_FRAME_FIREABLE,
+            self.temperature - COOLING_PER_SECOND_FIREABLE * delta_time,
         )
 
     def _update_damage_reduction(self, delta_time):
@@ -225,9 +221,9 @@ class Gun:
             return False
         if not self.infinite_ammo:
             self.magazine_ammo -= 1
-        fire_interval_frames = self.spec.fire_interval_frames
+        fire_interval = self.spec.fire_interval_seconds
         if self.fire_mode is FireMode.SINGLE:
-            fire_interval_frames *= 2
+            fire_interval *= SINGLE_FIRE_INTERVAL_MULTIPLIER
         if self.heat_enabled:
             self.auto_shot_streak += 1
             self._auto_idle_seconds = 0.0
@@ -235,7 +231,7 @@ class Gun:
             AUTO_SHOT_HEAT_BASE
             + AUTO_SHOT_HEAT_STEP * (self.auto_shot_streak - 1)
         )
-        self.cooldown_remaining = fire_interval_frames / FPS
+        self.cooldown_remaining = fire_interval
         return True
 
     def _add_heat(self, amount):

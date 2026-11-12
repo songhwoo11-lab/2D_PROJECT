@@ -35,7 +35,6 @@ class Player:
         self.aim_angle = 0.0
         self._move_x = 0.0
         self._move_y = 0.0
-        self._delta_time = 0.0
         self._screen_position = None
 
     @property
@@ -65,12 +64,9 @@ class Player:
     def reset_hp_trail(self):
         self.hp_trail.reset(self.hp, self.max_hp)
 
-    def set_movement(self, move_x, move_y, delta_time):
-        if not math.isfinite(delta_time) or delta_time < 0:
-            raise ValueError("delta_time must be a finite non-negative number")
+    def set_movement(self, move_x, move_y):
         self._move_x = float(move_x)
         self._move_y = float(move_y)
-        self._delta_time = float(delta_time)
 
     def aim_at(self, world_x, world_y):
         direction_x = world_x - self.x
@@ -89,7 +85,9 @@ class Player:
             return self.x, self.y
         return self._screen_position
 
-    def update(self):
+    def update(self, delta_time):
+        if not math.isfinite(delta_time) or delta_time < 0:
+            raise ValueError("delta_time must be a finite non-negative number")
         direction_length = math.hypot(self._move_x, self._move_y)
         if direction_length > 1:
             move_x = self._move_x / direction_length
@@ -97,8 +95,8 @@ class Player:
         else:
             move_x = self._move_x
             move_y = self._move_y
-        self.x += move_x * self.speed * self._delta_time
-        self.y += move_y * self.speed * self._delta_time
+        self.x += move_x * self.speed * delta_time
+        self.y += move_y * self.speed * delta_time
         self.x = min(max(self.x, self.radius), WORLD_WIDTH - self.radius)
         self.y = min(max(self.y, self.radius), WORLD_HEIGHT - self.radius)
 

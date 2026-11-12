@@ -8,7 +8,7 @@ from arrow import Arrow
 import game_world
 from enemy import ENEMY_STATS, Enemy, EnemyType
 from explosion import Explosion, ExplosionTarget
-from game_config import DISTANCE_EPSILON, FPS, UI_SCALE
+from game_config import DISTANCE_EPSILON, UI_SCALE
 
 
 class BasicEnemy(Enemy):
@@ -49,7 +49,7 @@ class AssassinEnemy(Enemy):
             player=player,
             draw_rectangle=draw_rectangle,
         )
-        self._hit_flash_frames_remaining = 0
+        self._hit_flash_remaining = 0.0
 
     @property
     def distance_to_player(self):
@@ -59,7 +59,7 @@ class AssassinEnemy(Enemy):
 
     @property
     def opacity_alpha(self):
-        if self._hit_flash_frames_remaining > 0:
+        if self._hit_flash_remaining > 0:
             return 255
         opacity = min(
             max(1.0 - self.distance_to_player / self.FADE_DISTANCE, 0.0),
@@ -71,7 +71,7 @@ class AssassinEnemy(Enemy):
     def health_bar_alpha(self):
         if (
             self.distance_to_player <= self.HEALTH_BAR_DISTANCE
-            or self._hit_flash_frames_remaining > 0
+            or self._hit_flash_remaining > 0
         ):
             return 255
         return 0
@@ -80,17 +80,15 @@ class AssassinEnemy(Enemy):
         was_alive = self.is_alive
         defeated = super().take_damage(amount)
         if amount > 0 and was_alive:
-            self._hit_flash_frames_remaining = round(
-                self.HIT_FLASH_DURATION_SECONDS * FPS
-            )
+            self._hit_flash_remaining = self.HIT_FLASH_DURATION_SECONDS
         return defeated
 
-    def update(self):
-        self._hit_flash_frames_remaining = max(
-            0,
-            self._hit_flash_frames_remaining - 1,
+    def update(self, delta_time):
+        self._hit_flash_remaining = max(
+            0.0,
+            self._hit_flash_remaining - delta_time,
         )
-        super().update()
+        super().update(delta_time)
 
     def draw(self):
         if self.image is None:
@@ -138,8 +136,7 @@ class AssassinEnemy(Enemy):
 
 class ArcherEnemy(Enemy):
     CHARGE_SPEED_MULTIPLIER = 2
-    WARNING_DURATION_FRAMES = 15
-    CHARGE_DECAY_SPEED = 1.0 / (ENEMY_STATS[EnemyType.ARCHER].attack_interval * FPS)
+    WARNING_DURATION_SECONDS = 15.0 / 60.0
     ARROW_MAX_DISTANCE = 600.0 * UI_SCALE
 
     def __init__(
@@ -160,38 +157,37 @@ class ArcherEnemy(Enemy):
             draw_rectangle=draw_rectangle,
         )
         self.attack_charge = 0.0
-        self._attack_charge_frames = 0
-        self.attack_warning_remaining = 0
+        self._attack_charge_elapsed = 0.0
+        self.attack_warning_remaining = 0.0
         self.arrow_image = arrow_image
 
     @property
     def is_attack_warning(self):
         return self.attack_warning_remaining > 0
 
-    def update(self):
+    def update(self, delta_time):
         if self.player is None or not self.is_alive or self.player.is_defeated:
             return
-        charge_duration_frames = (
-            self.attack_interval * FPS / self.CHARGE_SPEED_MULTIPLIER
+        charge_duration = (
+            self.attack_interval / self.CHARGE_SPEED_MULTIPLIER
         )
         distance_x = self.player.x - self.x
         distance_y = self.player.y - self.y
         distance = math.hypot(distance_x, distance_y)
         if distance > self.stats.attack_range + DISTANCE_EPSILON:
             if not self.is_attack_warning and self.attack_charge > 0:
-                self._attack_charge_frames = max(
+                self._attack_charge_elapsed = max(
                     0.0,
-                    self._attack_charge_frames
-                    - self.CHARGE_DECAY_SPEED * charge_duration_frames,
+                    self._attack_charge_elapsed - delta_time,
                 )
                 self.attack_charge = (
-                    self._attack_charge_frames / charge_duration_frames
+                    self._attack_charge_elapsed / charge_duration
                 )
             elif self.is_attack_warning:
-                self._advance_attack_warning()
+                self._advance_attack_warning(delta_time)
             if distance > 0:
                 travel_distance = min(
-                    self._movement_per_frame,
+                    self.move_speed * delta_time,
                     distance - self.stats.attack_range,
                 )
                 self.move_towards(
@@ -201,20 +197,23 @@ class ArcherEnemy(Enemy):
                 )
             return
         if self.is_attack_warning:
-            self._advance_attack_warning()
+            self._advance_attack_warning(delta_time)
             return
-        self._attack_charge_frames += 1
+        self._attack_charge_elapsed += delta_time
         self.attack_charge = min(
             1.0,
-            self._attack_charge_frames / charge_duration_frames,
+            self._attack_charge_elapsed / charge_duration,
         )
-        if self._attack_charge_frames >= charge_duration_frames:
+        if self._attack_charge_elapsed >= charge_duration:
             self.attack_charge = 1.0
-            self.attack_warning_remaining = self.WARNING_DURATION_FRAMES
+            self.attack_warning_remaining = self.WARNING_DURATION_SECONDS
 
-    def _advance_attack_warning(self):
-        self.attack_warning_remaining -= 1
-        if self.attack_warning_remaining == 0:
+    def _advance_attack_warning(self, delta_time):
+        self.attack_warning_remaining = max(
+            0.0,
+            self.attack_warning_remaining - delta_time,
+        )
+        if self.attack_warning_remaining <= 0:
             game_world.add_object(
                 Arrow(
                     self.x,
@@ -229,7 +228,7 @@ class ArcherEnemy(Enemy):
                 depth=2,
             )
             self.attack_charge = 0.0
-            self._attack_charge_frames = 0
+            self._attack_charge_elapsed = 0.0
 
     def draw(self):
         super().draw()
@@ -265,10 +264,10 @@ class ExplosiveEnemy(Enemy):
             draw_rectangle=draw_rectangle,
         )
 
-    def update(self):
+    def update(self, delta_time):
         if self.player is None or not self.is_alive or self.player.is_defeated:
             return
-        self._update_attack_cooldown()
+        self._update_attack_cooldown(delta_time)
         distance_x = self.player.x - self.x
         distance_y = self.player.y - self.y
         distance = math.hypot(distance_x, distance_y)
@@ -276,7 +275,7 @@ class ExplosiveEnemy(Enemy):
         if distance > attack_range + DISTANCE_EPSILON:
             if distance > 0:
                 travel_distance = min(
-                    self._movement_per_frame,
+                    self.move_speed * delta_time,
                     distance - attack_range,
                 )
                 self.move_towards(
@@ -285,7 +284,7 @@ class ExplosiveEnemy(Enemy):
                     travel_distance,
                 )
             return
-        if self._attack_cooldown_frames <= 0:
+        if self._attack_cooldown_remaining <= 0:
             Explosion(
                 self.x,
                 self.y,

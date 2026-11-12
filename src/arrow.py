@@ -7,7 +7,6 @@ from game_config import (
     ARROW_HIT_RADIUS,
     ARROW_SIZE,
     ARROW_SPEED,
-    FPS,
     WORLD_HEIGHT,
     WORLD_WIDTH,
 )
@@ -45,7 +44,7 @@ class Arrow:
     def set_screen_position(self, screen_x, screen_y):
         self._screen_position = (screen_x, screen_y)
 
-    def update(self):
+    def update(self, delta_time):
         previous_x = self.x
         previous_y = self.y
         if self.max_distance is not None:
@@ -53,7 +52,7 @@ class Arrow:
             if remaining_range <= 0:
                 game_world.remove_object(self)
                 return
-            travel_distance = min(self.speed / FPS, remaining_range)
+            travel_distance = min(self.speed * delta_time, remaining_range)
             direction_x = math.cos(self.angle)
             direction_y = math.sin(self.angle)
         else:
@@ -63,7 +62,7 @@ class Arrow:
             if distance == 0:
                 game_world.remove_object(self)
                 return
-            travel_distance = min(self.speed / FPS, distance)
+            travel_distance = min(self.speed * delta_time, distance)
             direction_x /= distance
             direction_y /= distance
 

@@ -5,7 +5,7 @@ from enum import Enum
 import math
 
 import game_world
-from game_config import CHARACTER_SCALE, DISTANCE_EPSILON, FPS, UI_SCALE
+from game_config import CHARACTER_SCALE, DISTANCE_EPSILON, UI_SCALE
 from hp_trail import HpTrail
 
 
@@ -103,8 +103,7 @@ class Enemy:
         self.velocity_x = 0.0
         self.velocity_y = 0.0
         self._screen_position = None
-        self._movement_per_frame = self.move_speed / FPS
-        self._attack_cooldown_frames = 0.0
+        self._attack_cooldown_remaining = 0.0
         self._uses_spatial_collision = True
 
     @property
@@ -231,10 +230,10 @@ class Enemy:
     def set_screen_position(self, screen_x, screen_y):
         self._screen_position = (screen_x, screen_y)
 
-    def update(self):
+    def update(self, delta_time):
         if self.player is None or not self.is_alive or self.player.is_defeated:
             return
-        self._update_attack_cooldown()
+        self._update_attack_cooldown(delta_time)
         direction_x = self.player.x - self.x
         direction_y = self.player.y - self.y
         distance = (direction_x**2 + direction_y**2) ** 0.5
@@ -246,7 +245,8 @@ class Enemy:
             return
         self.velocity_x = direction_x / distance
         self.velocity_y = direction_y / distance
-        travel_distance = min(self._movement_per_frame, distance - contact_distance)
+        movement = self.move_speed * delta_time
+        travel_distance = min(movement, distance - contact_distance)
         self.move_towards(
             self.player.x,
             self.player.y,
@@ -259,14 +259,17 @@ class Enemy:
         if distance <= contact_distance + DISTANCE_EPSILON:
             self._attack_if_ready()
 
-    def _update_attack_cooldown(self):
-        self._attack_cooldown_frames = max(0.0, self._attack_cooldown_frames - 1.0)
+    def _update_attack_cooldown(self, delta_time):
+        self._attack_cooldown_remaining = max(
+            0.0,
+            self._attack_cooldown_remaining - delta_time,
+        )
 
     def _attack_if_ready(self):
-        if self._attack_cooldown_frames > 0 or self.attack_damage <= 0:
+        if self._attack_cooldown_remaining > 0 or self.attack_damage <= 0:
             return False
         self.player.take_damage(self.attack_damage)
-        self._attack_cooldown_frames = self.attack_interval * FPS
+        self._attack_cooldown_remaining = self.attack_interval
         return True
 
     def draw_health_bar(self, x, y, alpha=255):

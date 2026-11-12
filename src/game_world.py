@@ -94,13 +94,13 @@ def remove_object(obj):
             return
 
 
-def update():
+def update(delta_time):
     _build_spatial_index()
     try:
         for layer in tuple(world):
             for obj in tuple(layer):
                 if obj in layer:
-                    obj.update()
+                    obj.update(delta_time)
     finally:
         _clear_spatial_index()
 
