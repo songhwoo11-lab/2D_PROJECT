@@ -612,16 +612,16 @@ class BattleScene:
         self.player.set_screen_position(screen_x, screen_y)
 
     def draw(self, draw_rectangle):
-        first_column = int(self.camera.x // SCREEN_WIDTH)
-        last_column = int((self.camera.x + SCREEN_WIDTH) // SCREEN_WIDTH)
-        first_row = int(self.camera.y // SCREEN_HEIGHT)
-        last_row = int((self.camera.y + SCREEN_HEIGHT) // SCREEN_HEIGHT)
-
-        for row in range(first_row, last_row + 1):
-            for column in range(first_column, last_column + 1):
-                screen_x = column * SCREEN_WIDTH - self.camera.x + SCREEN_WIDTH / 2
-                screen_y = row * SCREEN_HEIGHT - self.camera.y + SCREEN_HEIGHT / 2
-                self.background.draw(screen_x, screen_y, SCREEN_WIDTH, SCREEN_HEIGHT)
+        background_x, background_y = self.camera.world_to_screen(
+            WORLD_WIDTH / 2,
+            WORLD_HEIGHT / 2,
+        )
+        self.background.draw(
+            background_x,
+            background_y,
+            WORLD_WIDTH,
+            WORLD_HEIGHT,
+        )
 
         for layer in game_world.world:
             for obj in layer:

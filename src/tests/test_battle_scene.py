@@ -24,6 +24,14 @@ class FakeBackground:
         pass
 
 
+class RecordingBackground:
+    def __init__(self):
+        self.draws = []
+
+    def draw(self, x, y, width=None, height=None):
+        self.draws.append((x, y, width, height))
+
+
 class FakeImage:
     def __init__(self):
         self.draws = []
@@ -755,6 +763,42 @@ class BattleSceneAimCursorTests(unittest.TestCase):
             )
 
         self.assertTrue(self.rectangles)
+
+
+class BattleSceneBackgroundTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+        self.scene.background = RecordingBackground()
+        self.scene.player.image = FakeImage()
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _draw_scene(self):
+        with mock.patch.object(hud, "_measure_text_width", return_value=60):
+            self.scene.draw(lambda *args: None)
+
+    def test_background_is_drawn_once_for_the_whole_map(self):
+        self._draw_scene()
+
+        self.assertEqual(len(self.scene.background.draws), 1)
+
+    def test_background_covers_the_entire_world(self):
+        self._draw_scene()
+
+        _, _, width, height = self.scene.background.draws[0]
+        self.assertEqual(width, WORLD_WIDTH)
+        self.assertEqual(height, WORLD_HEIGHT)
+
+    def test_background_scrolls_with_the_camera(self):
+        self.scene.camera.x = 300.0
+        self.scene.camera.y = 200.0
+
+        self._draw_scene()
+
+        x, y, _, _ = self.scene.background.draws[0]
+        self.assertEqual(x, WORLD_WIDTH / 2 - 300.0)
+        self.assertEqual(y, WORLD_HEIGHT / 2 - 200.0)
 
 
 class BattleSceneRecordTests(unittest.TestCase):
