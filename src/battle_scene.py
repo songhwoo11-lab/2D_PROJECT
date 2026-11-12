@@ -12,6 +12,11 @@ from enemy_types import AssassinEnemy, create_enemy
 import game_world
 from game_camera import Camera
 from game_config import (
+    AIM_CURSOR_ALPHA,
+    AIM_CURSOR_COLOR,
+    AIM_CURSOR_GAP,
+    AIM_CURSOR_RADIUS,
+    AIM_CURSOR_THICKNESS,
     CHARACTER_SCALE,
     HEALTH_PICKUP_LIMIT,
     MAGAZINE_PICKUP_AMMO,
@@ -375,6 +380,11 @@ class BattleScene:
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
 
+    @property
+    def aim_cursor_position(self):
+        """Cursor position in canvas coordinates (origin at the bottom-left)."""
+        return self.mouse_screen_x, SCREEN_HEIGHT - self.mouse_screen_y
+
     def mouse_down(self, button, screen_x=None, screen_y=None):
         if (
             button == "left"
@@ -623,6 +633,7 @@ class BattleScene:
                 label,
                 SHOT_FEEDBACK_COLOR,
             )
+        self._draw_aim_cursor(draw_rectangle)
         if (
             self.show_attack_ranges
             or self.show_hitboxes
@@ -759,6 +770,41 @@ class BattleScene:
             SCREEN_HEIGHT / 2 - 40 * UI_SCALE,
             "PRESS ENTER TO RETURN TO LOBBY",
             (255, 255, 255),
+        )
+
+    def _draw_aim_cursor(self, draw_rectangle):
+        cursor_x, cursor_y = self.aim_cursor_position
+        radius = AIM_CURSOR_RADIUS
+        gap = AIM_CURSOR_GAP
+        half = AIM_CURSOR_THICKNESS / 2.0
+        segments = (
+            (cursor_x - radius, cursor_y - half, cursor_x - gap, cursor_y + half),
+            (cursor_x + gap, cursor_y - half, cursor_x + radius, cursor_y + half),
+            (cursor_x - half, cursor_y - radius, cursor_x + half, cursor_y - gap),
+            (cursor_x - half, cursor_y + gap, cursor_x + half, cursor_y + radius),
+        )
+        for x1, y1, x2, y2 in segments:
+            draw_rectangle(
+                x1,
+                y1,
+                x2,
+                y2,
+                AIM_CURSOR_COLOR[0],
+                AIM_CURSOR_COLOR[1],
+                AIM_CURSOR_COLOR[2],
+                AIM_CURSOR_ALPHA,
+                True,
+            )
+        draw_rectangle(
+            cursor_x - half,
+            cursor_y - half,
+            cursor_x + half,
+            cursor_y + half,
+            AIM_CURSOR_COLOR[0],
+            AIM_CURSOR_COLOR[1],
+            AIM_CURSOR_COLOR[2],
+            AIM_CURSOR_ALPHA,
+            True,
         )
 
     def _draw_pickups(self, draw_rectangle):

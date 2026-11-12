@@ -1,10 +1,18 @@
 import random
 import unittest
+from unittest import mock
 
 from battle_scene import BattleResult, BattleScene
 from enemy import Enemy, EnemyType
-from game_config import PICKUP_DRAW_SIZE, WORLD_HEIGHT, WORLD_WIDTH
+from game_config import (
+    AIM_CURSOR_RADIUS,
+    PICKUP_DRAW_SIZE,
+    SCREEN_HEIGHT,
+    WORLD_HEIGHT,
+    WORLD_WIDTH,
+)
 import game_world
+import hud
 from player import Player
 from pickup import HealthPickup, MagazinePickup
 from weapon import Gun
@@ -610,6 +618,83 @@ class BattleSceneDebugTests(unittest.TestCase):
         self.assertTrue(self.scene.debug_mode)
         self.assertTrue(self.scene.gun.infinite_ammo)
         self.assertFalse(self.scene.gun.heat_enabled)
+
+
+class BattleSceneAimCursorTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+        self.rectangles = []
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _draw_cursor(self):
+        self.scene._draw_aim_cursor(
+            lambda x1, y1, x2, y2, *args: self.rectangles.append((x1, y1, x2, y2))
+        )
+        return self.rectangles
+
+    def test_cursor_position_follows_the_mouse(self):
+        self.scene.mouse_move(300.0, 200.0)
+
+        cursor_x, cursor_y = self.scene.aim_cursor_position
+
+        self.assertEqual(cursor_x, 300.0)
+        self.assertEqual(cursor_y, SCREEN_HEIGHT - 200.0)
+
+    def test_cursor_is_drawn_as_four_segments_and_a_center_dot(self):
+        self.scene.mouse_move(300.0, 200.0)
+
+        rectangles = self._draw_cursor()
+
+        self.assertEqual(len(rectangles), 5)
+
+    def test_cursor_segments_are_centered_on_the_cursor(self):
+        self.scene.mouse_move(300.0, 200.0)
+
+        rectangles = self._draw_cursor()
+
+        for x1, y1, x2, y2 in rectangles:
+            center_x = (x1 + x2) / 2.0
+            center_y = (y1 + y2) / 2.0
+            if abs(center_x - 300.0) < 1e-9 and abs(center_y - 300.0) < 1e-9:
+                continue
+            self.assertTrue(
+                abs(center_x - 300.0) <= AIM_CURSOR_RADIUS + 1e-9
+                or abs(center_y - 300.0) <= AIM_CURSOR_RADIUS + 1e-9,
+                "조준점 선분은 커서를 중심으로 대칭이어야 한다",
+            )
+
+    def test_cursor_moves_with_the_mouse(self):
+        self.scene.mouse_move(300.0, 200.0)
+        first = self._draw_cursor()
+        first_center = (
+            (first[0][0] + first[0][2]) / 2.0,
+            (first[0][1] + first[0][3]) / 2.0,
+        )
+
+        self.rectangles = []
+        self.scene.mouse_move(500.0, 300.0)
+        second = self._draw_cursor()
+        second_center = (
+            (second[0][0] + second[0][2]) / 2.0,
+            (second[0][1] + second[0][3]) / 2.0,
+        )
+
+        self.assertNotEqual(first_center, second_center)
+        self.assertAlmostEqual(second_center[0] - first_center[0], 200.0)
+        self.assertAlmostEqual(second_center[1] - first_center[1], -100.0)
+
+    def test_cursor_is_drawn_with_the_scene(self):
+        self.scene.mouse_move(300.0, 200.0)
+        self.scene.player.image = FakeImage()
+
+        with mock.patch.object(hud, "_measure_text_width", return_value=60):
+            self.scene.draw(
+                lambda x1, y1, x2, y2, *args: self.rectangles.append((x1, y1, x2, y2))
+            )
+
+        self.assertTrue(self.rectangles)
 
 
 class BattleSceneRecordTests(unittest.TestCase):
