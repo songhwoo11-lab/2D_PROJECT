@@ -3,7 +3,7 @@
 from enum import Enum
 import math
 
-from enemy import Enemy
+from enemy import DAMAGE_SOURCE_EXPLOSION, Enemy
 from game_config import DISTANCE_EPSILON
 
 
@@ -53,6 +53,12 @@ class Explosion:
                 continue
             distance = math.hypot(candidate.x - self.x, candidate.y - self.y)
             if distance <= self.radius + DISTANCE_EPSILON:
-                candidate.take_damage(self.damage)
+                if isinstance(candidate, Enemy):
+                    candidate.take_damage(
+                        self.damage,
+                        source=DAMAGE_SOURCE_EXPLOSION,
+                    )
+                else:
+                    candidate.take_damage(self.damage)
                 affected.append(candidate)
         return tuple(affected)

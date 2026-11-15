@@ -295,6 +295,57 @@ class BattleSceneRewardTests(unittest.TestCase):
         self.assertEqual(len(self.scene.health_pickups), 2)
         self.assertEqual(len(self.scene.pickups), 1)
 
+    def test_explosive_self_destruct_does_not_drop_items(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+        enemy = self.scene._spawn_wave_enemy(
+            EnemyType.EXPLOSIVE,
+            self.scene.player.x,
+            self.scene.player.y,
+        )
+
+        self.scene.update(0.0)
+
+        self.assertFalse(enemy.is_alive)
+        self.assertEqual(self.scene.health_pickups, [])
+        self.assertEqual(self.scene.pickups, [])
+
+    def test_explosive_killed_by_player_still_drops_items(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+        enemy = self.scene._spawn_wave_enemy(
+            EnemyType.EXPLOSIVE,
+            self.scene.player.x + 300,
+            self.scene.player.y,
+        )
+
+        enemy.take_damage(enemy.hp)
+        self.scene.update(0.0)
+
+        self.assertEqual(len(self.scene.health_pickups), 1)
+
+    def test_enemy_killed_by_an_explosion_does_not_drop_items(self):
+        self.scene.player.hp = 50
+        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+        victim = self.scene._spawn_wave_enemy(
+            EnemyType.BASIC,
+            self.scene.player.x + 300,
+            self.scene.player.y,
+        )
+        victim.hp = 10
+        bomber = self.scene._spawn_wave_enemy(
+            EnemyType.EXPLOSIVE,
+            victim.x + 10,
+            victim.y,
+        )
+
+        bomber.take_damage(bomber.hp)
+        self.scene.update(0.0)
+
+        self.assertFalse(victim.is_alive)
+        self.assertEqual(len(self.scene.health_pickups), 1)
+        self.assertEqual(self.scene.pickups, [])
+
     def test_walking_over_a_magazine_adds_reserve_ammo(self):
         self.scene.gun.magazine_ammo = 2
         self.scene.gun.reserve_ammo = 40

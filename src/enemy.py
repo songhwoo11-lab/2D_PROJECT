@@ -11,6 +11,9 @@ from hp_trail import HpTrail
 
 ENEMY_DEFAULT_RADIUS = 48.0
 ENEMY_HP_TRAIL_COLOR = (255, 170, 70)
+# 폭발로 인한 피해처럼 플레이어가 직접 가하지 않은 피해의 출처.
+# 이 출처로 쓰러진 적은 드롭 아이템을 남기지 않는다.
+DAMAGE_SOURCE_EXPLOSION = "explosion"
 
 
 class EnemyType(Enum):
@@ -104,6 +107,8 @@ class Enemy:
         self._screen_position = None
         self._attack_cooldown_remaining = 0.0
         self._uses_spatial_collision = True
+        # 마지막으로 피해를 준 출처. None이면 플레이어 공격으로 간주한다.
+        self.last_damage_source = None
 
     @property
     def is_alive(self):
@@ -123,10 +128,13 @@ class Enemy:
     def reset_hp_trail(self):
         self.hp_trail.reset(self.hp, self.max_hp)
 
-    def take_damage(self, amount):
+    def take_damage(self, amount, source=None):
         if amount < 0:
             raise ValueError("damage must be non-negative")
+        was_alive = self.is_alive
         self.hp = max(0.0, self.hp - amount)
+        if amount > 0 and was_alive:
+            self.last_damage_source = source
         return not self.is_alive
 
     def collides_with(self, other):

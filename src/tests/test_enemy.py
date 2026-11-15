@@ -1,6 +1,11 @@
 import unittest
 
-from enemy import ENEMY_STATS, Enemy, EnemyType
+from enemy import (
+    DAMAGE_SOURCE_EXPLOSION,
+    ENEMY_STATS,
+    Enemy,
+    EnemyType,
+)
 
 
 class EnemyStatScalingTests(unittest.TestCase):
@@ -79,6 +84,37 @@ class EnemyHpTrailTests(unittest.TestCase):
         bar_width = enemy.radius * 2
         self.assertAlmostEqual(trailing[2], bar_left + bar_width)
         self.assertAlmostEqual(current[2], bar_left + bar_width * 0.5)
+
+
+class EnemyDamageSourceTests(unittest.TestCase):
+    def _enemy(self):
+        return Enemy(0.0, 0.0, ENEMY_STATS[EnemyType.BASIC])
+
+    def test_default_damage_source_is_none(self):
+        self.assertIsNone(self._enemy().last_damage_source)
+
+    def test_damage_source_is_recorded(self):
+        enemy = self._enemy()
+
+        enemy.take_damage(5, source=DAMAGE_SOURCE_EXPLOSION)
+
+        self.assertEqual(enemy.last_damage_source, DAMAGE_SOURCE_EXPLOSION)
+
+    def test_zero_damage_keeps_the_previous_source(self):
+        enemy = self._enemy()
+        enemy.take_damage(5, source=DAMAGE_SOURCE_EXPLOSION)
+
+        enemy.take_damage(0)
+
+        self.assertEqual(enemy.last_damage_source, DAMAGE_SOURCE_EXPLOSION)
+
+    def test_damage_after_death_keeps_the_lethal_source(self):
+        enemy = self._enemy()
+        enemy.take_damage(enemy.hp, source=DAMAGE_SOURCE_EXPLOSION)
+
+        enemy.take_damage(5)
+
+        self.assertEqual(enemy.last_damage_source, DAMAGE_SOURCE_EXPLOSION)
 
 
 if __name__ == "__main__":

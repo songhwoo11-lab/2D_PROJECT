@@ -7,7 +7,12 @@ import random
 from arrow import Arrow
 import battle_record
 from bullet import Bullet
-from enemy import ENEMY_STATS, Enemy, EnemyType
+from enemy import (
+    DAMAGE_SOURCE_EXPLOSION,
+    ENEMY_STATS,
+    Enemy,
+    EnemyType,
+)
 from enemy_types import AssassinEnemy, create_enemy
 import game_world
 from game_camera import Camera
@@ -212,6 +217,8 @@ class BattleScene:
 
     def _reward_enemy_defeat(self, enemy):
         self.coins += roll_coin_reward(self.random_source)
+        if getattr(enemy, "last_damage_source", None) == DAMAGE_SOURCE_EXPLOSION:
+            return
         if self._drop_health_pickup(enemy):
             return
         if roll_magazine_drop(self.gun.total_ammo, self.random_source):

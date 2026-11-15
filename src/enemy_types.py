@@ -6,7 +6,7 @@ import pico2d
 
 from arrow import Arrow
 import game_world
-from enemy import ENEMY_STATS, Enemy, EnemyType
+from enemy import ENEMY_STATS, DAMAGE_SOURCE_EXPLOSION, Enemy, EnemyType
 from explosion import Explosion, ExplosionTarget
 from game_config import DISTANCE_EPSILON
 
@@ -76,9 +76,9 @@ class AssassinEnemy(Enemy):
             return 255
         return 0
 
-    def take_damage(self, amount):
+    def take_damage(self, amount, source=None):
         was_alive = self.is_alive
-        defeated = super().take_damage(amount)
+        defeated = super().take_damage(amount, source=source)
         if amount > 0 and was_alive:
             self._hit_flash_remaining = self.HIT_FLASH_DURATION_SECONDS
         return defeated
@@ -293,11 +293,14 @@ class ExplosiveEnemy(Enemy):
                 ExplosionTarget.PLAYER_ONLY,
                 owner=self,
             ).apply(player=self.player)
-            super().take_damage(self.hp)
+            super().take_damage(
+                self.hp,
+                source=DAMAGE_SOURCE_EXPLOSION,
+            )
 
-    def take_damage(self, amount):
+    def take_damage(self, amount, source=None):
         was_alive = self.is_alive
-        defeated = super().take_damage(amount)
+        defeated = super().take_damage(amount, source=source)
         if was_alive and defeated:
             enemies = (
                 obj
