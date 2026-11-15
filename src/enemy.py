@@ -5,11 +5,10 @@ from enum import Enum
 import math
 
 import game_world
-from game_config import DISTANCE_EPSILON
+from game_config import DISTANCE_EPSILON, KMH_TO_PIXELS_PER_SECOND
 from hp_trail import HpTrail
 
 
-ENEMY_DEFAULT_MOVE_SPEED = 140.0
 ENEMY_DEFAULT_RADIUS = 48.0
 ENEMY_HP_TRAIL_COLOR = (255, 170, 70)
 
@@ -39,7 +38,7 @@ ENEMY_STATS = {
         20,
         8,
         0.8,
-        ENEMY_DEFAULT_MOVE_SPEED * 1.3,
+        10 * KMH_TO_PIXELS_PER_SECOND,  # 10 km/h
         ENEMY_DEFAULT_RADIUS,
     ),
     EnemyType.EXPLOSIVE: EnemyStats(
@@ -47,7 +46,7 @@ ENEMY_STATS = {
         80,
         15,
         1.5,
-        ENEMY_DEFAULT_MOVE_SPEED * 1.8,
+        12 * KMH_TO_PIXELS_PER_SECOND,  # 12 km/h
         ENEMY_DEFAULT_RADIUS,
         attack_range=100,
     ),
@@ -56,7 +55,7 @@ ENEMY_STATS = {
         120,
         5,
         2.0,
-        ENEMY_DEFAULT_MOVE_SPEED,
+        5 * KMH_TO_PIXELS_PER_SECOND,  # 5 km/h
         ENEMY_DEFAULT_RADIUS * 2,
     ),
     EnemyType.ASSASSIN: EnemyStats(
@@ -64,7 +63,7 @@ ENEMY_STATS = {
         10,
         10,
         0.5,
-        ENEMY_DEFAULT_MOVE_SPEED * 2,
+        15 * KMH_TO_PIXELS_PER_SECOND,  # 15 km/h
         ENEMY_DEFAULT_RADIUS,
     ),
     EnemyType.ARCHER: EnemyStats(
@@ -72,7 +71,7 @@ ENEMY_STATS = {
         50,
         10,
         1.2,
-        ENEMY_DEFAULT_MOVE_SPEED,
+        8 * KMH_TO_PIXELS_PER_SECOND,  # 8 km/h
         ENEMY_DEFAULT_RADIUS,
         attack_range=600,
     ),
