@@ -62,6 +62,10 @@ GUN_OVERHEAT_TINT = (80, 140, 255)
 # 색조가 없는 기본 상태 및 그리기 후 복원 값
 GUN_WHITE_TINT = (255, 255, 255)
 
+# 발사 반동 애니메이션: 발사 순간 총구 반대 방향으로 밀렸다가 복귀한다.
+GUN_RECOIL_DISTANCE = 18.0
+GUN_RECOIL_RECOVERY_SECONDS = 0.18
+
 PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
 RESULT_TITLES = {
     "victory": "VICTORY",
@@ -141,6 +145,7 @@ class BattleScene:
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.mouse_held = False
         self._mouse_pressed = False
+        self.gun_recoil_remaining = 0.0
         self.debug_mode = False
         self.show_attack_ranges = False
         self.show_hitboxes = False
@@ -491,6 +496,7 @@ class BattleScene:
         self.keys.clear()
         self.mouse_held = False
         self._mouse_pressed = False
+        self.gun_recoil_remaining = 0.0
         self.show_attack_ranges = False
         self.show_hitboxes = False
         self.show_assassin_reveal_range = False
@@ -524,6 +530,7 @@ class BattleScene:
             if remaining > delta_time
         ]
         self.gun.update(delta_time)
+        self._update_gun_recoil(delta_time)
         move_x = int("d" in self.keys) - int("a" in self.keys)
         move_y = int("w" in self.keys) - int("s" in self.keys)
         self.player.set_movement(move_x, move_y)
@@ -555,6 +562,7 @@ class BattleScene:
         )
         self._mouse_pressed = False
         if fired:
+            self.gun_recoil_remaining = GUN_RECOIL_RECOVERY_SECONDS
             if self.bullet_image is not None:
                 muzzle_offset = PLAYER_RADIUS + 28
                 game_world.add_object(
@@ -578,6 +586,22 @@ class BattleScene:
         )
         if self.waves_cleared:
             self._finish(BattleResult.VICTORY)
+
+    def _update_gun_recoil(self, delta_time):
+        if self.gun_recoil_remaining <= 0.0:
+            return
+        self.gun_recoil_remaining = max(
+            0.0,
+            self.gun_recoil_remaining - delta_time,
+        )
+
+    def _gun_recoil_offset(self):
+        """Return how far the gun is currently pushed back from its rest pose."""
+        if self.gun_recoil_remaining <= 0.0:
+            return 0.0
+        progress = self.gun_recoil_remaining / GUN_RECOIL_RECOVERY_SECONDS
+        progress = min(max(progress, 0.0), 1.0)
+        return GUN_RECOIL_DISTANCE * progress * progress
 
     def _record_shot_feedback(self, bullets):
         result_labels = {
@@ -678,15 +702,18 @@ class BattleScene:
             self._draw_result_screen(draw_rectangle)
 
     def _draw_gun(self):
-        """Draw the gun, reddening it as the temperature nears the limit."""
+        """Draw the gun with its recoil offset and temperature tint."""
         gun_offset = PLAYER_RADIUS * 0.6
+        recoil_offset = self._gun_recoil_offset()
         gun_x = (
             self.player.screen_position[0]
             + math.cos(self.player.aim_angle) * gun_offset
+            - math.cos(self.player.aim_angle) * recoil_offset
         )
         gun_y = (
             self.player.screen_position[1]
             + math.sin(self.player.aim_angle) * gun_offset
+            - math.sin(self.player.aim_angle) * recoil_offset
         )
         gun_angle = self.player.aim_angle
         flip = ""

@@ -1,3 +1,4 @@
+import math
 import random
 import unittest
 from unittest import mock
@@ -8,7 +9,9 @@ from enemy import Enemy, EnemyType
 from game_config import (
     AIM_CURSOR_RADIUS,
     PICKUP_DRAW_SIZE,
+    PLAYER_RADIUS,
     SCREEN_HEIGHT,
+    SCREEN_WIDTH,
     WORLD_HEIGHT,
     WORLD_WIDTH,
 )
@@ -943,6 +946,127 @@ class BattleSceneGunTintTests(unittest.TestCase):
 
         set_color_mod.assert_not_called()
         self.assertEqual(len(textureless.composite_draws), 1)
+
+
+class BattleSceneGunRecoilTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+        self.scene.gun_image = FakeGunImage()
+        self.scene.player.image = FakeImage()
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _aim_right_and_fire(self):
+        self.scene.mouse_screen_x = SCREEN_WIDTH / 2 + 100
+        self.scene.mouse_screen_y = SCREEN_HEIGHT / 2
+        self.scene.mouse_down("left")
+        self.scene.update(0.0)
+
+    def test_firing_starts_the_recoil_animation(self):
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
+
+        self._aim_right_and_fire()
+
+        self.assertEqual(
+            self.scene.gun_recoil_remaining,
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS,
+        )
+
+    def test_recoil_offset_shrinks_as_the_timer_runs_out(self):
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+        self.assertAlmostEqual(
+            self.scene._gun_recoil_offset(),
+            battle_scene.GUN_RECOIL_DISTANCE,
+        )
+
+        self.scene._update_gun_recoil(
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS / 2
+        )
+
+        self.assertAlmostEqual(
+            self.scene.gun_recoil_remaining,
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS / 2,
+        )
+        self.assertAlmostEqual(
+            self.scene._gun_recoil_offset(),
+            battle_scene.GUN_RECOIL_DISTANCE * 0.25,
+        )
+
+    def test_recoil_returns_to_rest_after_the_recovery_time(self):
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+
+        self.scene._update_gun_recoil(
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
+        self.assertEqual(self.scene._gun_recoil_offset(), 0.0)
+
+    def test_recoil_timer_does_not_go_negative(self):
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+
+        self.scene._update_gun_recoil(
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS * 2
+        )
+
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
+
+    def test_gun_has_no_recoil_offset_before_firing(self):
+        self.assertEqual(self.scene._gun_recoil_offset(), 0.0)
+
+    def test_recoil_pushes_the_gun_away_from_the_muzzle(self):
+        self.scene.gun_image = FakeGunImage(texture=None)
+        self.scene.player.set_screen_position(500, 500)
+        self.scene.player.aim_angle = 0.0
+        self.scene._draw_gun()
+        rest_x, rest_y = self.scene.gun_image.composite_draws[-1][2:4]
+
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+        self.scene._draw_gun()
+        recoil_x, recoil_y = self.scene.gun_image.composite_draws[-1][2:4]
+
+        self.assertAlmostEqual(
+            rest_x - recoil_x,
+            battle_scene.GUN_RECOIL_DISTANCE,
+        )
+        self.assertAlmostEqual(recoil_y, rest_y)
+
+    def test_recoil_pushes_the_gun_backwards_for_any_aim_direction(self):
+        self.scene.gun_image = FakeGunImage(texture=None)
+        self.scene.player.set_screen_position(500, 500)
+        self.scene.player.aim_angle = math.pi / 2
+        self.scene._draw_gun()
+        rest_x, rest_y = self.scene.gun_image.composite_draws[-1][2:4]
+
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+        self.scene._draw_gun()
+        recoil_x, recoil_y = self.scene.gun_image.composite_draws[-1][2:4]
+
+        self.assertAlmostEqual(recoil_x, rest_x)
+        self.assertAlmostEqual(
+            rest_y - recoil_y,
+            battle_scene.GUN_RECOIL_DISTANCE,
+        )
+
+    def test_reset_map_clears_the_recoil(self):
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+
+        self.scene.reset_map()
+
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
 
 
 class BattleSceneRecordTests(unittest.TestCase):
