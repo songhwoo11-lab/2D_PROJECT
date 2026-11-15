@@ -826,42 +826,99 @@ class BattleSceneGunTintTests(unittest.TestCase):
         with mock.patch.object(hud, "_measure_text_width", return_value=60):
             self.scene.draw(lambda *args: None)
 
-    def test_overheated_gun_is_tinted_red_and_then_restored(self):
-        self.scene.gun.overheated = True
+    def _draw_with_calls(self):
         calls = []
-
         with mock.patch.object(
             battle_scene.pico2d,
             "SDL_SetTextureColorMod",
             side_effect=lambda *args: calls.append(args),
         ):
             self._draw_scene()
+        return calls
+
+    def test_overheated_gun_is_rendered_blue(self):
+        self.scene.gun.overheated = True
+        self.scene.gun.temperature = self.scene.gun.temperature_limit
+
+        calls = self._draw_with_calls()
 
         self.assertEqual(
             calls,
             [
-                ("gun-texture", 255, 80, 80),
+                ("gun-texture", *battle_scene.GUN_OVERHEAT_TINT),
                 ("gun-texture", 255, 255, 255),
             ],
         )
         self.assertEqual(len(self.gun_image.composite_draws), 1)
 
-    def test_gun_is_not_tinted_while_not_overheated(self):
+    def test_gun_below_the_heat_range_is_rendered_white(self):
         self.scene.gun.overheated = False
+        self.scene.gun.temperature = (
+            self.scene.gun.temperature_limit - battle_scene.GUN_HEAT_TINT_RANGE - 10
+        )
 
-        with mock.patch.object(
-            battle_scene.pico2d,
-            "SDL_SetTextureColorMod",
-        ) as set_color_mod:
-            self._draw_scene()
+        calls = self._draw_with_calls()
 
-        set_color_mod.assert_not_called()
-        self.assertEqual(len(self.gun_image.composite_draws), 1)
+        self.assertEqual(calls[0], ("gun-texture", 255, 255, 255))
+
+    def test_gun_is_white_at_the_start_of_the_heat_range(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = (
+            self.scene.gun.temperature_limit - battle_scene.GUN_HEAT_TINT_RANGE
+        )
+
+        calls = self._draw_with_calls()
+
+        self.assertEqual(calls[0], ("gun-texture", 255, 255, 255))
+
+    def test_gun_reddens_gradually_as_the_temperature_rises(self):
+        colors = []
+        for degrees_below_limit in (100, 75, 50, 25, 1):
+            self.scene.gun.overheated = False
+            self.scene.gun.temperature = (
+                self.scene.gun.temperature_limit - degrees_below_limit
+            )
+            colors.append(self.scene._gun_tint_color())
+
+        self.assertEqual(colors[0], (255, 255, 255))
+        for color in colors:
+            self.assertEqual(color[0], 255)
+        greens = [color[1] for color in colors]
+        blues = [color[2] for color in colors]
+        self.assertEqual(greens, sorted(greens, reverse=True))
+        self.assertEqual(blues, sorted(blues, reverse=True))
+        self.assertGreater(greens[0], greens[-1])
+        self.assertLess(greens[-1], 100)
+
+    def test_overheat_switches_the_tint_to_blue(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = self.scene.gun.temperature_limit - 1
+        self.assertNotEqual(
+            self.scene._gun_tint_color(),
+            battle_scene.GUN_OVERHEAT_TINT,
+        )
+
+        self.scene.gun.overheated = True
+
+        self.assertEqual(
+            self.scene._gun_tint_color(),
+            battle_scene.GUN_OVERHEAT_TINT,
+        )
+
+    def test_hot_gun_tint_is_restored_after_drawing(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = self.scene.gun.temperature_limit - 1
+
+        calls = self._draw_with_calls()
+
+        self.assertNotEqual(calls[0], ("gun-texture", 255, 255, 255))
+        self.assertEqual(calls[-1], ("gun-texture", 255, 255, 255))
 
     def test_tint_is_restored_even_if_drawing_fails(self):
-        self.scene.gun.overheated = True
-        calls = []
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = self.scene.gun.temperature_limit - 1
         self.gun_image.composite_draw = mock.Mock(side_effect=RuntimeError("boom"))
+        calls = []
 
         with mock.patch.object(
             battle_scene.pico2d,

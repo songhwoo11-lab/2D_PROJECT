@@ -53,9 +53,14 @@ SHOT_FEEDBACK_FONT_SIZE = 48
 WAVE_BANNER_SECONDS = 2.5
 WAVE_STRENGTH_BANNER_SECONDS = 3.5
 
-# 과열 중 총 스프라이트에 적용하는 색조와 복원 값
-GUN_OVERHEAT_TINT = (255, 80, 80)
-GUN_DEFAULT_TINT = (255, 255, 255)
+# 총 온도가 한계 온도보다 이 값만큼 낮아지는 시점부터 서서히 붉게 물든다.
+GUN_HEAT_TINT_RANGE = 100.0
+# 한계 온도에 가까워질수록 이 색조에 가까워진다.
+GUN_HEAT_TINT_COLOR = (255, 80, 80)
+# 과열 상태(사격 차단 중)에서 적용하는 색조
+GUN_OVERHEAT_TINT = (80, 140, 255)
+# 색조가 없는 기본 상태 및 그리기 후 복원 값
+GUN_WHITE_TINT = (255, 255, 255)
 
 PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
 RESULT_TITLES = {
@@ -673,7 +678,7 @@ class BattleScene:
             self._draw_result_screen(draw_rectangle)
 
     def _draw_gun(self):
-        """Draw the gun, tinting it red while the weapon is overheated."""
+        """Draw the gun, reddening it as the temperature nears the limit."""
         gun_offset = PLAYER_RADIUS * 0.6
         gun_x = (
             self.player.screen_position[0]
@@ -693,9 +698,8 @@ class BattleScene:
             flip = "h"
 
         texture = getattr(self.gun_image, "texture", None)
-        tinted = self.gun.overheated and texture is not None
-        if tinted:
-            pico2d.SDL_SetTextureColorMod(texture, *GUN_OVERHEAT_TINT)
+        if texture is not None:
+            pico2d.SDL_SetTextureColorMod(texture, *self._gun_tint_color())
         try:
             self.gun_image.composite_draw(
                 gun_angle,
@@ -706,8 +710,26 @@ class BattleScene:
                 72,
             )
         finally:
-            if tinted:
-                pico2d.SDL_SetTextureColorMod(texture, *GUN_DEFAULT_TINT)
+            if texture is not None:
+                pico2d.SDL_SetTextureColorMod(texture, *GUN_WHITE_TINT)
+
+    def _gun_tint_color(self):
+        """Return the gun tint for the current temperature.
+
+        Overheating always uses blue. Otherwise the sprite reddens gradually
+        over the last ``GUN_HEAT_TINT_RANGE`` degrees below the limit.
+        """
+        if self.gun.overheated:
+            return GUN_OVERHEAT_TINT
+        degrees_below_limit = self.gun.temperature_limit - self.gun.temperature
+        if degrees_below_limit >= GUN_HEAT_TINT_RANGE:
+            return GUN_WHITE_TINT
+        progress = (GUN_HEAT_TINT_RANGE - degrees_below_limit) / GUN_HEAT_TINT_RANGE
+        progress = min(max(progress, 0.0), 1.0)
+        return tuple(
+            round(255 + (component - 255) * progress)
+            for component in GUN_HEAT_TINT_COLOR
+        )
 
     def _draw_spawn_warnings(self):
         if self.enemy_draw_circle is None:
