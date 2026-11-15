@@ -5,12 +5,12 @@ from enum import Enum
 import math
 
 import game_world
-from game_config import CHARACTER_SCALE, DISTANCE_EPSILON, UI_SCALE
+from game_config import DISTANCE_EPSILON
 from hp_trail import HpTrail
 
 
-ENEMY_DEFAULT_MOVE_SPEED = 70.0 * UI_SCALE
-ENEMY_DEFAULT_RADIUS = 16.0 * UI_SCALE * CHARACTER_SCALE
+ENEMY_DEFAULT_MOVE_SPEED = 140.0
+ENEMY_DEFAULT_RADIUS = 48.0
 ENEMY_HP_TRAIL_COLOR = (255, 170, 70)
 
 
@@ -49,7 +49,7 @@ ENEMY_STATS = {
         1.5,
         ENEMY_DEFAULT_MOVE_SPEED * 1.8,
         ENEMY_DEFAULT_RADIUS,
-        attack_range=50 * UI_SCALE,
+        attack_range=100,
     ),
     EnemyType.TANKER: EnemyStats(
         "tanker",
@@ -74,7 +74,7 @@ ENEMY_STATS = {
         1.2,
         ENEMY_DEFAULT_MOVE_SPEED,
         ENEMY_DEFAULT_RADIUS,
-        attack_range=300 * UI_SCALE,
+        attack_range=600,
     ),
 }
 
@@ -274,9 +274,9 @@ class Enemy:
 
     def draw_health_bar(self, x, y, alpha=255):
         bar_width = self.radius * 2
-        bar_height = 4 * UI_SCALE
+        bar_height = 8
         bar_left = x - self.radius
-        bar_bottom = y + self.radius + 3 * UI_SCALE
+        bar_bottom = y + self.radius + 6
         self.draw_rectangle(
             bar_left,
             bar_bottom,
