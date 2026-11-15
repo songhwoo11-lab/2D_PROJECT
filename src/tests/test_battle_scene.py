@@ -1,13 +1,17 @@
+import math
 import random
 import unittest
 from unittest import mock
 
 from battle_scene import BattleResult, BattleScene
+import battle_scene
 from enemy import Enemy, EnemyType
 from game_config import (
     AIM_CURSOR_RADIUS,
     PICKUP_DRAW_SIZE,
+    PLAYER_RADIUS,
     SCREEN_HEIGHT,
+    SCREEN_WIDTH,
     WORLD_HEIGHT,
     WORLD_WIDTH,
 )
@@ -38,6 +42,16 @@ class FakeImage:
 
     def draw(self, x, y, w=None, h=None):
         self.draws.append((x, y, w, h))
+
+
+class FakeGunImage(FakeImage):
+    def __init__(self, texture="gun-texture"):
+        super().__init__()
+        self.texture = texture
+        self.composite_draws = []
+
+    def composite_draw(self, rad, flip, x, y, w=None, h=None):
+        self.composite_draws.append((rad, flip, x, y, w, h))
 
 
 class FakeFont:
@@ -860,6 +874,260 @@ class BattleSceneBackgroundTests(unittest.TestCase):
         x, y, _, _ = self.scene.background.draws[0]
         self.assertEqual(x, WORLD_WIDTH / 2 - 300.0)
         self.assertEqual(y, WORLD_HEIGHT / 2 - 200.0)
+
+
+class BattleSceneGunTintTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+        self.scene.player.image = FakeImage()
+        self.gun_image = FakeGunImage()
+        self.scene.gun_image = self.gun_image
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _draw_scene(self):
+        with mock.patch.object(hud, "_measure_text_width", return_value=60):
+            self.scene.draw(lambda *args: None)
+
+    def _draw_with_calls(self):
+        calls = []
+        with mock.patch.object(
+            battle_scene.pico2d,
+            "SDL_SetTextureColorMod",
+            side_effect=lambda *args: calls.append(args),
+        ):
+            self._draw_scene()
+        return calls
+
+    def test_overheated_gun_is_rendered_blue(self):
+        self.scene.gun.overheated = True
+        self.scene.gun.temperature = self.scene.gun.temperature_limit
+
+        calls = self._draw_with_calls()
+
+        self.assertEqual(
+            calls,
+            [
+                ("gun-texture", *battle_scene.GUN_OVERHEAT_TINT),
+                ("gun-texture", 255, 255, 255),
+            ],
+        )
+        self.assertEqual(len(self.gun_image.composite_draws), 1)
+
+    def test_gun_below_the_heat_range_is_rendered_white(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = (
+            self.scene.gun.temperature_limit - battle_scene.GUN_HEAT_TINT_RANGE - 10
+        )
+
+        calls = self._draw_with_calls()
+
+        self.assertEqual(calls[0], ("gun-texture", 255, 255, 255))
+
+    def test_gun_is_white_at_the_start_of_the_heat_range(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = (
+            self.scene.gun.temperature_limit - battle_scene.GUN_HEAT_TINT_RANGE
+        )
+
+        calls = self._draw_with_calls()
+
+        self.assertEqual(calls[0], ("gun-texture", 255, 255, 255))
+
+    def test_gun_reddens_gradually_as_the_temperature_rises(self):
+        colors = []
+        for degrees_below_limit in (100, 75, 50, 25, 1):
+            self.scene.gun.overheated = False
+            self.scene.gun.temperature = (
+                self.scene.gun.temperature_limit - degrees_below_limit
+            )
+            colors.append(self.scene._gun_tint_color())
+
+        self.assertEqual(colors[0], (255, 255, 255))
+        for color in colors:
+            self.assertEqual(color[0], 255)
+        greens = [color[1] for color in colors]
+        blues = [color[2] for color in colors]
+        self.assertEqual(greens, sorted(greens, reverse=True))
+        self.assertEqual(blues, sorted(blues, reverse=True))
+        self.assertGreater(greens[0], greens[-1])
+        self.assertLess(greens[-1], 100)
+
+    def test_overheat_switches_the_tint_to_blue(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = self.scene.gun.temperature_limit - 1
+        self.assertNotEqual(
+            self.scene._gun_tint_color(),
+            battle_scene.GUN_OVERHEAT_TINT,
+        )
+
+        self.scene.gun.overheated = True
+
+        self.assertEqual(
+            self.scene._gun_tint_color(),
+            battle_scene.GUN_OVERHEAT_TINT,
+        )
+
+    def test_hot_gun_tint_is_restored_after_drawing(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = self.scene.gun.temperature_limit - 1
+
+        calls = self._draw_with_calls()
+
+        self.assertNotEqual(calls[0], ("gun-texture", 255, 255, 255))
+        self.assertEqual(calls[-1], ("gun-texture", 255, 255, 255))
+
+    def test_tint_is_restored_even_if_drawing_fails(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = self.scene.gun.temperature_limit - 1
+        self.gun_image.composite_draw = mock.Mock(side_effect=RuntimeError("boom"))
+        calls = []
+
+        with mock.patch.object(
+            battle_scene.pico2d,
+            "SDL_SetTextureColorMod",
+            side_effect=lambda *args: calls.append(args),
+        ):
+            with self.assertRaises(RuntimeError):
+                self._draw_scene()
+
+        self.assertEqual(calls[-1], ("gun-texture", 255, 255, 255))
+
+    def test_gun_without_texture_draws_without_tinting(self):
+        self.scene.gun.overheated = True
+        textureless = FakeGunImage(texture=None)
+        self.scene.gun_image = textureless
+
+        with mock.patch.object(
+            battle_scene.pico2d,
+            "SDL_SetTextureColorMod",
+        ) as set_color_mod:
+            self._draw_scene()
+
+        set_color_mod.assert_not_called()
+        self.assertEqual(len(textureless.composite_draws), 1)
+
+
+class BattleSceneGunRecoilTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+        self.scene.gun_image = FakeGunImage()
+        self.scene.player.image = FakeImage()
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _aim_right_and_fire(self):
+        self.scene.mouse_screen_x = SCREEN_WIDTH / 2 + 100
+        self.scene.mouse_screen_y = SCREEN_HEIGHT / 2
+        self.scene.mouse_down("left")
+        self.scene.update(0.0)
+
+    def test_firing_starts_the_recoil_animation(self):
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
+
+        self._aim_right_and_fire()
+
+        self.assertEqual(
+            self.scene.gun_recoil_remaining,
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS,
+        )
+
+    def test_recoil_offset_shrinks_as_the_timer_runs_out(self):
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+        self.assertAlmostEqual(
+            self.scene._gun_recoil_offset(),
+            battle_scene.GUN_RECOIL_DISTANCE,
+        )
+
+        self.scene._update_gun_recoil(
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS / 2
+        )
+
+        self.assertAlmostEqual(
+            self.scene.gun_recoil_remaining,
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS / 2,
+        )
+        self.assertAlmostEqual(
+            self.scene._gun_recoil_offset(),
+            battle_scene.GUN_RECOIL_DISTANCE * 0.25,
+        )
+
+    def test_recoil_returns_to_rest_after_the_recovery_time(self):
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+
+        self.scene._update_gun_recoil(
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
+        self.assertEqual(self.scene._gun_recoil_offset(), 0.0)
+
+    def test_recoil_timer_does_not_go_negative(self):
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+
+        self.scene._update_gun_recoil(
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS * 2
+        )
+
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
+
+    def test_gun_has_no_recoil_offset_before_firing(self):
+        self.assertEqual(self.scene._gun_recoil_offset(), 0.0)
+
+    def test_recoil_pushes_the_gun_away_from_the_muzzle(self):
+        self.scene.gun_image = FakeGunImage(texture=None)
+        self.scene.player.set_screen_position(500, 500)
+        self.scene.player.aim_angle = 0.0
+        self.scene._draw_gun()
+        rest_x, rest_y = self.scene.gun_image.composite_draws[-1][2:4]
+
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+        self.scene._draw_gun()
+        recoil_x, recoil_y = self.scene.gun_image.composite_draws[-1][2:4]
+
+        self.assertAlmostEqual(
+            rest_x - recoil_x,
+            battle_scene.GUN_RECOIL_DISTANCE,
+        )
+        self.assertAlmostEqual(recoil_y, rest_y)
+
+    def test_recoil_pushes_the_gun_backwards_for_any_aim_direction(self):
+        self.scene.gun_image = FakeGunImage(texture=None)
+        self.scene.player.set_screen_position(500, 500)
+        self.scene.player.aim_angle = math.pi / 2
+        self.scene._draw_gun()
+        rest_x, rest_y = self.scene.gun_image.composite_draws[-1][2:4]
+
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+        self.scene._draw_gun()
+        recoil_x, recoil_y = self.scene.gun_image.composite_draws[-1][2:4]
+
+        self.assertAlmostEqual(recoil_x, rest_x)
+        self.assertAlmostEqual(
+            rest_y - recoil_y,
+            battle_scene.GUN_RECOIL_DISTANCE,
+        )
+
+    def test_reset_map_clears_the_recoil(self):
+        self.scene.gun_recoil_remaining = (
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS
+        )
+
+        self.scene.reset_map()
+
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
 
 
 class BattleSceneRecordTests(unittest.TestCase):

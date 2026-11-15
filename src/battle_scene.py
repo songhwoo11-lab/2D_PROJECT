@@ -4,6 +4,8 @@ from enum import Enum
 import math
 import random
 
+import pico2d
+
 from arrow import Arrow
 import battle_record
 from bullet import Bullet
@@ -55,6 +57,19 @@ SHOT_FEEDBACK_COLOR = (255, 255, 255)
 SHOT_FEEDBACK_FONT_SIZE = 48
 WAVE_BANNER_SECONDS = 2.5
 WAVE_STRENGTH_BANNER_SECONDS = 3.5
+
+# 총 온도가 한계 온도보다 이 값만큼 낮아지는 시점부터 서서히 붉게 물든다.
+GUN_HEAT_TINT_RANGE = 100.0
+# 한계 온도에 가까워질수록 이 색조에 가까워진다.
+GUN_HEAT_TINT_COLOR = (255, 80, 80)
+# 과열 상태(사격 차단 중)에서 적용하는 색조
+GUN_OVERHEAT_TINT = (80, 140, 255)
+# 색조가 없는 기본 상태 및 그리기 후 복원 값
+GUN_WHITE_TINT = (255, 255, 255)
+
+# 발사 반동 애니메이션: 발사 순간 총구 반대 방향으로 밀렸다가 복귀한다.
+GUN_RECOIL_DISTANCE = 18.0
+GUN_RECOIL_RECOVERY_SECONDS = 0.18
 
 PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
 RESULT_TITLES = {
@@ -135,6 +150,7 @@ class BattleScene:
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.mouse_held = False
         self._mouse_pressed = False
+        self.gun_recoil_remaining = 0.0
         self.debug_mode = False
         self.show_attack_ranges = False
         self.show_hitboxes = False
@@ -487,6 +503,7 @@ class BattleScene:
         self.keys.clear()
         self.mouse_held = False
         self._mouse_pressed = False
+        self.gun_recoil_remaining = 0.0
         self.show_attack_ranges = False
         self.show_hitboxes = False
         self.show_assassin_reveal_range = False
@@ -520,6 +537,7 @@ class BattleScene:
             if remaining > delta_time
         ]
         self.gun.update(delta_time)
+        self._update_gun_recoil(delta_time)
         move_x = int("d" in self.keys) - int("a" in self.keys)
         move_y = int("w" in self.keys) - int("s" in self.keys)
         self.player.set_movement(move_x, move_y)
@@ -551,6 +569,7 @@ class BattleScene:
         )
         self._mouse_pressed = False
         if fired:
+            self.gun_recoil_remaining = GUN_RECOIL_RECOVERY_SECONDS
             if self.bullet_image is not None:
                 muzzle_offset = PLAYER_RADIUS + 28
                 game_world.add_object(
@@ -574,6 +593,22 @@ class BattleScene:
         )
         if self.waves_cleared:
             self._finish(BattleResult.VICTORY)
+
+    def _update_gun_recoil(self, delta_time):
+        if self.gun_recoil_remaining <= 0.0:
+            return
+        self.gun_recoil_remaining = max(
+            0.0,
+            self.gun_recoil_remaining - delta_time,
+        )
+
+    def _gun_recoil_offset(self):
+        """Return how far the gun is currently pushed back from its rest pose."""
+        if self.gun_recoil_remaining <= 0.0:
+            return 0.0
+        progress = self.gun_recoil_remaining / GUN_RECOIL_RECOVERY_SECONDS
+        progress = min(max(progress, 0.0), 1.0)
+        return GUN_RECOIL_DISTANCE * progress * progress
 
     def _record_shot_feedback(self, bullets):
         result_labels = {
@@ -652,31 +687,7 @@ class BattleScene:
         ):
             self._draw_enemy_debug_circles()
         if self.gun_image is not None:
-            gun_offset = PLAYER_RADIUS * 0.6
-            gun_x = (
-                self.player.screen_position[0]
-                + math.cos(self.player.aim_angle) * gun_offset
-            )
-            gun_y = (
-                self.player.screen_position[1]
-                + math.sin(self.player.aim_angle) * gun_offset
-            )
-            gun_angle = self.player.aim_angle
-            flip = ""
-            if gun_angle > math.pi / 2:
-                gun_angle -= math.pi
-                flip = "h"
-            elif gun_angle < -math.pi / 2:
-                gun_angle += math.pi
-                flip = "h"
-            self.gun_image.composite_draw(
-                gun_angle,
-                flip,
-                gun_x,
-                gun_y,
-                126,
-                72,
-            )
+            self._draw_gun()
         if self.hud_font is None:
             raise RuntimeError("BattleScene.draw requires a loaded HUD font")
         self._draw_wave_banner()
@@ -696,6 +707,63 @@ class BattleScene:
             self._draw_pause_menu(draw_rectangle)
         if self.finished:
             self._draw_result_screen(draw_rectangle)
+
+    def _draw_gun(self):
+        """Draw the gun with its recoil offset and temperature tint."""
+        gun_offset = PLAYER_RADIUS * 0.6
+        recoil_offset = self._gun_recoil_offset()
+        gun_x = (
+            self.player.screen_position[0]
+            + math.cos(self.player.aim_angle) * gun_offset
+            - math.cos(self.player.aim_angle) * recoil_offset
+        )
+        gun_y = (
+            self.player.screen_position[1]
+            + math.sin(self.player.aim_angle) * gun_offset
+            - math.sin(self.player.aim_angle) * recoil_offset
+        )
+        gun_angle = self.player.aim_angle
+        flip = ""
+        if gun_angle > math.pi / 2:
+            gun_angle -= math.pi
+            flip = "h"
+        elif gun_angle < -math.pi / 2:
+            gun_angle += math.pi
+            flip = "h"
+
+        texture = getattr(self.gun_image, "texture", None)
+        if texture is not None:
+            pico2d.SDL_SetTextureColorMod(texture, *self._gun_tint_color())
+        try:
+            self.gun_image.composite_draw(
+                gun_angle,
+                flip,
+                gun_x,
+                gun_y,
+                126,
+                72,
+            )
+        finally:
+            if texture is not None:
+                pico2d.SDL_SetTextureColorMod(texture, *GUN_WHITE_TINT)
+
+    def _gun_tint_color(self):
+        """Return the gun tint for the current temperature.
+
+        Overheating always uses blue. Otherwise the sprite reddens gradually
+        over the last ``GUN_HEAT_TINT_RANGE`` degrees below the limit.
+        """
+        if self.gun.overheated:
+            return GUN_OVERHEAT_TINT
+        degrees_below_limit = self.gun.temperature_limit - self.gun.temperature
+        if degrees_below_limit >= GUN_HEAT_TINT_RANGE:
+            return GUN_WHITE_TINT
+        progress = (GUN_HEAT_TINT_RANGE - degrees_below_limit) / GUN_HEAT_TINT_RANGE
+        progress = min(max(progress, 0.0), 1.0)
+        return tuple(
+            round(255 + (component - 255) * progress)
+            for component in GUN_HEAT_TINT_COLOR
+        )
 
     def _draw_spawn_warnings(self):
         if self.enemy_draw_circle is None:
