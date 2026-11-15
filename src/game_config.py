@@ -64,6 +64,13 @@ MAGAZINE_DROP_TIERS = (
     (300, 0.01),
 )
 MAGAZINE_PICKUP_AMMO = 10
+# 현재 HP 비율(%)이 상한 미만일 때 적용되는 회복 아이템 드롭 확률
+HEALTH_DROP_TIERS = (
+    (20, 0.70),  # HP 1 ~ 19
+    (40, 0.40),  # HP 20 ~ 39
+    (60, 0.30),  # HP 40 ~ 59
+    (91, 0.10),  # HP 60 ~ 90
+)
 HEALTH_PICKUP_HEAL = 10
 HEALTH_PICKUP_LIMIT = 2
 PICKUP_RADIUS = 30.0

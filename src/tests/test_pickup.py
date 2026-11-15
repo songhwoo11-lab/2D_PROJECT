@@ -123,19 +123,45 @@ class PickupImageTests(unittest.TestCase):
 
 
 class HealthDropChanceTests(unittest.TestCase):
-    def test_chance_equals_the_missing_hp_ratio(self):
-        self.assertEqual(health_drop_chance(100, 100), 0.0)
-        self.assertAlmostEqual(health_drop_chance(90, 100), 0.1)
-        self.assertAlmostEqual(health_drop_chance(25, 100), 0.75)
-        self.assertEqual(health_drop_chance(0, 100), 1.0)
+    def test_hp_91_to_100_has_no_drop_chance(self):
+        for hp in (91, 95, 100):
+            with self.subTest(hp=hp):
+                self.assertEqual(health_drop_chance(hp, 100), 0.0)
 
-    def test_chance_is_clamped_to_zero_and_one(self):
+    def test_hp_60_to_90_has_ten_percent_chance(self):
+        for hp in (60, 75, 90):
+            with self.subTest(hp=hp):
+                self.assertAlmostEqual(health_drop_chance(hp, 100), 0.10)
+
+    def test_hp_40_to_59_has_thirty_percent_chance(self):
+        for hp in (40, 50, 59):
+            with self.subTest(hp=hp):
+                self.assertAlmostEqual(health_drop_chance(hp, 100), 0.30)
+
+    def test_hp_20_to_39_has_forty_percent_chance(self):
+        for hp in (20, 30, 39):
+            with self.subTest(hp=hp):
+                self.assertAlmostEqual(health_drop_chance(hp, 100), 0.40)
+
+    def test_hp_1_to_19_has_seventy_percent_chance(self):
+        for hp in (1, 10, 19):
+            with self.subTest(hp=hp):
+                self.assertAlmostEqual(health_drop_chance(hp, 100), 0.70)
+
+    def test_chance_is_clamped_to_the_valid_hp_range(self):
         self.assertEqual(health_drop_chance(150, 100), 0.0)
-        self.assertEqual(health_drop_chance(-10, 100), 1.0)
+        self.assertAlmostEqual(health_drop_chance(-10, 100), 0.70)
+        self.assertAlmostEqual(health_drop_chance(0, 100), 0.70)
 
-    def test_drop_roll_uses_the_missing_hp_chance(self):
-        self.assertTrue(roll_health_drop(50, 100, StubRandom(roll=0.49)))
-        self.assertFalse(roll_health_drop(50, 100, StubRandom(roll=0.51)))
+    def test_tiers_scale_with_max_hp(self):
+        self.assertAlmostEqual(health_drop_chance(30, 200), 0.70)
+        self.assertAlmostEqual(health_drop_chance(100, 200), 0.30)
+        self.assertAlmostEqual(health_drop_chance(180, 200), 0.10)
+        self.assertEqual(health_drop_chance(182, 200), 0.0)
+
+    def test_drop_roll_uses_the_tier_chance(self):
+        self.assertTrue(roll_health_drop(50, 100, StubRandom(roll=0.29)))
+        self.assertFalse(roll_health_drop(50, 100, StubRandom(roll=0.31)))
         self.assertFalse(roll_health_drop(100, 100, StubRandom(roll=0.0)))
 
     def test_invalid_max_hp_is_rejected(self):

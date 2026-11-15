@@ -6,6 +6,7 @@ import random
 from game_config import (
     COIN_REWARD_MAX,
     COIN_REWARD_MIN,
+    HEALTH_DROP_TIERS,
     HEALTH_PICKUP_HEAL,
     MAGAZINE_DROP_TIERS,
     PICKUP_BOB_AMPLITUDE,
@@ -38,8 +39,12 @@ def roll_magazine_drop(total_ammo, random_source=None):
 def health_drop_chance(hp, max_hp):
     if max_hp <= 0:
         raise ValueError("max_hp must be positive")
-    missing_hp = min(max(max_hp - hp, 0), max_hp)
-    return missing_hp / max_hp
+    current_hp = min(max(hp, 0), max_hp)
+    hp_percent = current_hp / max_hp * 100
+    for upper_bound, chance in HEALTH_DROP_TIERS:
+        if hp_percent < upper_bound:
+            return chance
+    return 0.0
 
 
 def roll_health_drop(hp, max_hp, random_source=None):
