@@ -4,6 +4,8 @@ from enum import Enum
 import math
 import random
 
+import pico2d
+
 from arrow import Arrow
 import battle_record
 from bullet import Bullet
@@ -50,6 +52,10 @@ SHOT_FEEDBACK_COLOR = (255, 255, 255)
 SHOT_FEEDBACK_FONT_SIZE = 48
 WAVE_BANNER_SECONDS = 2.5
 WAVE_STRENGTH_BANNER_SECONDS = 3.5
+
+# 과열 중 총 스프라이트에 적용하는 색조와 복원 값
+GUN_OVERHEAT_TINT = (255, 80, 80)
+GUN_DEFAULT_TINT = (255, 255, 255)
 
 PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
 RESULT_TITLES = {
@@ -645,31 +651,7 @@ class BattleScene:
         ):
             self._draw_enemy_debug_circles()
         if self.gun_image is not None:
-            gun_offset = PLAYER_RADIUS * 0.6
-            gun_x = (
-                self.player.screen_position[0]
-                + math.cos(self.player.aim_angle) * gun_offset
-            )
-            gun_y = (
-                self.player.screen_position[1]
-                + math.sin(self.player.aim_angle) * gun_offset
-            )
-            gun_angle = self.player.aim_angle
-            flip = ""
-            if gun_angle > math.pi / 2:
-                gun_angle -= math.pi
-                flip = "h"
-            elif gun_angle < -math.pi / 2:
-                gun_angle += math.pi
-                flip = "h"
-            self.gun_image.composite_draw(
-                gun_angle,
-                flip,
-                gun_x,
-                gun_y,
-                126,
-                72,
-            )
+            self._draw_gun()
         if self.hud_font is None:
             raise RuntimeError("BattleScene.draw requires a loaded HUD font")
         self._draw_wave_banner()
@@ -689,6 +671,43 @@ class BattleScene:
             self._draw_pause_menu(draw_rectangle)
         if self.finished:
             self._draw_result_screen(draw_rectangle)
+
+    def _draw_gun(self):
+        """Draw the gun, tinting it red while the weapon is overheated."""
+        gun_offset = PLAYER_RADIUS * 0.6
+        gun_x = (
+            self.player.screen_position[0]
+            + math.cos(self.player.aim_angle) * gun_offset
+        )
+        gun_y = (
+            self.player.screen_position[1]
+            + math.sin(self.player.aim_angle) * gun_offset
+        )
+        gun_angle = self.player.aim_angle
+        flip = ""
+        if gun_angle > math.pi / 2:
+            gun_angle -= math.pi
+            flip = "h"
+        elif gun_angle < -math.pi / 2:
+            gun_angle += math.pi
+            flip = "h"
+
+        texture = getattr(self.gun_image, "texture", None)
+        tinted = self.gun.overheated and texture is not None
+        if tinted:
+            pico2d.SDL_SetTextureColorMod(texture, *GUN_OVERHEAT_TINT)
+        try:
+            self.gun_image.composite_draw(
+                gun_angle,
+                flip,
+                gun_x,
+                gun_y,
+                126,
+                72,
+            )
+        finally:
+            if tinted:
+                pico2d.SDL_SetTextureColorMod(texture, *GUN_DEFAULT_TINT)
 
     def _draw_spawn_warnings(self):
         if self.enemy_draw_circle is None:

@@ -3,6 +3,7 @@ import unittest
 from unittest import mock
 
 from battle_scene import BattleResult, BattleScene
+import battle_scene
 from enemy import Enemy, EnemyType
 from game_config import (
     AIM_CURSOR_RADIUS,
@@ -38,6 +39,16 @@ class FakeImage:
 
     def draw(self, x, y, w=None, h=None):
         self.draws.append((x, y, w, h))
+
+
+class FakeGunImage(FakeImage):
+    def __init__(self, texture="gun-texture"):
+        super().__init__()
+        self.texture = texture
+        self.composite_draws = []
+
+    def composite_draw(self, rad, flip, x, y, w=None, h=None):
+        self.composite_draws.append((rad, flip, x, y, w, h))
 
 
 class FakeFont:
@@ -799,6 +810,82 @@ class BattleSceneBackgroundTests(unittest.TestCase):
         x, y, _, _ = self.scene.background.draws[0]
         self.assertEqual(x, WORLD_WIDTH / 2 - 300.0)
         self.assertEqual(y, WORLD_HEIGHT / 2 - 200.0)
+
+
+class BattleSceneGunTintTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(total_waves=1, spawn_rate=1000)
+        self.scene.player.image = FakeImage()
+        self.gun_image = FakeGunImage()
+        self.scene.gun_image = self.gun_image
+
+    def tearDown(self):
+        game_world.clear()
+
+    def _draw_scene(self):
+        with mock.patch.object(hud, "_measure_text_width", return_value=60):
+            self.scene.draw(lambda *args: None)
+
+    def test_overheated_gun_is_tinted_red_and_then_restored(self):
+        self.scene.gun.overheated = True
+        calls = []
+
+        with mock.patch.object(
+            battle_scene.pico2d,
+            "SDL_SetTextureColorMod",
+            side_effect=lambda *args: calls.append(args),
+        ):
+            self._draw_scene()
+
+        self.assertEqual(
+            calls,
+            [
+                ("gun-texture", 255, 80, 80),
+                ("gun-texture", 255, 255, 255),
+            ],
+        )
+        self.assertEqual(len(self.gun_image.composite_draws), 1)
+
+    def test_gun_is_not_tinted_while_not_overheated(self):
+        self.scene.gun.overheated = False
+
+        with mock.patch.object(
+            battle_scene.pico2d,
+            "SDL_SetTextureColorMod",
+        ) as set_color_mod:
+            self._draw_scene()
+
+        set_color_mod.assert_not_called()
+        self.assertEqual(len(self.gun_image.composite_draws), 1)
+
+    def test_tint_is_restored_even_if_drawing_fails(self):
+        self.scene.gun.overheated = True
+        calls = []
+        self.gun_image.composite_draw = mock.Mock(side_effect=RuntimeError("boom"))
+
+        with mock.patch.object(
+            battle_scene.pico2d,
+            "SDL_SetTextureColorMod",
+            side_effect=lambda *args: calls.append(args),
+        ):
+            with self.assertRaises(RuntimeError):
+                self._draw_scene()
+
+        self.assertEqual(calls[-1], ("gun-texture", 255, 255, 255))
+
+    def test_gun_without_texture_draws_without_tinting(self):
+        self.scene.gun.overheated = True
+        textureless = FakeGunImage(texture=None)
+        self.scene.gun_image = textureless
+
+        with mock.patch.object(
+            battle_scene.pico2d,
+            "SDL_SetTextureColorMod",
+        ) as set_color_mod:
+            self._draw_scene()
+
+        set_color_mod.assert_not_called()
+        self.assertEqual(len(textureless.composite_draws), 1)
 
 
 class BattleSceneRecordTests(unittest.TestCase):
