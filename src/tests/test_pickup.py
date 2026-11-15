@@ -57,20 +57,16 @@ class CoinRewardTests(unittest.TestCase):
 
 
 class MagazineDropChanceTests(unittest.TestCase):
-    def test_chances_follow_the_ammunition_tiers(self):
-        self.assertEqual(magazine_drop_chance(0), 0.30)
-        self.assertEqual(magazine_drop_chance(99), 0.30)
-        self.assertEqual(magazine_drop_chance(100), 0.10)
-        self.assertEqual(magazine_drop_chance(199), 0.10)
-        self.assertEqual(magazine_drop_chance(200), 0.01)
-        self.assertEqual(magazine_drop_chance(299), 0.01)
-        self.assertEqual(magazine_drop_chance(300), 0.0)
-        self.assertEqual(magazine_drop_chance(1000), 0.0)
+    def test_chance_is_fixed_at_thirty_percent(self):
+        for total_ammo in (0, 50, 99, 100, 199, 200, 299, 300, 1000):
+            with self.subTest(total_ammo=total_ammo):
+                self.assertEqual(magazine_drop_chance(total_ammo), 0.30)
 
-    def test_drop_roll_uses_the_tier_chance(self):
+    def test_drop_roll_uses_the_fixed_chance(self):
         self.assertTrue(roll_magazine_drop(50, StubRandom(roll=0.29)))
-        self.assertFalse(roll_magazine_drop(50, StubRandom(roll=0.31)))
-        self.assertFalse(roll_magazine_drop(300, StubRandom(roll=0.0)))
+        self.assertFalse(roll_magazine_drop(50, StubRandom(roll=0.30)))
+        self.assertTrue(roll_magazine_drop(300, StubRandom(roll=0.29)))
+        self.assertFalse(roll_magazine_drop(300, StubRandom(roll=0.30)))
 
     def test_negative_ammunition_is_rejected(self):
         with self.assertRaises(ValueError):

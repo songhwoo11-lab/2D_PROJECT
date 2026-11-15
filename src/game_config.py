@@ -58,12 +58,9 @@ SPAWN_WARNING_SECONDS = 0.5
 # Rewards and drops
 COIN_REWARD_MIN = 1
 COIN_REWARD_MAX = 5
-MAGAZINE_DROP_TIERS = (
-    (100, 0.30),
-    (200, 0.10),
-    (300, 0.01),
-)
 MAGAZINE_PICKUP_AMMO = 10
+# 탄창 드롭 확률은 남은 탄약 수와 무관하게 30%로 고정한다.
+MAGAZINE_DROP_CHANCE = 0.30
 # 현재 HP 비율(%)이 상한 미만일 때 적용되는 회복 아이템 드롭 확률
 HEALTH_DROP_TIERS = (
     (20, 0.70),  # HP 1 ~ 19

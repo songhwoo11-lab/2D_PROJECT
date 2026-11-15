@@ -228,8 +228,18 @@ class BattleSceneRewardTests(unittest.TestCase):
         self.assertEqual(len(self.scene.pickups), 1)
         self.assertEqual(self.scene.pickups[0].amount, 10)
 
-    def test_no_magazine_drops_at_three_hundred_or_more_ammo(self):
+    def test_magazine_can_drop_at_three_hundred_or_more_ammo(self):
         self.scene.random_source = StubRandom(coin=2, roll=0.0)
+        self.scene.gun.magazine_ammo = 10
+        self.scene.gun.reserve_ammo = 290
+
+        self._defeat_one_enemy()
+
+        self.assertEqual(self.scene.coins, 2)
+        self.assertEqual(len(self.scene.pickups), 1)
+
+    def test_no_magazine_drops_when_the_roll_reaches_thirty_percent(self):
+        self.scene.random_source = StubRandom(coin=2, roll=0.30)
         self.scene.gun.magazine_ammo = 10
         self.scene.gun.reserve_ammo = 290
 

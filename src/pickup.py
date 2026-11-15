@@ -8,7 +8,7 @@ from game_config import (
     COIN_REWARD_MIN,
     HEALTH_DROP_TIERS,
     HEALTH_PICKUP_HEAL,
-    MAGAZINE_DROP_TIERS,
+    MAGAZINE_DROP_CHANCE,
     PICKUP_BOB_AMPLITUDE,
     PICKUP_BOB_PERIOD_SECONDS,
     PICKUP_COLLECT_MARGIN,
@@ -25,10 +25,7 @@ def roll_coin_reward(random_source=None):
 def magazine_drop_chance(total_ammo):
     if total_ammo < 0:
         raise ValueError("total_ammo must be non-negative")
-    for upper_bound, chance in MAGAZINE_DROP_TIERS:
-        if total_ammo < upper_bound:
-            return chance
-    return 0.0
+    return MAGAZINE_DROP_CHANCE
 
 
 def roll_magazine_drop(total_ammo, random_source=None):
