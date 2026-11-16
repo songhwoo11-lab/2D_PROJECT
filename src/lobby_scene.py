@@ -1,5 +1,7 @@
 """Lobby scene shown when the game starts and after every battle."""
 
+import math
+
 from game_config import (
     LOBBY_BOUNDS_BOTTOM,
     LOBBY_BOUNDS_LEFT,
@@ -38,7 +40,34 @@ class LobbyScene:
 
     def update(self, delta_time):
         """Advance the lobby by one frame."""
+        self._update_player(delta_time)
         self._clamp_player_to_bounds()
+
+    def _movement_input(self):
+        """Return the requested movement direction from the pressed keys."""
+        move_x = 0.0
+        move_y = 0.0
+        if "a" in self.keys:
+            move_x -= 1.0
+        if "d" in self.keys:
+            move_x += 1.0
+        if "s" in self.keys:
+            move_y -= 1.0
+        if "w" in self.keys:
+            move_y += 1.0
+        return move_x, move_y
+
+    def _update_player(self, delta_time):
+        """Move the lobby player with the shared player speed."""
+        if self.player is None:
+            return
+        move_x, move_y = self._movement_input()
+        direction_length = math.hypot(move_x, move_y)
+        if direction_length > 1:
+            move_x /= direction_length
+            move_y /= direction_length
+        self.player.x += move_x * self.player.speed * delta_time
+        self.player.y += move_y * self.player.speed * delta_time
 
     def _clamp_player_to_bounds(self):
         """Keep the lobby player inside the walkable lobby area."""

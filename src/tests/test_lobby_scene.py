@@ -1,3 +1,4 @@
+import math
 import unittest
 
 from game_config import (
@@ -113,3 +114,78 @@ class LobbyBoundsTests(unittest.TestCase):
 
         self.assertEqual(self.scene.player.x, LOBBY_PLAYER_START_X)
         self.assertEqual(self.scene.player.y, LOBBY_PLAYER_START_Y)
+
+
+class LobbyMovementTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene()
+        self.scene.player.x = LOBBY_PLAYER_START_X
+        self.scene.player.y = LOBBY_PLAYER_START_Y
+
+    def tearDown(self):
+        self.scene.close()
+
+    def test_player_stays_put_without_input(self):
+        self.scene.update(1.0 / 60)
+
+        self.assertAlmostEqual(self.scene.player.x, LOBBY_PLAYER_START_X)
+        self.assertAlmostEqual(self.scene.player.y, LOBBY_PLAYER_START_Y)
+
+    def test_right_key_moves_the_player_right(self):
+        self.scene.key_down("d")
+
+        self.scene.update(0.5)
+
+        self.assertGreater(self.scene.player.x, LOBBY_PLAYER_START_X)
+        self.assertAlmostEqual(self.scene.player.y, LOBBY_PLAYER_START_Y)
+
+    def test_left_key_moves_the_player_left(self):
+        self.scene.key_down("a")
+
+        self.scene.update(0.5)
+
+        self.assertLess(self.scene.player.x, LOBBY_PLAYER_START_X)
+
+    def test_up_key_moves_the_player_up(self):
+        self.scene.key_down("w")
+
+        self.scene.update(0.5)
+
+        self.assertGreater(self.scene.player.y, LOBBY_PLAYER_START_Y)
+
+    def test_down_key_moves_the_player_down(self):
+        self.scene.key_down("s")
+
+        self.scene.update(0.5)
+
+        self.assertLess(self.scene.player.y, LOBBY_PLAYER_START_Y)
+
+    def test_released_key_stops_the_movement(self):
+        self.scene.key_down("d")
+        self.scene.update(0.5)
+        moved_x = self.scene.player.x
+        self.scene.key_up("d")
+
+        self.scene.update(0.5)
+
+        self.assertAlmostEqual(self.scene.player.x, moved_x)
+
+    def test_diagonal_movement_is_not_faster(self):
+        self.scene.key_down("d")
+        self.scene.key_down("w")
+        diagonal_scene = make_scene()
+        diagonal_scene.key_down("d")
+        diagonal_scene.update(0.5)
+
+        self.scene.update(0.5)
+
+        diagonal_distance = math.hypot(
+            self.scene.player.x - LOBBY_PLAYER_START_X,
+            self.scene.player.y - LOBBY_PLAYER_START_Y,
+        )
+        straight_distance = math.hypot(
+            diagonal_scene.player.x - LOBBY_PLAYER_START_X,
+            diagonal_scene.player.y - LOBBY_PLAYER_START_Y,
+        )
+        self.assertAlmostEqual(diagonal_distance, straight_distance)
+        diagonal_scene.close()
