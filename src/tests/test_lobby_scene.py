@@ -384,3 +384,46 @@ class LobbyRecordsTests(unittest.TestCase):
 
         self.assertEqual(self.state.records[0].result, "victory")
         self.assertEqual(len(self.state.records), 2)
+
+
+class LobbyAccessGuideTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene()
+
+    def tearDown(self):
+        self.scene.close()
+
+    def test_access_guide_is_not_drawn_away_from_the_locations(self):
+        self.scene.player.x = 900.0
+        self.scene.player.y = 320.0
+        self.scene.update(1.0 / 60)
+
+        self.assertIsNone(self.scene.nearby_location)
+
+    def test_location_labels_are_listed_for_every_place(self):
+        labels = [location.label for location in self.scene.locations]
+
+        self.assertIn("SHOP", labels)
+        self.assertIn("TRAINING", labels)
+        self.assertIn("BATTLE PORTAL", labels)
+        self.assertIn("RECORDS", labels)
+
+    def test_draw_runs_with_the_location_guide(self):
+        self.scene.player.x = 600.0
+        self.scene.player.y = 435.0
+        self.scene.update(1.0 / 60)
+
+        calls = []
+        self.scene.draw(lambda *args: calls.append(args))
+
+        self.assertTrue(calls)
+
+    def test_the_nearby_location_marker_is_drawn_for_the_close_location(self):
+        self.scene.player.x = 600.0
+        self.scene.player.y = 435.0
+        self.scene.update(1.0 / 60)
+
+        calls = []
+        self.scene.draw(lambda *args: calls.append(args))
+
+        self.assertTrue(calls)

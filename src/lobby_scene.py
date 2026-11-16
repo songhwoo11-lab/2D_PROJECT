@@ -17,7 +17,7 @@ from game_config import (
     SCREEN_WIDTH,
     TOTAL_WAVES,
 )
-from hud import draw_centered_text
+from hud import draw_centered_text, draw_text_at_center
 from lobby_map import LOCATION_ACTIONS, LOBBY_LOCATIONS, LOBBY_WALLS
 
 
@@ -143,8 +143,52 @@ class LobbyScene:
                 (255, 255, 255),
             )
         self._draw_debug_overlay(draw_rectangle)
+        self._draw_location_labels()
+        self._draw_nearby_location_marker(draw_rectangle)
         if self.panel == "records":
             self._draw_records_panel(draw_rectangle)
+
+    def _draw_location_labels(self):
+        """Draw the name of every place and the access guide of the nearby one."""
+        if self.hud_font is None:
+            return
+        for location in self.locations:
+            label_y = min(
+                location.zone_y + location.zone_radius + 40.0,
+                SCREEN_HEIGHT - 120.0,
+            )
+            draw_text_at_center(
+                self.hud_font,
+                location.zone_x,
+                label_y,
+                location.label,
+                (170, 190, 220),
+            )
+        if self.nearby_location is None or self.panel is not None:
+            return
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT - 200.0,
+            "PRESS ENTER : {}".format(self.nearby_location.label),
+            (255, 220, 100),
+        )
+
+    def _draw_nearby_location_marker(self, draw_rectangle):
+        """Mark the interaction area the player is standing next to."""
+        location = self.nearby_location
+        if location is None or self.panel is not None:
+            return
+        draw_rectangle(
+            location.zone_x - location.zone_radius,
+            location.zone_y - location.zone_radius,
+            location.zone_x + location.zone_radius,
+            location.zone_y + location.zone_radius,
+            255,
+            220,
+            60,
+            220,
+            False,
+        )
 
     def _draw_records_panel(self, draw_rectangle):
         """Draw the battle record list over the lobby."""
