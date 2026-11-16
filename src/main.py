@@ -18,6 +18,7 @@ from game_config import (
 from game_state import GameState
 from lobby_scene import LobbyScene
 from player import Player
+from shop_scene import ShopScene
 from weapon import Gun
 
 
@@ -123,9 +124,31 @@ class GameApp:
             self.scene = self.create_lobby_scene()
         elif kind == "battle":
             self.scene = self.create_battle_scene()
+        elif kind == "shop":
+            self.scene = self.create_shop_scene()
         else:
             raise ValueError("unknown scene: {}".format(kind))
         self.scene_kind = kind
+
+    def create_shop_scene(self):
+        return ShopScene(
+            state=self.state,
+            hud_font=self.assets["hud_font"],
+        )
+
+    def handle_scene_action(self):
+        """Move to the next scene when the active scene asks for it."""
+        action = getattr(self.scene, "pending_action", None)
+        if action is None:
+            return False
+        self.scene.pending_action = None
+        if action == "enter_shop":
+            self.switch_scene("shop")
+            return True
+        if action == "return_to_lobby":
+            self.switch_scene("lobby")
+            return True
+        raise ValueError("unknown scene action: {}".format(action))
 
     def run(self):
         import pico2d
@@ -173,6 +196,7 @@ class GameApp:
                             self.scene.mouse_up("left")
 
                 self.scene.update(delta_time)
+                self.handle_scene_action()
                 pico2d.clear_canvas()
                 self.scene.draw(pico2d.draw_rectangle)
                 pico2d.update_canvas()

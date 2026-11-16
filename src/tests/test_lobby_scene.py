@@ -427,3 +427,12 @@ class LobbyAccessGuideTests(unittest.TestCase):
         self.scene.draw(lambda *args: calls.append(args))
 
         self.assertTrue(calls)
+
+    def test_entering_the_shop_location_requests_the_shop_scene(self):
+        self.scene.player.x = 600.0
+        self.scene.player.y = 435.0
+        self.scene.update(1.0 / 60)
+
+        self.scene.key_down("return")
+
+        self.assertEqual(self.scene.pending_action, "enter_shop")

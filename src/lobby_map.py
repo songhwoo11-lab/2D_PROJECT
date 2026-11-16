@@ -47,6 +47,7 @@ class LobbyLocation:
 
 # 장소 키와 그 장소에서 실행할 동작의 대응.
 LOCATION_ACTIONS = {
+    "shop": "enter_shop",
     "records": "show_records",
 }
 
