@@ -22,6 +22,10 @@ class GameState:
     def owns_gun(self, gun_id):
         return gun_id in self.owned_guns
 
+    def needs_gun_selection(self):
+        """Check whether a gun selection screen is required before a battle."""
+        return len(self.owned_guns) >= 2
+
     def select_gun(self, gun_id):
         if not self.owns_gun(gun_id):
             raise ValueError("gun is not owned: {}".format(gun_id))

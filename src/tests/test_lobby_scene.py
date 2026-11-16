@@ -445,3 +445,40 @@ class LobbyAccessGuideTests(unittest.TestCase):
         self.scene.key_down("return")
 
         self.assertEqual(self.scene.pending_action, "enter_training")
+
+
+class LobbyPortalEntryTests(unittest.TestCase):
+    def setUp(self):
+        self.state = GameState()
+        self.scene = make_scene()
+        self.scene.state = self.state
+
+    def tearDown(self):
+        self.scene.close()
+
+    def test_entering_the_portal_starts_the_battle_with_one_gun(self):
+        self.scene.player.x = 900.0
+        self.scene.player.y = 620.0
+        self.scene.update(1.0 / 60)
+
+        self.scene.key_down("return")
+
+        self.assertEqual(self.scene.pending_action, "start_battle")
+
+    def test_one_owned_gun_does_not_need_a_selection_screen(self):
+        self.assertFalse(self.state.needs_gun_selection())
+
+    def test_two_owned_guns_need_a_selection_screen(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+
+        self.assertTrue(self.state.needs_gun_selection())
+
+    def test_two_owned_guns_request_the_selection_screen(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.player.x = 900.0
+        self.scene.player.y = 620.0
+        self.scene.update(1.0 / 60)
+
+        self.scene.key_down("return")
+
+        self.assertEqual(self.scene.pending_action, "open_gun_selection")

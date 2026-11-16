@@ -157,6 +157,9 @@ class GameApp:
         if action == "enter_training":
             self.switch_scene("training")
             return True
+        if action == "start_battle":
+            self.switch_scene("battle")
+            return True
         if action == "return_to_lobby":
             self.switch_scene("lobby")
             return True

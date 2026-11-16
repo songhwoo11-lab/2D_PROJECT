@@ -293,7 +293,17 @@ class LobbyScene:
         if action == "show_records":
             self.open_records()
             return
+        if action == "enter_portal":
+            self._start_battle_entry()
+            return
         self.pending_action = action
+
+    def _start_battle_entry(self):
+        """Start the battle entry flow and check the gun selection first."""
+        if self.state is not None and self.state.needs_gun_selection():
+            self.pending_action = "open_gun_selection"
+            return
+        self.pending_action = "start_battle"
 
     def open_records(self):
         """Show the battle record panel."""

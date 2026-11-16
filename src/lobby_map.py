@@ -49,6 +49,7 @@ class LobbyLocation:
 LOCATION_ACTIONS = {
     "shop": "enter_shop",
     "training": "enter_training",
+    "portal": "enter_portal",
     "records": "show_records",
 }
 

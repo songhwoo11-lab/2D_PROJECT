@@ -10,7 +10,17 @@ def make_app():
         "lobby_background": None,
         "battle_background": None,
         "player_image": None,
+        "gun_image": None,
+        "bullet_image": None,
+        "arrow_image": None,
+        "ammo_image": None,
+        "health_image": None,
         "hud_font": None,
+        "hit_feedback_font": None,
+        "debug_font": None,
+        "enemy_images": {},
+        "draw_rectangle": None,
+        "draw_circle": None,
     }
     return app
 
@@ -54,6 +64,12 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertTrue(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
+
+    def test_portal_starts_the_battle_scene(self):
+        self.app.scene.pending_action = "start_battle"
+
+        self.assertTrue(self.app.handle_scene_action())
+        self.assertEqual(self.app.scene_kind, "battle")
 
     def test_no_action_keeps_the_current_scene(self):
         self.assertFalse(self.app.handle_scene_action())
