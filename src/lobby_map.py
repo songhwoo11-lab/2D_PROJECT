@@ -1,6 +1,7 @@
 """Static layout of the lobby: obstacles and interactive locations."""
 
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True)
@@ -29,7 +30,32 @@ class LobbyRect:
         return (self.bottom + self.top) / 2
 
 
-# 로비 배경의 배치물에 대응하는 통행 불가 영역.
+@dataclass(frozen=True)
+class LobbyLocation:
+    """A place in the lobby the player can walk up to and interact with."""
+
+    key: str
+    label: str
+    zone_x: float
+    zone_y: float
+    zone_radius: float
+
+    def contains(self, x, y):
+        """Check whether the given position is inside the interaction area."""
+        return math.hypot(x - self.zone_x, y - self.zone_y) <= self.zone_radius
+
+
+# 로비에서 이용할 수 있는 장소와 그 상호작용 영역.
+LOBBY_LOCATIONS = (
+    # 상점: 서쪽 시장 진열대 앞
+    LobbyLocation(
+        key="shop",
+        label="SHOP",
+        zone_x=600.0,
+        zone_y=435.0,
+        zone_radius=110.0,
+    ),
+)
 LOBBY_WALLS = (
     # 서쪽 시장 천막과 진열대
     LobbyRect(68, 500, 696, 830),

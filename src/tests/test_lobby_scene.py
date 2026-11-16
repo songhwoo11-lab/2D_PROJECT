@@ -253,3 +253,40 @@ class LobbyObstacleTests(unittest.TestCase):
                 800.0,
             )
         )
+
+
+class LobbyLocationTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene()
+
+    def tearDown(self):
+        self.scene.close()
+
+    def test_shop_location_exists(self):
+        shop = self.scene.location_at(600.0, 435.0)
+
+        self.assertIsNotNone(shop)
+        self.assertEqual(shop.key, "shop")
+        self.assertEqual(shop.label, "SHOP")
+
+    def test_nearby_location_is_detected_when_standing_in_the_zone(self):
+        self.scene.player.x = 600.0
+        self.scene.player.y = 435.0
+
+        self.scene.update(1.0 / 60)
+
+        self.assertIsNotNone(self.scene.nearby_location)
+        self.assertEqual(self.scene.nearby_location.key, "shop")
+
+    def test_nearby_location_is_none_away_from_every_zone(self):
+        self.scene.player.x = 900.0
+        self.scene.player.y = 320.0
+
+        self.scene.update(1.0 / 60)
+
+        self.assertIsNone(self.scene.nearby_location)
+
+    def test_shop_zone_center_is_not_blocked_by_an_obstacle(self):
+        self.assertFalse(
+            self.scene._collides_with_wall(600.0, 435.0)
+        )

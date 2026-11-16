@@ -15,7 +15,7 @@ from game_config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
-from lobby_map import LOBBY_WALLS
+from lobby_map import LOBBY_LOCATIONS, LOBBY_WALLS
 
 
 class LobbyScene:
@@ -32,6 +32,8 @@ class LobbyScene:
         self.exit_requested = False
         self.pending_action = None
         self.walls = tuple(LOBBY_WALLS)
+        self.locations = tuple(LOBBY_LOCATIONS)
+        self.nearby_location = None
         self.reset_player_position()
 
     def reset_player_position(self):
@@ -45,6 +47,21 @@ class LobbyScene:
         """Advance the lobby by one frame."""
         self._update_player(delta_time)
         self._clamp_player_to_bounds()
+        self._update_nearby_location()
+
+    def _update_nearby_location(self):
+        """Remember the location the player currently stands next to."""
+        if self.player is None:
+            self.nearby_location = None
+            return
+        self.nearby_location = self.location_at(self.player.x, self.player.y)
+
+    def location_at(self, x, y):
+        """Return the location whose interaction area covers the position."""
+        for location in self.locations:
+            if location.contains(x, y):
+                return location
+        return None
 
     def _movement_input(self):
         """Return the requested movement direction from the pressed keys."""
