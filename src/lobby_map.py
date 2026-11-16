@@ -63,6 +63,14 @@ LOBBY_LOCATIONS = (
         zone_y=500.0,
         zone_radius=150.0,
     ),
+    # 게임 시작 포털: 중앙 성벽 아치 앞
+    LobbyLocation(
+        key="portal",
+        label="BATTLE PORTAL",
+        zone_x=900.0,
+        zone_y=620.0,
+        zone_radius=130.0,
+    ),
 )
 LOBBY_WALLS = (
     # 서쪽 시장 천막과 진열대

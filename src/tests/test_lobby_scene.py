@@ -302,3 +302,15 @@ class LobbyLocationTests(unittest.TestCase):
         self.assertFalse(
             self.scene._collides_with_wall(1500.0, 500.0)
         )
+
+    def test_battle_portal_location_exists(self):
+        portal = self.scene.location_at(900.0, 620.0)
+
+        self.assertIsNotNone(portal)
+        self.assertEqual(portal.key, "portal")
+        self.assertEqual(portal.label, "BATTLE PORTAL")
+
+    def test_portal_zone_center_is_not_blocked_by_an_obstacle(self):
+        self.assertFalse(
+            self.scene._collides_with_wall(900.0, 620.0)
+        )
