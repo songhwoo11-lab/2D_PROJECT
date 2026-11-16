@@ -265,14 +265,14 @@ class LobbyLocationTests(unittest.TestCase):
         self.scene.close()
 
     def test_shop_location_exists(self):
-        shop = self.scene.location_at(600.0, 435.0)
+        shop = self.scene.location_at(330.0, 435.0)
 
         self.assertIsNotNone(shop)
         self.assertEqual(shop.key, "shop")
         self.assertEqual(shop.label, "SHOP")
 
     def test_nearby_location_is_detected_when_standing_in_the_zone(self):
-        self.scene.player.x = 600.0
+        self.scene.player.x = 330.0
         self.scene.player.y = 435.0
 
         self.scene.update(1.0 / 60)
@@ -290,7 +290,7 @@ class LobbyLocationTests(unittest.TestCase):
 
     def test_shop_zone_center_is_not_blocked_by_an_obstacle(self):
         self.assertFalse(
-            self.scene._collides_with_wall(600.0, 435.0)
+            self.scene._collides_with_wall(330.0, 435.0)
         )
 
     def test_training_location_exists(self):
@@ -328,7 +328,7 @@ class LobbyRecordsTests(unittest.TestCase):
         self.scene.close()
 
     def test_records_location_exists_left_of_the_portal(self):
-        records = self.scene.location_at(330.0, 435.0)
+        records = self.scene.location_at(600.0, 435.0)
         portal = self.scene.location_at(900.0, 620.0)
 
         self.assertIsNotNone(records)
@@ -338,11 +338,11 @@ class LobbyRecordsTests(unittest.TestCase):
 
     def test_records_zone_center_is_not_blocked_by_an_obstacle(self):
         self.assertFalse(
-            self.scene._collides_with_wall(330.0, 435.0)
+            self.scene._collides_with_wall(600.0, 435.0)
         )
 
     def test_entering_the_records_location_opens_the_record_panel(self):
-        self.scene.player.x = 330.0
+        self.scene.player.x = 600.0
         self.scene.player.y = 435.0
         self.scene.update(1.0 / 60)
 
@@ -409,7 +409,7 @@ class LobbyAccessGuideTests(unittest.TestCase):
         self.assertIn("RECORDS", labels)
 
     def test_draw_runs_with_the_location_guide(self):
-        self.scene.player.x = 600.0
+        self.scene.player.x = 330.0
         self.scene.player.y = 435.0
         self.scene.update(1.0 / 60)
 
@@ -419,7 +419,7 @@ class LobbyAccessGuideTests(unittest.TestCase):
         self.assertTrue(calls)
 
     def test_the_nearby_location_marker_is_drawn_for_the_close_location(self):
-        self.scene.player.x = 600.0
+        self.scene.player.x = 330.0
         self.scene.player.y = 435.0
         self.scene.update(1.0 / 60)
 
@@ -429,7 +429,7 @@ class LobbyAccessGuideTests(unittest.TestCase):
         self.assertTrue(calls)
 
     def test_entering_the_shop_location_requests_the_shop_scene(self):
-        self.scene.player.x = 600.0
+        self.scene.player.x = 330.0
         self.scene.player.y = 435.0
         self.scene.update(1.0 / 60)
 

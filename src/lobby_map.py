@@ -55,11 +55,11 @@ LOCATION_ACTIONS = {
 
 
 # 로비에서 이용할 수 있는 장소와 그 상호작용 영역.
-LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞
+LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞 (포털에서 먼 쪽)
     LobbyLocation(
         key="shop",
         label="SHOP",
-        zone_x=600.0,
+        zone_x=330.0,
         zone_y=435.0,
         zone_radius=110.0,
     ),
@@ -83,7 +83,7 @@ LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞
     LobbyLocation(
         key="records",
         label="RECORDS",
-        zone_x=330.0,
+        zone_x=600.0,
         zone_y=435.0,
         zone_radius=110.0,
     ),
@@ -91,7 +91,7 @@ LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞
 LOBBY_WALLS = (
     # 서쪽 시장 천막과 진열대
     LobbyRect(68, 500, 696, 830),
-    # 남서쪽 기록 보관 천막
+    # 남서쪽 시장 천막과 진열대
     LobbyRect(128, 216, 530, 372),
     # 전투 포털이 자리한 성벽 아치
     LobbyRect(767, 700, 1036, 1060),

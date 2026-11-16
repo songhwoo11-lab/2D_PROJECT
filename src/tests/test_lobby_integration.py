@@ -45,7 +45,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.app.scene.update(1.0 / 60)
 
     def test_every_place_can_be_reached_and_used(self):
-        self._walk_to(600.0, 435.0)
+        self._walk_to(330.0, 435.0)
         self.app.scene.key_down("return")
         self.assertEqual(self.app.scene.pending_action, "enter_shop")
         self.app.handle_scene_action()
@@ -76,7 +76,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
             self._make_record("defeat", 2, 40.0)
         )
 
-        self._walk_to(330.0, 435.0)
+        self._walk_to(600.0, 435.0)
         self.app.scene.key_down("return")
 
         self.assertEqual(self.app.scene.panel, "records")
