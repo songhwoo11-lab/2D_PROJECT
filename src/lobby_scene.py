@@ -3,6 +3,7 @@
 import math
 import os
 
+from battle_record import result_record_text
 from game_config import (
     LOBBY_BOUNDS_BOTTOM,
     LOBBY_BOUNDS_LEFT,
@@ -14,8 +15,10 @@ from game_config import (
     LOBBY_WORLD_WIDTH,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    TOTAL_WAVES,
 )
-from lobby_map import LOBBY_LOCATIONS, LOBBY_WALLS
+from hud import draw_centered_text
+from lobby_map import LOCATION_ACTIONS, LOBBY_LOCATIONS, LOBBY_WALLS
 
 
 class LobbyScene:
@@ -34,6 +37,7 @@ class LobbyScene:
         self.walls = tuple(LOBBY_WALLS)
         self.locations = tuple(LOBBY_LOCATIONS)
         self.nearby_location = None
+        self.panel = None
         self.reset_player_position()
 
     def reset_player_position(self):
@@ -139,6 +143,51 @@ class LobbyScene:
                 (255, 255, 255),
             )
         self._draw_debug_overlay(draw_rectangle)
+        if self.panel == "records":
+            self._draw_records_panel(draw_rectangle)
+
+    def _draw_records_panel(self, draw_rectangle):
+        """Draw the battle record list over the lobby."""
+        draw_rectangle(
+            0,
+            0,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            10,
+            10,
+            20,
+            210,
+            True,
+        )
+        if self.hud_font is None:
+            return
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT - 180,
+            "BATTLE RECORDS",
+            (255, 220, 100),
+        )
+        records = self.state.records if self.state is not None else []
+        if not records:
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT - 280,
+                "NO RECORDS YET",
+            )
+            return
+        for index, record in enumerate(records):
+            text = result_record_text(
+                record.result,
+                record.reached_wave,
+                TOTAL_WAVES,
+                record.elapsed_time,
+                record.clear_time,
+            )
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT - 280 - index * 60,
+                text,
+            )
 
     def _draw_debug_overlay(self, draw_rectangle):
         """Overlay the lobby obstacles to check the layout alignment."""
@@ -167,9 +216,48 @@ class LobbyScene:
             160,
             False,
         )
+        for location in self.locations:
+            draw_rectangle(
+                location.zone_x - location.zone_radius,
+                location.zone_y - location.zone_radius,
+                location.zone_x + location.zone_radius,
+                location.zone_y + location.zone_radius,
+                255,
+                220,
+                60,
+                120,
+                False,
+            )
 
     def key_down(self, key):
-        self.keys.add(key.lower())
+        key = key.lower()
+        if key in self.keys:
+            return
+        self.keys.add(key)
+        if self.panel is not None:
+            if key in ("return", "enter", "q"):
+                self.close_panel()
+            return
+        if key in ("return", "enter") and self.nearby_location is not None:
+            self._activate_location(self.nearby_location)
+
+    def _activate_location(self, location):
+        """Run the action bound to the location the player stands at."""
+        action = LOCATION_ACTIONS.get(location.key)
+        if action is None:
+            return
+        if action == "show_records":
+            self.open_records()
+            return
+        self.pending_action = action
+
+    def open_records(self):
+        """Show the battle record panel."""
+        self.panel = "records"
+
+    def close_panel(self):
+        """Close the panel that is currently open."""
+        self.panel = None
 
     def key_up(self, key):
         self.keys.discard(key.lower())

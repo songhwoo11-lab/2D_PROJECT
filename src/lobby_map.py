@@ -45,9 +45,14 @@ class LobbyLocation:
         return math.hypot(x - self.zone_x, y - self.zone_y) <= self.zone_radius
 
 
+# 장소 키와 그 장소에서 실행할 동작의 대응.
+LOCATION_ACTIONS = {
+    "records": "show_records",
+}
+
+
 # 로비에서 이용할 수 있는 장소와 그 상호작용 영역.
-LOBBY_LOCATIONS = (
-    # 상점: 서쪽 시장 진열대 앞
+LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞
     LobbyLocation(
         key="shop",
         label="SHOP",
@@ -70,6 +75,14 @@ LOBBY_LOCATIONS = (
         zone_x=900.0,
         zone_y=620.0,
         zone_radius=130.0,
+    ),
+    # 기록 확인 지점: 포털 왼쪽 기록 보관 천막 앞
+    LobbyLocation(
+        key="records",
+        label="RECORDS",
+        zone_x=330.0,
+        zone_y=435.0,
+        zone_radius=110.0,
     ),
 )
 LOBBY_WALLS = (

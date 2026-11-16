@@ -1,6 +1,18 @@
 """Battle result record helpers shared by the battle scene and lobby."""
 
+from dataclasses import dataclass
+
 VICTORY = "victory"
+
+
+@dataclass(frozen=True)
+class BattleRecord:
+    """One finished battle and the result it produced."""
+
+    result: str
+    reached_wave: int
+    elapsed_time: float
+    clear_time: float = None
 
 
 def format_elapsed_time(seconds):

@@ -1,6 +1,7 @@
 import math
 import unittest
 
+from battle_record import BattleRecord
 from game_config import (
     LOBBY_BOUNDS_BOTTOM,
     LOBBY_BOUNDS_LEFT,
@@ -11,6 +12,7 @@ from game_config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
+from game_state import GameState
 from lobby_scene import LobbyScene
 from player import Player
 
@@ -314,3 +316,71 @@ class LobbyLocationTests(unittest.TestCase):
         self.assertFalse(
             self.scene._collides_with_wall(900.0, 620.0)
         )
+
+
+class LobbyRecordsTests(unittest.TestCase):
+    def setUp(self):
+        self.state = GameState()
+        self.scene = make_scene()
+        self.scene.state = self.state
+
+    def tearDown(self):
+        self.scene.close()
+
+    def test_records_location_exists_left_of_the_portal(self):
+        records = self.scene.location_at(330.0, 435.0)
+        portal = self.scene.location_at(900.0, 620.0)
+
+        self.assertIsNotNone(records)
+        self.assertEqual(records.key, "records")
+        self.assertEqual(records.label, "RECORDS")
+        self.assertLess(records.zone_x, portal.zone_x)
+
+    def test_records_zone_center_is_not_blocked_by_an_obstacle(self):
+        self.assertFalse(
+            self.scene._collides_with_wall(330.0, 435.0)
+        )
+
+    def test_entering_the_records_location_opens_the_record_panel(self):
+        self.scene.player.x = 330.0
+        self.scene.player.y = 435.0
+        self.scene.update(1.0 / 60)
+
+        self.scene.key_down("return")
+
+        self.assertEqual(self.scene.panel, "records")
+
+    def test_record_panel_can_be_closed(self):
+        self.scene.open_records()
+
+        self.scene.key_down("return")
+
+        self.assertIsNone(self.scene.panel)
+
+    def test_record_panel_lists_the_stored_records(self):
+        self.state.add_record(
+            BattleRecord(
+                result="defeat",
+                reached_wave=7,
+                elapsed_time=125.5,
+            )
+        )
+        self.scene.open_records()
+
+        drawn = []
+        self.scene.draw(
+            lambda *args: drawn.append(args),
+        )
+
+        self.assertTrue(drawn)
+
+    def test_game_state_keeps_the_newest_record_first(self):
+        self.state.add_record(
+            BattleRecord(result="defeat", reached_wave=3, elapsed_time=60.0)
+        )
+        self.state.add_record(
+            BattleRecord(result="victory", reached_wave=30, elapsed_time=900.0)
+        )
+
+        self.assertEqual(self.state.records[0].result, "victory")
+        self.assertEqual(len(self.state.records), 2)

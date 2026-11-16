@@ -15,6 +15,7 @@ from game_config import (
     WORLD_HEIGHT,
     WORLD_WIDTH,
 )
+from game_state import GameState
 from lobby_scene import LobbyScene
 from player import Player
 from weapon import Gun
@@ -28,6 +29,7 @@ class GameApp:
 
     def __init__(self):
         self.assets = {}
+        self.state = GameState()
         self.scene = None
         self.scene_kind = None
         self.running = True
@@ -86,6 +88,7 @@ class GameApp:
             player,
             self.assets["lobby_background"],
             hud_font=self.assets["hud_font"],
+            state=self.state,
         )
 
     def create_battle_scene(self):
