@@ -1,5 +1,7 @@
 import unittest
 
+from battle_scene import BattleResult
+from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
 from game_state import GameState
 from main import GameApp
 
@@ -101,3 +103,85 @@ class SceneSwitchTests(unittest.TestCase):
         self.app.switch_scene("lobby")
 
         self.assertEqual(len(self.app.state.records), 1)
+
+
+class BattleReturnTests(unittest.TestCase):
+    def setUp(self):
+        self.app = make_app()
+        self.app.switch_scene("lobby")
+
+    def tearDown(self):
+        if self.app.scene is not None:
+            self.app.scene.close()
+
+    def _finish_battle(self, result=BattleResult.DEFEAT, coins=12):
+        self.app.switch_scene("battle")
+        battle = self.app.scene
+        battle.result = result
+        battle.reached_wave = 5
+        battle.elapsed_time = 120.5
+        battle.coins = coins
+        battle.exit_requested = True
+        self.app.handle_battle_exit()
+
+    def test_battle_exit_returns_to_the_lobby(self):
+        self._finish_battle()
+
+        self.assertEqual(self.app.scene_kind, "lobby")
+
+    def test_battle_exit_stores_the_earned_coins(self):
+        self._finish_battle(coins=12)
+
+        self.assertEqual(self.app.state.coins, 12)
+
+    def test_battle_exit_stores_the_battle_record(self):
+        self._finish_battle()
+
+        self.assertEqual(len(self.app.state.records), 1)
+        record = self.app.state.records[0]
+        self.assertEqual(record.result, BattleResult.DEFEAT.value)
+        self.assertEqual(record.reached_wave, 5)
+        self.assertAlmostEqual(record.elapsed_time, 120.5)
+
+    def test_victory_record_keeps_the_clear_time(self):
+        self.app.switch_scene("battle")
+        battle = self.app.scene
+        battle.result = BattleResult.VICTORY
+        battle.reached_wave = 30
+        battle.elapsed_time = 900.0
+        battle.clear_time = 880.0
+        battle.coins = 40
+
+        self.app.handle_battle_exit()
+
+        record = self.app.state.records[0]
+        self.assertAlmostEqual(record.clear_time, 880.0)
+
+    def test_lobby_player_position_is_reset_after_the_battle(self):
+        self._finish_battle()
+        self.app.scene.player.x = 150.0
+        self.app.scene.player.y = 700.0
+
+        self.app.switch_scene("shop")
+        self.app.switch_scene("lobby")
+
+        self.assertAlmostEqual(self.app.scene.player.x, LOBBY_PLAYER_START_X)
+        self.assertAlmostEqual(self.app.scene.player.y, LOBBY_PLAYER_START_Y)
+
+    def test_reentering_the_battle_starts_from_the_first_wave(self):
+        self._finish_battle()
+        self.app.switch_scene("battle")
+
+        battle = self.app.scene
+        self.assertEqual(battle.wave_director.current_wave, 1)
+        self.assertEqual(battle.coins, 0)
+        self.assertEqual(battle.pickups, [])
+        self.assertEqual(battle.health_pickups, [])
+
+    def test_battle_scene_does_not_leave_objects_in_the_world(self):
+        import game_world
+
+        self.app.switch_scene("battle")
+        self.app.scene.close()
+
+        self.assertEqual(game_world.world, [[], []])

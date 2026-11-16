@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from battle_record import BattleRecord
 from battle_scene import DEBUG_FONT_SIZE, SHOT_FEEDBACK_FONT_SIZE, BattleScene
 from dev_settings import development_spawn_rate, development_total_waves
 from enemy import EnemyType
@@ -165,6 +166,20 @@ class GameApp:
             return True
         raise ValueError("unknown scene action: {}".format(action))
 
+    def handle_battle_exit(self):
+        """Store the finished battle result and go back to the lobby."""
+        battle = self.scene
+        self.state.coins += battle.coins
+        self.state.add_record(
+            BattleRecord(
+                result=battle.result.value,
+                reached_wave=battle.reached_wave,
+                elapsed_time=battle.elapsed_time,
+                clear_time=battle.clear_time,
+            )
+        )
+        self.switch_scene("lobby")
+
     def run(self):
         import pico2d
 
@@ -216,7 +231,10 @@ class GameApp:
                 self.scene.draw(pico2d.draw_rectangle)
                 pico2d.update_canvas()
                 if self.scene.exit_requested:
-                    self.running = False
+                    if self.scene_kind == "battle":
+                        self.handle_battle_exit()
+                    else:
+                        self.running = False
                 frame_duration = pico2d.get_time() - frame_start
                 pico2d.delay(max(0.0, FRAME_TIME - frame_duration))
                 last_time = frame_start
