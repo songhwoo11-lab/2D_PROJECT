@@ -19,6 +19,7 @@ from game_state import GameState
 from lobby_scene import LobbyScene
 from player import Player
 from shop_scene import ShopScene
+from training_scene import TrainingScene
 from weapon import Gun
 
 
@@ -126,12 +127,20 @@ class GameApp:
             self.scene = self.create_battle_scene()
         elif kind == "shop":
             self.scene = self.create_shop_scene()
+        elif kind == "training":
+            self.scene = self.create_training_scene()
         else:
             raise ValueError("unknown scene: {}".format(kind))
         self.scene_kind = kind
 
     def create_shop_scene(self):
         return ShopScene(
+            state=self.state,
+            hud_font=self.assets["hud_font"],
+        )
+
+    def create_training_scene(self):
+        return TrainingScene(
             state=self.state,
             hud_font=self.assets["hud_font"],
         )
@@ -144,6 +153,9 @@ class GameApp:
         self.scene.pending_action = None
         if action == "enter_shop":
             self.switch_scene("shop")
+            return True
+        if action == "enter_training":
+            self.switch_scene("training")
             return True
         if action == "return_to_lobby":
             self.switch_scene("lobby")

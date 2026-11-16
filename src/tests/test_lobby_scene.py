@@ -436,3 +436,12 @@ class LobbyAccessGuideTests(unittest.TestCase):
         self.scene.key_down("return")
 
         self.assertEqual(self.scene.pending_action, "enter_shop")
+
+    def test_entering_the_training_location_requests_the_training_scene(self):
+        self.scene.player.x = 1500.0
+        self.scene.player.y = 500.0
+        self.scene.update(1.0 / 60)
+
+        self.scene.key_down("return")
+
+        self.assertEqual(self.scene.pending_action, "enter_training")

@@ -41,6 +41,20 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertTrue(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
 
+    def test_lobby_requests_the_training_ground(self):
+        self.app.scene.pending_action = "enter_training"
+
+        self.assertTrue(self.app.handle_scene_action())
+        self.assertEqual(self.app.scene_kind, "training")
+
+    def test_training_ground_returns_to_the_lobby(self):
+        self.app.switch_scene("training")
+
+        self.app.scene.pending_action = "return_to_lobby"
+
+        self.assertTrue(self.app.handle_scene_action())
+        self.assertEqual(self.app.scene_kind, "lobby")
+
     def test_no_action_keeps_the_current_scene(self):
         self.assertFalse(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
