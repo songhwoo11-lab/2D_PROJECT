@@ -189,3 +189,67 @@ class LobbyMovementTests(unittest.TestCase):
         )
         self.assertAlmostEqual(diagonal_distance, straight_distance)
         diagonal_scene.close()
+
+
+class LobbyObstacleTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene()
+
+    def tearDown(self):
+        self.scene.close()
+
+    def test_player_cannot_walk_through_the_market_stalls(self):
+        self.scene.player.x = 300.0
+        self.scene.player.y = 440.0
+        self.scene.key_down("w")
+
+        for _ in range(120):
+            self.scene.update(1.0 / 60)
+
+        self.assertLess(self.scene.player.y, 455.0)
+        self.assertFalse(
+            self.scene._collides_with_wall(
+                self.scene.player.x,
+                self.scene.player.y,
+            )
+        )
+
+    def test_player_slides_along_an_obstacle(self):
+        self.scene.player.x = 300.0
+        self.scene.player.y = 440.0
+        self.scene.key_down("d")
+
+        for _ in range(30):
+            self.scene.update(1.0 / 60)
+
+        self.assertGreater(self.scene.player.x, 300.0)
+        self.assertAlmostEqual(self.scene.player.y, 440.0, delta=1.0)
+
+    def test_player_cannot_walk_through_the_training_racks(self):
+        self.scene.player.x = 1250.0
+        self.scene.player.y = 450.0
+        self.scene.key_down("w")
+
+        for _ in range(120):
+            self.scene.update(1.0 / 60)
+
+        self.assertLess(self.scene.player.y, 495.0)
+
+    def test_player_cannot_walk_through_the_portal_arch(self):
+        self.scene.player.x = 900.0
+        self.scene.player.y = 600.0
+        self.scene.key_down("w")
+
+        for _ in range(120):
+            self.scene.update(1.0 / 60)
+
+        self.assertLess(self.scene.player.y, 655.0)
+
+    def test_collision_check_uses_the_player_radius(self):
+        self.assertTrue(self.scene._collides_with_wall(68.0, 800.0))
+        self.assertFalse(
+            self.scene._collides_with_wall(
+                68.0 - self.scene.player.radius - 1.0,
+                800.0,
+            )
+        )

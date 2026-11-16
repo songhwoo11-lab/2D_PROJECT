@@ -1,6 +1,7 @@
 """Lobby scene shown when the game starts and after every battle."""
 
 import math
+import os
 
 from game_config import (
     LOBBY_BOUNDS_BOTTOM,
@@ -14,6 +15,7 @@ from game_config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
+from lobby_map import LOBBY_WALLS
 
 
 class LobbyScene:
@@ -29,6 +31,7 @@ class LobbyScene:
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.exit_requested = False
         self.pending_action = None
+        self.walls = tuple(LOBBY_WALLS)
         self.reset_player_position()
 
     def reset_player_position(self):
@@ -66,8 +69,25 @@ class LobbyScene:
         if direction_length > 1:
             move_x /= direction_length
             move_y /= direction_length
-        self.player.x += move_x * self.player.speed * delta_time
-        self.player.y += move_y * self.player.speed * delta_time
+        step = self.player.speed * delta_time
+        new_x = self.player.x + move_x * step
+        if not self._collides_with_wall(new_x, self.player.y):
+            self.player.x = new_x
+        new_y = self.player.y + move_y * step
+        if not self._collides_with_wall(self.player.x, new_y):
+            self.player.y = new_y
+
+    def _collides_with_wall(self, x, y):
+        """Check whether the player circle touches a lobby obstacle."""
+        if self.player is None:
+            return False
+        radius = self.player.radius
+        for wall in self.walls:
+            closest_x = min(max(x, wall.left), wall.right)
+            closest_y = min(max(y, wall.bottom), wall.top)
+            if math.hypot(x - closest_x, y - closest_y) < radius:
+                return True
+        return False
 
     def _clamp_player_to_bounds(self):
         """Keep the lobby player inside the walkable lobby area."""
@@ -101,6 +121,35 @@ class LobbyScene:
                 "LOBBY",
                 (255, 255, 255),
             )
+        self._draw_debug_overlay(draw_rectangle)
+
+    def _draw_debug_overlay(self, draw_rectangle):
+        """Overlay the lobby obstacles to check the layout alignment."""
+        if not os.environ.get("CHALLENGING_GUNNER_LOBBY_DEBUG"):
+            return
+        for wall in self.walls:
+            draw_rectangle(
+                wall.left,
+                wall.bottom,
+                wall.right,
+                wall.top,
+                255,
+                60,
+                60,
+                120,
+                True,
+            )
+        draw_rectangle(
+            120,
+            240,
+            1680,
+            760,
+            60,
+            255,
+            60,
+            160,
+            False,
+        )
 
     def key_down(self, key):
         self.keys.add(key.lower())
