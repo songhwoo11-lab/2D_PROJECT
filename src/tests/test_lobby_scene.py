@@ -290,3 +290,15 @@ class LobbyLocationTests(unittest.TestCase):
         self.assertFalse(
             self.scene._collides_with_wall(600.0, 435.0)
         )
+
+    def test_training_location_exists(self):
+        training = self.scene.location_at(1500.0, 500.0)
+
+        self.assertIsNotNone(training)
+        self.assertEqual(training.key, "training")
+        self.assertEqual(training.label, "TRAINING")
+
+    def test_training_zone_center_is_not_blocked_by_an_obstacle(self):
+        self.assertFalse(
+            self.scene._collides_with_wall(1500.0, 500.0)
+        )

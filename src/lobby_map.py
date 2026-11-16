@@ -55,6 +55,14 @@ LOBBY_LOCATIONS = (
         zone_y=435.0,
         zone_radius=110.0,
     ),
+    # 훈련장: 동쪽 표적과 무기 걸이대 앞
+    LobbyLocation(
+        key="training",
+        label="TRAINING",
+        zone_x=1500.0,
+        zone_y=500.0,
+        zone_radius=150.0,
+    ),
 )
 LOBBY_WALLS = (
     # 서쪽 시장 천막과 진열대
