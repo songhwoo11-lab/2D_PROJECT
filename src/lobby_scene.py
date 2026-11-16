@@ -1,7 +1,6 @@
 """Lobby scene shown when the game starts and after every battle."""
 
 import math
-import os
 
 from battle_record import result_record_text
 from game_config import (
@@ -144,7 +143,6 @@ class LobbyScene:
                 "LOBBY",
                 (255, 255, 255),
             )
-        self._draw_debug_overlay(draw_rectangle)
         self._draw_location_labels()
         self._draw_nearby_location_marker(draw_rectangle)
         if self.panel == "records":
@@ -276,46 +274,6 @@ class LobbyScene:
                 self.hud_font,
                 SCREEN_HEIGHT - 280 - index * 60,
                 text,
-            )
-
-    def _draw_debug_overlay(self, draw_rectangle):
-        """Overlay the lobby obstacles to check the layout alignment."""
-        if not os.environ.get("CHALLENGING_GUNNER_LOBBY_DEBUG"):
-            return
-        for wall in self.walls:
-            draw_rectangle(
-                wall.left,
-                wall.bottom,
-                wall.right,
-                wall.top,
-                255,
-                60,
-                60,
-                120,
-                True,
-            )
-        draw_rectangle(
-            120,
-            240,
-            1680,
-            760,
-            60,
-            255,
-            60,
-            160,
-            False,
-        )
-        for location in self.locations:
-            draw_rectangle(
-                location.zone_x - location.zone_radius,
-                location.zone_y - location.zone_radius,
-                location.zone_x + location.zone_radius,
-                location.zone_y + location.zone_radius,
-                255,
-                220,
-                60,
-                120,
-                False,
             )
 
     def key_down(self, key):
