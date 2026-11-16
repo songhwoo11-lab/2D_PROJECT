@@ -19,6 +19,7 @@ from game_config import (
 )
 from hud import draw_centered_text, draw_text_at_center
 from lobby_map import LOCATION_ACTIONS, LOBBY_LOCATIONS, LOBBY_WALLS
+from weapon import weapon_display_name
 
 
 class LobbyScene:
@@ -38,6 +39,7 @@ class LobbyScene:
         self.locations = tuple(LOBBY_LOCATIONS)
         self.nearby_location = None
         self.panel = None
+        self.gun_selection_index = 0
         self.reset_player_position()
 
     def reset_player_position(self):
@@ -147,6 +149,49 @@ class LobbyScene:
         self._draw_nearby_location_marker(draw_rectangle)
         if self.panel == "records":
             self._draw_records_panel(draw_rectangle)
+        elif self.panel == "gun_select":
+            self._draw_gun_selection_panel(draw_rectangle)
+
+    def _draw_gun_selection_panel(self, draw_rectangle):
+        """Draw the gun list that is shown before the battle starts."""
+        draw_rectangle(
+            0,
+            0,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            10,
+            10,
+            20,
+            210,
+            True,
+        )
+        if self.hud_font is None:
+            return
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT - 180,
+            "SELECT GUN",
+            (255, 220, 100),
+        )
+        owned_guns = self.state.owned_guns if self.state is not None else []
+        for index, gun_id in enumerate(owned_guns):
+            color = (
+                (255, 220, 100)
+                if index == self.gun_selection_index
+                else (255, 255, 255)
+            )
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT - 280 - index * 60,
+                weapon_display_name(gun_id),
+                color,
+            )
+        draw_centered_text(
+            self.hud_font,
+            120,
+            "W/S : SELECT    ENTER : CONFIRM    Q : CANCEL",
+            (170, 190, 220),
+        )
 
     def _draw_location_labels(self):
         """Draw the name of every place and the access guide of the nearby one."""
@@ -279,7 +324,9 @@ class LobbyScene:
             return
         self.keys.add(key)
         if self.panel is not None:
-            if key in ("return", "enter", "q"):
+            if self.panel == "gun_select":
+                self._handle_gun_selection_key(key)
+            elif key in ("return", "enter", "q"):
                 self.close_panel()
             return
         if key in ("return", "enter") and self.nearby_location is not None:
@@ -301,8 +348,43 @@ class LobbyScene:
     def _start_battle_entry(self):
         """Start the battle entry flow and check the gun selection first."""
         if self.state is not None and self.state.needs_gun_selection():
-            self.pending_action = "open_gun_selection"
+            self.open_gun_selection()
             return
+        self.pending_action = "start_battle"
+
+    def open_gun_selection(self):
+        """Show the gun selection screen before the battle starts."""
+        self.panel = "gun_select"
+        self.gun_selection_index = 0
+        if self.state is None:
+            return
+        if self.state.selected_gun in self.state.owned_guns:
+            self.gun_selection_index = self.state.owned_guns.index(
+                self.state.selected_gun
+            )
+
+    def _handle_gun_selection_key(self, key):
+        """Move the selection and confirm or cancel the chosen gun."""
+        owned_guns = self.state.owned_guns if self.state is not None else []
+        if not owned_guns:
+            return
+        if key in ("w", "up"):
+            self.gun_selection_index = (self.gun_selection_index - 1) % len(owned_guns)
+        elif key in ("s", "down"):
+            self.gun_selection_index = (self.gun_selection_index + 1) % len(owned_guns)
+        elif key in ("return", "enter"):
+            self._confirm_gun_selection()
+        elif key == "q":
+            self.close_panel()
+
+    def _confirm_gun_selection(self):
+        """Store the chosen gun and ask the app to start the battle."""
+        if self.state is None:
+            self.close_panel()
+            return
+        gun_id = self.state.owned_guns[self.gun_selection_index]
+        self.state.select_gun(gun_id)
+        self.close_panel()
         self.pending_action = "start_battle"
 
     def open_records(self):

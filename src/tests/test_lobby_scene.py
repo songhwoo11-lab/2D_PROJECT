@@ -481,4 +481,43 @@ class LobbyPortalEntryTests(unittest.TestCase):
 
         self.scene.key_down("return")
 
-        self.assertEqual(self.scene.pending_action, "open_gun_selection")
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertIsNone(self.scene.pending_action)
+
+    def test_gun_selection_moves_between_the_owned_guns(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+
+        self.scene.key_down("s")
+
+        self.assertEqual(self.scene.gun_selection_index, 1)
+
+    def test_gun_selection_wraps_around(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+
+        self.scene.key_down("w")
+
+        self.assertEqual(self.scene.gun_selection_index, 1)
+
+    def test_confirming_the_gun_selection_starts_the_battle(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+        self.scene.key_down("s")
+
+        self.scene.key_down("return")
+
+        self.assertEqual(self.state.selected_gun, "rifle")
+        self.assertIsNone(self.scene.panel)
+        self.assertEqual(self.scene.pending_action, "start_battle")
+
+    def test_cancelling_the_gun_selection_keeps_the_previous_gun(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+        self.scene.key_down("s")
+
+        self.scene.key_down("q")
+
+        self.assertEqual(self.state.selected_gun, "pistol")
+        self.assertIsNone(self.scene.panel)
+        self.assertIsNone(self.scene.pending_action)

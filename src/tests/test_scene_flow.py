@@ -71,6 +71,14 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertTrue(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "battle")
 
+    def test_battle_scene_uses_the_selected_gun(self):
+        self.app.state.owned_guns = ["pistol", "rifle"]
+        self.app.state.select_gun("rifle")
+
+        self.app.switch_scene("battle")
+
+        self.assertIsNotNone(self.app.scene.gun)
+
     def test_no_action_keeps_the_current_scene(self):
         self.assertFalse(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")

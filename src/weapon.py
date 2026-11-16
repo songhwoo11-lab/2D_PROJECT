@@ -47,6 +47,30 @@ PISTOL = WeaponSpec(
     starting_ammo=PISTOL_STARTING_AMMO,
 )
 
+# 총기 id별 능력치 목록. 6단계에서 나머지 총기를 등록한다.
+WEAPON_SPECS = {
+    "pistol": PISTOL,
+}
+
+
+def weapon_spec(gun_id):
+    """Return the weapon data registered for the given gun id."""
+    if gun_id not in WEAPON_SPECS:
+        raise KeyError("unknown gun: {}".format(gun_id))
+    return WEAPON_SPECS[gun_id]
+
+
+def weapon_display_name(gun_id):
+    """Return the name shown for the given gun id."""
+    if gun_id in WEAPON_SPECS:
+        return WEAPON_SPECS[gun_id].name.upper()
+    return gun_id.upper()
+
+
+def weapon_spec_or_default(gun_id):
+    """Return the weapon data of the gun id, or the pistol when it is unknown."""
+    return WEAPON_SPECS.get(gun_id, PISTOL)
+
 
 class FireMode(Enum):
     SINGLE = "single"

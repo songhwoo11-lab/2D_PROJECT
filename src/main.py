@@ -20,7 +20,7 @@ from lobby_scene import LobbyScene
 from player import Player
 from shop_scene import ShopScene
 from training_scene import TrainingScene
-from weapon import Gun
+from weapon import Gun, weapon_spec_or_default
 
 
 ASSET_DIRECTORY = Path(__file__).resolve().parent.parent / "image"
@@ -101,7 +101,7 @@ class GameApp:
         )
         return BattleScene(
             player,
-            Gun(),
+            Gun(weapon_spec_or_default(self.state.selected_gun)),
             self.assets["battle_background"],
             gun_image=self.assets["gun_image"],
             bullet_image=self.assets["bullet_image"],
