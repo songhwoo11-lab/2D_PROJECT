@@ -1,6 +1,15 @@
 import unittest
 
-from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
+from game_config import (
+    LOBBY_BOUNDS_BOTTOM,
+    LOBBY_BOUNDS_LEFT,
+    LOBBY_BOUNDS_RIGHT,
+    LOBBY_BOUNDS_TOP,
+    LOBBY_PLAYER_START_X,
+    LOBBY_PLAYER_START_Y,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 from lobby_scene import LobbyScene
 from player import Player
 
@@ -43,3 +52,64 @@ class LobbySceneLifecycleTests(unittest.TestCase):
 
         self.assertEqual(self.scene.mouse_screen_x, 120)
         self.assertEqual(self.scene.mouse_screen_y, 340)
+
+
+class LobbyBoundsTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene()
+
+    def tearDown(self):
+        self.scene.close()
+
+    def test_player_starts_at_the_lobby_entrance(self):
+        self.assertEqual(self.scene.player.x, LOBBY_PLAYER_START_X)
+        self.assertEqual(self.scene.player.y, LOBBY_PLAYER_START_Y)
+
+    def test_player_cannot_leave_the_left_bound(self):
+        self.scene.player.x = LOBBY_BOUNDS_LEFT - 500.0
+
+        self.scene.update(1.0 / 60)
+
+        self.assertAlmostEqual(
+            self.scene.player.x,
+            LOBBY_BOUNDS_LEFT + self.scene.player.radius,
+        )
+
+    def test_player_cannot_leave_the_right_bound(self):
+        self.scene.player.x = LOBBY_BOUNDS_RIGHT + 500.0
+
+        self.scene.update(1.0 / 60)
+
+        self.assertAlmostEqual(
+            self.scene.player.x,
+            LOBBY_BOUNDS_RIGHT - self.scene.player.radius,
+        )
+
+    def test_player_cannot_leave_the_bottom_bound(self):
+        self.scene.player.y = LOBBY_BOUNDS_BOTTOM - 500.0
+
+        self.scene.update(1.0 / 60)
+
+        self.assertAlmostEqual(
+            self.scene.player.y,
+            LOBBY_BOUNDS_BOTTOM + self.scene.player.radius,
+        )
+
+    def test_player_cannot_leave_the_top_bound(self):
+        self.scene.player.y = LOBBY_BOUNDS_TOP + 500.0
+
+        self.scene.update(1.0 / 60)
+
+        self.assertAlmostEqual(
+            self.scene.player.y,
+            LOBBY_BOUNDS_TOP - self.scene.player.radius,
+        )
+
+    def test_reset_player_position_returns_to_the_entrance(self):
+        self.scene.player.x = 200.0
+        self.scene.player.y = 700.0
+
+        self.scene.reset_player_position()
+
+        self.assertEqual(self.scene.player.x, LOBBY_PLAYER_START_X)
+        self.assertEqual(self.scene.player.y, LOBBY_PLAYER_START_Y)

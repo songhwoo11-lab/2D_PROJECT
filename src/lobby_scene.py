@@ -1,6 +1,17 @@
 """Lobby scene shown when the game starts and after every battle."""
 
-from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
+from game_config import (
+    LOBBY_BOUNDS_BOTTOM,
+    LOBBY_BOUNDS_LEFT,
+    LOBBY_BOUNDS_RIGHT,
+    LOBBY_BOUNDS_TOP,
+    LOBBY_PLAYER_START_X,
+    LOBBY_PLAYER_START_Y,
+    LOBBY_WORLD_HEIGHT,
+    LOBBY_WORLD_WIDTH,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 
 
 class LobbyScene:
@@ -16,19 +27,41 @@ class LobbyScene:
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.exit_requested = False
         self.pending_action = None
+        self.reset_player_position()
+
+    def reset_player_position(self):
+        """Put the lobby player back to the lobby entrance."""
+        if self.player is None:
+            return
+        self.player.x = LOBBY_PLAYER_START_X
+        self.player.y = LOBBY_PLAYER_START_Y
 
     def update(self, delta_time):
         """Advance the lobby by one frame."""
-        return None
+        self._clamp_player_to_bounds()
+
+    def _clamp_player_to_bounds(self):
+        """Keep the lobby player inside the walkable lobby area."""
+        if self.player is None:
+            return
+        radius = self.player.radius
+        self.player.x = min(
+            max(self.player.x, LOBBY_BOUNDS_LEFT + radius),
+            LOBBY_BOUNDS_RIGHT - radius,
+        )
+        self.player.y = min(
+            max(self.player.y, LOBBY_BOUNDS_BOTTOM + radius),
+            LOBBY_BOUNDS_TOP - radius,
+        )
 
     def draw(self, draw_rectangle):
         """Render the lobby on the canvas."""
         if self.background is not None:
             self.background.draw(
-                SCREEN_WIDTH / 2,
-                SCREEN_HEIGHT / 2,
-                SCREEN_WIDTH,
-                SCREEN_HEIGHT,
+                LOBBY_WORLD_WIDTH / 2,
+                LOBBY_WORLD_HEIGHT / 2,
+                LOBBY_WORLD_WIDTH,
+                LOBBY_WORLD_HEIGHT,
             )
         if self.player is not None and self.player.image is not None:
             self.player.draw()

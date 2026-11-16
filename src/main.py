@@ -8,6 +8,8 @@ from enemy import EnemyType
 from game_config import (
     FRAME_TIME,
     HUD_FONT_SIZE,
+    LOBBY_PLAYER_START_X,
+    LOBBY_PLAYER_START_Y,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     WORLD_HEIGHT,
@@ -76,8 +78,8 @@ class GameApp:
 
     def create_lobby_scene(self):
         player = Player(
-            SCREEN_WIDTH / 2,
-            SCREEN_HEIGHT / 2,
+            LOBBY_PLAYER_START_X,
+            LOBBY_PLAYER_START_Y,
             image=self.assets["player_image"],
         )
         return LobbyScene(
