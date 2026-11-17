@@ -210,9 +210,9 @@ class TrainingScene:
         if self.phase == "countdown":
             draw_centered_text(
                 self.hud_font,
-                SCREEN_HEIGHT / 2,
+                SCREEN_HEIGHT * 3/ 4,
                 str(int(self.countdown_remaining) + 1) if self.countdown_remaining > 0 else "START",
-                (255, 220, 100),
+                (0, 0, 0),
             )
         elif self.phase == "finished":
             draw_centered_text(
