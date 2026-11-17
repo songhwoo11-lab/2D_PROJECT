@@ -1,6 +1,7 @@
 """Training scene where the player can practise aiming and shooting."""
 
 import math
+import random
 
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import draw_centered_text
@@ -22,6 +23,11 @@ class TrainingTarget:
         self.x = float(x)
         self.y = float(y)
         self.radius = float(radius)
+        self.hit_timer = 0.0
+
+    def move_to(self, x, y):
+        self.x = float(x)
+        self.y = float(y)
         self.hit_timer = 0.0
 
     def update(self, delta_time):
@@ -50,6 +56,9 @@ class TrainingScene:
     def __init__(self, *args, **kwargs):
         self.state = kwargs.pop("state", None)
         self.hud_font = kwargs.pop("hud_font", None)
+        self.random_source = kwargs.pop("random_source", None)
+        if self.random_source is None:
+            self.random_source = random.Random()
         self.player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.target = TrainingTarget(SCREEN_WIDTH / 2 + 200, SCREEN_HEIGHT / 2 + 100)
         self.keys = set()
@@ -118,6 +127,13 @@ class TrainingScene:
     def mouse_move(self, screen_x, screen_y):
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
+
+    def _respawn_target(self):
+        margin = 80.0
+        self.target.move_to(
+            self.random_source.uniform(margin, SCREEN_WIDTH - margin),
+            self.random_source.uniform(margin, SCREEN_HEIGHT - margin),
+        )
 
     def _shot_hits_target(self, aim_x, aim_y):
         """Return whether the given aim point hits the current target."""
