@@ -1,42 +1,12 @@
-"""Static layout of the lobby: obstacles and interactive locations."""
+"""Static layout of the lobby: fixed locations and wasd transitions."""
 
 from dataclasses import dataclass
 import math
 
 
 @dataclass(frozen=True)
-class LobbyRect:
-    """Axis aligned rectangle in lobby world coordinates."""
-
-    left: float
-    bottom: float
-    right: float
-    top: float
-
-    @property
-    def width(self):
-        return self.right - self.left
-
-    @property
-    def height(self):
-        return self.top - self.bottom
-
-    @property
-    def center_x(self):
-        return (self.left + self.right) / 2
-
-    @property
-    def center_y(self):
-        return (self.bottom + self.top) / 2
-
-    def contains(self, x, y):
-        """Check whether the given position is inside the rectangle."""
-        return self.left <= x <= self.right and self.bottom <= y <= self.top
-
-
-@dataclass(frozen=True)
 class LobbyLocation:
-    """A place in the lobby the player can walk up to and interact with."""
+    """A fixed location the lobby player can stand at."""
 
     key: str
     label: str
@@ -49,17 +19,19 @@ class LobbyLocation:
         return math.hypot(x - self.zone_x, y - self.zone_y) <= self.zone_radius
 
 
-# 장소 키와 그 장소에서 실행할 동작의 대응.
+LOBBY_START_KEY = "center"
+
+# 장소 키와 그 장소에서 Enter로 실행할 동작의 대응.
 LOCATION_ACTIONS = {
     "shop": "enter_shop",
     "training": "enter_training",
     "portal": "enter_portal",
     "records": "show_records",
+    "stairs": "exit_game",
 }
 
-
-# 로비에서 이용할 수 있는 장소와 그 상호작용 영역.
-LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞 (포털에서 먼 쪽)
+# 고정된 로비 위치. 중앙을 기준으로 wasd로 인접한 장소만 이동한다.
+LOBBY_LOCATIONS = (
     LobbyLocation(
         key="shop",
         label="SHOP",
@@ -67,23 +39,6 @@ LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞 (포털에서 먼 �
         zone_y=435.0,
         zone_radius=110.0,
     ),
-    # 훈련장: 동쪽 표적과 무기 걸이대 앞
-    LobbyLocation(
-        key="training",
-        label="TRAINING",
-        zone_x=1500.0,
-        zone_y=500.0,
-        zone_radius=150.0,
-    ),
-    # 게임 시작 포털: 중앙 성벽 아치 앞
-    LobbyLocation(
-        key="portal",
-        label="BATTLE PORTAL",
-        zone_x=900.0,
-        zone_y=620.0,
-        zone_radius=130.0,
-    ),
-    # 기록 확인 지점: 포털 왼쪽 기록 보관 천막 앞
     LobbyLocation(
         key="records",
         label="RECORDS",
@@ -91,27 +46,47 @@ LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞 (포털에서 먼 �
         zone_y=435.0,
         zone_radius=110.0,
     ),
+    LobbyLocation(
+        key="center",
+        label="CENTER",
+        zone_x=900.0,
+        zone_y=450.0,
+        zone_radius=80.0,
+    ),
+    LobbyLocation(
+        key="portal",
+        label="BATTLE PORTAL",
+        zone_x=900.0,
+        zone_y=820.0,
+        zone_radius=130.0,
+    ),
+    LobbyLocation(
+        key="training",
+        label="TRAINING",
+        zone_x=1500.0,
+        zone_y=500.0,
+        zone_radius=150.0,
+    ),
+    LobbyLocation(
+        key="stairs",
+        label="EXIT STAIRS",
+        zone_x=900.0,
+        zone_y=120.0,
+        zone_radius=80.0,
+    ),
 )
 
-# 로비 아래쪽 중앙 계단. 이 영역에 들어가면 게임을 종료한다.
-LOBBY_STAIRS_EXIT = LobbyRect(820.0, 40.0, 980.0, 190.0)
+LOBBY_NODE_BY_KEY = {location.key: location for location in LOBBY_LOCATIONS}
 
-LOBBY_WALLS = (
-    # 계단 양옆의 아래쪽 벽: 중앙 계단으로만 내려갈 수 있게 한다.
-    LobbyRect(0, 0, 800, 240),
-    LobbyRect(1000, 0, 1800, 240),
-    # 서쪽 시장 천막과 진열대
-    LobbyRect(68, 500, 696, 830),
-    # 남서쪽 시장 천막과 진열대
-    LobbyRect(128, 216, 530, 372),
-    # 전투 포털이 자리한 성벽 아치
-    LobbyRect(767, 700, 1036, 1060),
-    # 훈련장 무기 걸이대와 상자
-    LobbyRect(1204, 540, 1458, 692),
-    # 훈련장 표적 받침대
-    LobbyRect(1472, 580, 1656, 692),
-    # 훈련장 나무통
-    LobbyRect(1687, 512, 1734, 583),
-    # 훈련장 오른쪽 작업대
-    LobbyRect(1649, 348, 1726, 489),
-)
+LOBBY_MOVES = {
+    ("shop", "d"): "records",
+    ("records", "d"): "center",
+    ("records", "a"): "shop",
+    ("center", "a"): "records",
+    ("center", "s"): "stairs",
+    ("center", "d"): "training",
+    ("center", "w"): "portal",
+    ("training", "a"): "center",
+    ("portal", "s"): "center",
+    ("stairs", "w"): "center",
+}

@@ -1,15 +1,7 @@
 """Lobby scene shown when the game starts and after every battle."""
 
-import math
-
 from battle_record import result_record_text
 from game_config import (
-    LOBBY_BOUNDS_BOTTOM,
-    LOBBY_BOUNDS_LEFT,
-    LOBBY_BOUNDS_RIGHT,
-    LOBBY_BOUNDS_TOP,
-    LOBBY_PLAYER_START_X,
-    LOBBY_PLAYER_START_Y,
     LOBBY_WORLD_HEIGHT,
     LOBBY_WORLD_WIDTH,
     SCREEN_HEIGHT,
@@ -20,8 +12,9 @@ from hud import draw_centered_text, draw_text_at_center
 from lobby_map import (
     LOCATION_ACTIONS,
     LOBBY_LOCATIONS,
-    LOBBY_STAIRS_EXIT,
-    LOBBY_WALLS,
+    LOBBY_MOVES,
+    LOBBY_NODE_BY_KEY,
+    LOBBY_START_KEY,
 )
 from weapon import weapon_display_name
 
@@ -39,40 +32,30 @@ class LobbyScene:
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.exit_requested = False
         self.pending_action = None
-        self.walls = tuple(LOBBY_WALLS)
         self.locations = tuple(LOBBY_LOCATIONS)
+        self.current_node = LOBBY_START_KEY
         self.nearby_location = None
         self.panel = None
         self.gun_selection_index = 0
         self.reset_player_position()
 
     def reset_player_position(self):
-        """Put the lobby player back to the lobby entrance."""
+        """Put the lobby player back at the central node."""
+        self.current_node = LOBBY_START_KEY
+        self.nearby_location = LOBBY_NODE_BY_KEY.get(self.current_node)
         if self.player is None:
             return
-        self.player.x = LOBBY_PLAYER_START_X
-        self.player.y = LOBBY_PLAYER_START_Y
+        node = LOBBY_NODE_BY_KEY[self.current_node]
+        self.player.x = node.zone_x
+        self.player.y = node.zone_y
 
     def update(self, delta_time):
-        """Advance the lobby by one frame."""
-        self._update_player(delta_time)
-        self._clamp_player_to_bounds()
+        """Keep the fixed lobby position in sync with the current node."""
         self._update_nearby_location()
-        self._update_stairs_exit()
-
-    def _update_stairs_exit(self):
-        """Exit the game once the player walks onto the lower stairs."""
-        if self.player is None:
-            return
-        if LOBBY_STAIRS_EXIT.contains(self.player.x, self.player.y):
-            self.exit_requested = True
 
     def _update_nearby_location(self):
-        """Remember the location the player currently stands next to."""
-        if self.player is None:
-            self.nearby_location = None
-            return
-        self.nearby_location = self.location_at(self.player.x, self.player.y)
+        """Remember the fixed location the player is standing at."""
+        self.nearby_location = LOBBY_NODE_BY_KEY.get(self.current_node)
 
     def location_at(self, x, y):
         """Return the location whose interaction area covers the position."""
@@ -81,62 +64,17 @@ class LobbyScene:
                 return location
         return None
 
-    def _movement_input(self):
-        """Return the requested movement direction from the pressed keys."""
-        move_x = 0.0
-        move_y = 0.0
-        if "a" in self.keys:
-            move_x -= 1.0
-        if "d" in self.keys:
-            move_x += 1.0
-        if "s" in self.keys:
-            move_y -= 1.0
-        if "w" in self.keys:
-            move_y += 1.0
-        return move_x, move_y
-
-    def _update_player(self, delta_time):
-        """Move the lobby player with the shared player speed."""
-        if self.player is None:
+    def _move_to_adjacent_node(self, key):
+        """Move directly to the node connected by the pressed wasd key."""
+        next_key = LOBBY_MOVES.get((self.current_node, key))
+        if next_key is None:
             return
-        move_x, move_y = self._movement_input()
-        direction_length = math.hypot(move_x, move_y)
-        if direction_length > 1:
-            move_x /= direction_length
-            move_y /= direction_length
-        step = self.player.speed * delta_time
-        new_x = self.player.x + move_x * step
-        if not self._collides_with_wall(new_x, self.player.y):
-            self.player.x = new_x
-        new_y = self.player.y + move_y * step
-        if not self._collides_with_wall(self.player.x, new_y):
-            self.player.y = new_y
-
-    def _collides_with_wall(self, x, y):
-        """Check whether the player circle touches a lobby obstacle."""
-        if self.player is None:
-            return False
-        radius = self.player.radius
-        for wall in self.walls:
-            closest_x = min(max(x, wall.left), wall.right)
-            closest_y = min(max(y, wall.bottom), wall.top)
-            if math.hypot(x - closest_x, y - closest_y) < radius:
-                return True
-        return False
-
-    def _clamp_player_to_bounds(self):
-        """Keep the lobby player inside the walkable lobby area."""
-        if self.player is None:
-            return
-        radius = self.player.radius
-        self.player.x = min(
-            max(self.player.x, LOBBY_BOUNDS_LEFT + radius),
-            LOBBY_BOUNDS_RIGHT - radius,
-        )
-        self.player.y = min(
-            max(self.player.y, LOBBY_BOUNDS_BOTTOM + radius),
-            LOBBY_BOUNDS_TOP - radius,
-        )
+        node = LOBBY_NODE_BY_KEY[next_key]
+        self.current_node = next_key
+        if self.player is not None:
+            self.player.x = node.zone_x
+            self.player.y = node.zone_y
+        self._update_nearby_location()
 
     def draw(self, draw_rectangle):
         """Render the lobby on the canvas."""
@@ -205,7 +143,7 @@ class LobbyScene:
         )
 
     def _draw_location_labels(self):
-        """Draw the name of every place and the access guide of the nearby one."""
+        """Draw the name of every fixed location and the current access guide."""
         if self.hud_font is None:
             return
         for location in self.locations:
@@ -220,13 +158,6 @@ class LobbyScene:
                 location.label,
                 (170, 190, 220),
             )
-        draw_text_at_center(
-            self.hud_font,
-            LOBBY_STAIRS_EXIT.center_x,
-            LOBBY_STAIRS_EXIT.top + 40.0,
-            "EXIT STAIRS",
-            (170, 190, 220),
-        )
         if self.nearby_location is None or self.panel is not None:
             return
         draw_centered_text(
@@ -237,7 +168,7 @@ class LobbyScene:
         )
 
     def _draw_nearby_location_marker(self, draw_rectangle):
-        """Mark the interaction area the player is standing next to."""
+        """Mark the fixed location the player is standing at."""
         location = self.nearby_location
         if location is None or self.panel is not None:
             return
@@ -307,13 +238,19 @@ class LobbyScene:
             elif key in ("return", "enter", "q"):
                 self.close_panel()
             return
+        if key in ("w", "a", "s", "d"):
+            self._move_to_adjacent_node(key)
+            return
         if key in ("return", "enter") and self.nearby_location is not None:
             self._activate_location(self.nearby_location)
 
     def _activate_location(self, location):
-        """Run the action bound to the location the player stands at."""
+        """Run the action bound to the fixed location the player stands at."""
         action = LOCATION_ACTIONS.get(location.key)
         if action is None:
+            return
+        if action == "exit_game":
+            self.exit_requested = True
             return
         if action == "show_records":
             self.open_records()

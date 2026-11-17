@@ -4,7 +4,6 @@ import unittest
 
 from battle_scene import BattleResult
 from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
-from lobby_map import LOBBY_STAIRS_EXIT
 from lobby_scene import LobbyScene
 from main import GameApp
 from player import Player
@@ -31,6 +30,11 @@ def make_app():
     return app
 
 
+def press(app, key):
+    app.scene.key_down(key)
+    app.scene.key_up(key)
+
+
 class LobbyPlaceIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.app = make_app()
@@ -40,34 +44,30 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         if self.app.scene is not None:
             self.app.scene.close()
 
-    def _walk_to(self, x, y):
-        self.app.scene.player.x = x
-        self.app.scene.player.y = y
-        self.app.scene.update(1.0 / 60)
-
     def test_every_place_can_be_reached_and_used(self):
-        self._walk_to(330.0, 435.0)
-        self.app.scene.key_down("return")
+        press(self.app, "a")
+        press(self.app, "a")
+        press(self.app, "return")
         self.assertEqual(self.app.scene.pending_action, "enter_shop")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "shop")
 
-        self.app.scene.key_down("return")
+        press(self.app, "return")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "lobby")
 
-        self._walk_to(1500.0, 500.0)
-        self.app.scene.key_down("return")
+        press(self.app, "d")
+        press(self.app, "return")
         self.assertEqual(self.app.scene.pending_action, "enter_training")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "training")
 
-        self.app.scene.key_down("return")
+        press(self.app, "return")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "lobby")
 
-        self._walk_to(900.0, 620.0)
-        self.app.scene.key_down("return")
+        press(self.app, "w")
+        press(self.app, "return")
         self.assertEqual(self.app.scene.pending_action, "start_battle")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "battle")
@@ -77,13 +77,12 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
             self._make_record("defeat", 2, 40.0)
         )
 
-        self._walk_to(600.0, 435.0)
-        self.app.scene.key_down("return")
+        press(self.app, "a")
+        press(self.app, "return")
 
         self.assertEqual(self.app.scene.panel, "records")
 
-        self.app.scene.key_up("return")
-        self.app.scene.key_down("return")
+        press(self.app, "return")
         self.assertIsNone(self.app.scene.panel)
 
     def test_retry_after_a_defeat_keeps_the_lobby_usable(self):
@@ -106,8 +105,8 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
             LOBBY_PLAYER_START_Y,
         )
 
-        self._walk_to(900.0, 620.0)
-        self.app.scene.key_down("return")
+        press(self.app, "w")
+        press(self.app, "return")
         self.app.handle_scene_action()
 
         self.assertEqual(self.app.scene_kind, "battle")
@@ -141,10 +140,13 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.assertEqual(len(self.app.state.records), 2)
         self.assertEqual(self.app.state.coins, 20)
 
-    def test_walking_down_the_stairs_exits_the_game(self):
-        self._walk_to(LOBBY_STAIRS_EXIT.center_x, 240.0)
-        self.app.scene.key_down("s")
-        self.app.scene.update(0.25)
+    def test_walking_to_the_stairs_then_pressing_enter_exits_the_game(self):
+        press(self.app, "s")
+
+        self.assertEqual(self.app.scene.current_node, "stairs")
+        self.assertFalse(self.app.scene.exit_requested)
+
+        press(self.app, "return")
 
         self.assertTrue(self.app.scene.exit_requested)
 
