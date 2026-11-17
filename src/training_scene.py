@@ -204,7 +204,7 @@ class TrainingScene:
             self.hud_font,
             TRAINING_TITLE_Y,
             TRAINING_TITLE,
-            (255, 220, 100),
+            (0, 120, 0),
         )
 
         if self.phase == "countdown":
@@ -215,15 +215,26 @@ class TrainingScene:
                 (0, 0, 0),
             )
         elif self.phase == "finished":
-            draw_centered_text(
-                self.hud_font,
-                SCREEN_HEIGHT / 2,
-                "TIME UP",
-                (255, 220, 80),
+            pico2d.draw_rectangle (
+                SCREEN_WIDTH / 2 - 200,
+                SCREEN_HEIGHT / 2 - 100,
+                SCREEN_WIDTH / 2 + 200,
+                SCREEN_HEIGHT / 2 + 100,
+                0,
+                20,
+                40,
+                255,
+                True
             )
             draw_centered_text(
                 self.hud_font,
-                SCREEN_HEIGHT / 2 - 60,
+                SCREEN_HEIGHT / 2 + 40,
+                "TIME UP",
+                (222, 180, 0),
+            )
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT / 2 - 40,
                 "HITS {}".format(self._hits),
                 (255, 255, 255),
             )
@@ -238,7 +249,7 @@ class TrainingScene:
                 self.hud_font,
                 SCREEN_HEIGHT - 130,
                 "HITS {}".format(self._hits),
-                (255, 220, 100),
+                (120, 20, 0),
             )
 
     def key_down(self, key):
