@@ -250,7 +250,7 @@ class TrainingScene:
             self.gun.toggle_mode()
         elif key == "r":
             self.gun.start_reload()
-        elif key in ("space", "q"):
+        elif key in ("escape", "q"):
             self.pending_action = "return_to_lobby"
 
     def key_up(self, key):

@@ -25,6 +25,6 @@ class TrainingSceneTests(unittest.TestCase):
         self.scene.draw(lambda *args: None)
 
     def test_enter_key_asks_for_the_lobby_return(self):
-        self.scene.key_down("space")
+        self.scene.key_down("escape")
 
         self.assertEqual(self.scene.pending_action, "return_to_lobby")
