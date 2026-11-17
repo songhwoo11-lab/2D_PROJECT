@@ -354,10 +354,10 @@ class BattleScene:
             return
         self.keys.add(key)
         if self.finished:
-            if key in ("return", "enter"):
+            if key == "space":
                 self.exit_requested = True
             return
-        if key == "q":
+        if key == "escape":
             self.paused = not self.paused
             if self.paused:
                 self.pause_menu_index = 0
@@ -371,10 +371,8 @@ class BattleScene:
                 self.pause_menu_index = (
                     self.pause_menu_index + 1
                 ) % len(PAUSE_MENU_ITEMS)
-            elif key in ("return", "enter"):
+            elif key == "space":
                 self._select_pause_menu_item()
-            elif key == "escape":
-                self.paused = False
             return
         if key == "f1":
             self.debug_mode = not self.debug_mode
@@ -406,6 +404,23 @@ class BattleScene:
     def mouse_move(self, screen_x, screen_y):
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
+        if self.paused and not self.finished:
+            hovered = self._pause_menu_item_at(screen_x, screen_y)
+            if hovered is not None:
+                self.pause_menu_index = hovered
+
+    def _pause_menu_item_at(self, screen_x, screen_y):
+        """Return the pause menu item under the given screen position."""
+        canvas_y = SCREEN_HEIGHT - screen_y
+        center_x = SCREEN_WIDTH / 2
+        for index, _label in enumerate(PAUSE_MENU_ITEMS):
+            item_y = SCREEN_HEIGHT / 2 + 24 - index * 68
+            if (
+                abs(screen_x - center_x) <= 220
+                and abs(canvas_y - item_y) <= 34
+            ):
+                return index
+        return None
 
     @property
     def aim_cursor_position(self):
@@ -413,6 +428,18 @@ class BattleScene:
         return self.mouse_screen_x, SCREEN_HEIGHT - self.mouse_screen_y
 
     def mouse_down(self, button, screen_x=None, screen_y=None):
+        if (
+            button == "left"
+            and self.paused
+            and not self.finished
+            and screen_x is not None
+            and screen_y is not None
+        ):
+            hovered = self._pause_menu_item_at(screen_x, screen_y)
+            if hovered is not None:
+                self.pause_menu_index = hovered
+                self._select_pause_menu_item()
+                return
         if (
             button == "left"
             and self.debug_mode
@@ -847,7 +874,7 @@ class BattleScene:
         draw_centered_text(
             self.hud_font,
             SCREEN_HEIGHT / 2 - 80,
-            "PRESS ENTER TO RETURN TO LOBBY",
+            "PRESS SPACE TO RETURN TO LOBBY",
             (255, 255, 255),
         )
 

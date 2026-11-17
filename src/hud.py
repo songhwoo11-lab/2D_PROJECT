@@ -66,6 +66,12 @@ def draw_centered_text(font, y, text, color=(255, 255, 255)):
     _draw_centered_text(font, y, text, color)
 
 
+def draw_text_at_center(font, center_x, y, text, color=(255, 255, 255)):
+    """Draw text horizontally centered on the given x position."""
+    x = center_x - _measure_text_width(font, text) / 2
+    font.draw(x, y, text, color)
+
+
 def temperature_text(gun):
     return "TEMP {0:.0f}/{1:.0f}".format(
         gun.temperature,
