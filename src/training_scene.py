@@ -152,17 +152,25 @@ class TrainingScene:
             self.shot_result_timer = 0.6
 
     def draw(self, draw_rectangle):
-        draw_rectangle(
-            0,
-            0,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT,
-            16,
-            26,
-            16,
-            255,
-            True,
-        )
+        if self.background is not None:
+            self.background.draw(
+                SCREEN_WIDTH / 2,
+                SCREEN_HEIGHT / 2,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+            )
+        else:
+            draw_rectangle(
+                0,
+                0,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+                16,
+                26,
+                16,
+                255,
+                True,
+            )
         if self.hud_font is None:
             return
         if self.target is not None:

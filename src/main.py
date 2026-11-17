@@ -62,6 +62,9 @@ class GameApp:
         self.assets["training_target_image"] = pico2d.load_image(
             str(directory / "Training_Target.png")
         )
+        self.assets["training_background"] = pico2d.load_image(
+            str(directory / "game_training.png")
+        )
         self.assets["hud_font"] = pico2d.load_font(
             str(directory / "font" / "MulmaruMono.ttf"),
             HUD_FONT_SIZE,
@@ -159,7 +162,7 @@ class GameApp:
         return TrainingScene(
             player=player,
             gun=Gun(weapon_spec_or_default(self.state.selected_gun)),
-            background=None,
+            background=self.assets.get("training_background"),
             hud_font=self.assets["hud_font"],
             state=self.state,
             target_image=self.assets.get("training_target_image"),
