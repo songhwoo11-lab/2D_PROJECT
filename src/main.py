@@ -59,6 +59,9 @@ class GameApp:
         self.assets["health_image"] = pico2d.load_image(
             str(directory / "health potion.png")
         )
+        self.assets["training_target_image"] = pico2d.load_image(
+            str(directory / "Training_Target.png")
+        )
         self.assets["hud_font"] = pico2d.load_font(
             str(directory / "font" / "MulmaruMono.ttf"),
             HUD_FONT_SIZE,
@@ -159,6 +162,7 @@ class GameApp:
             background=None,
             hud_font=self.assets["hud_font"],
             state=self.state,
+            target_image=self.assets.get("training_target_image"),
         )
 
     def handle_scene_action(self):

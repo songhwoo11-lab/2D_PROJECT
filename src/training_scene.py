@@ -22,9 +22,15 @@ TRAINING_HINT_Y = 120
 class TrainingTarget:
     """A simple circular target used in the training ground."""
 
-    def __init__(self, x, y, radius=28.0):
+    def __init__(self, x, y, radius=None, image=None):
         self.x = float(x)
         self.y = float(y)
+        self.image = image
+        if radius is None:
+            if image is not None:
+                radius = max(getattr(image, "w", 0), getattr(image, "h", 0)) / 2.0
+            else:
+                radius = 28.0
         self.radius = float(radius)
         self.hit_timer = 0.0
 
@@ -40,6 +46,13 @@ class TrainingTarget:
         return math.hypot(self.x - x, self.y - y) <= self.radius
 
     def draw(self, draw_rectangle):
+        size = self.radius * 2.0
+        if self.image is not None:
+            try:
+                self.image.draw(self.x, self.y, size, size)
+                return
+            except Exception:
+                pass
         color = (255, 220, 80) if self.hit_timer > 0 else (220, 60, 60)
         try:
             pico2d.draw_circle(
@@ -64,6 +77,7 @@ class TrainingScene:
         player = kwargs.pop("player", None)
         gun = kwargs.pop("gun", None)
         background = kwargs.pop("background", None)
+        target_image = kwargs.pop("target_image", None)
 
         for arg in args:
             if player is None and isinstance(arg, Player):
@@ -76,6 +90,8 @@ class TrainingScene:
                 hud_font = arg
             elif background is None and hasattr(arg, "draw") and not hasattr(arg, "font"):
                 background = arg
+            elif target_image is None and hasattr(arg, "draw") and hasattr(arg, "w"):
+                target_image = arg
 
         if random_source is None:
             random_source = random.Random()
@@ -84,11 +100,12 @@ class TrainingScene:
         self.hud_font = hud_font
         self.random_source = random_source
         self.background = background
+        self.target_image = target_image
         self.player = player if player is not None else Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.gun = gun if gun is not None else Gun()
         self.gun.infinite_ammo = True
         self.gun.heat_enabled = False
-        self.target = TrainingTarget(SCREEN_WIDTH / 2 + 200, SCREEN_HEIGHT / 2 + 100)
+        self.target = TrainingTarget(SCREEN_WIDTH / 2 + 200, SCREEN_HEIGHT / 2 + 100, image=target_image)
         self._shots_fired = 0
         self._hits = 0
         self._misses = 0
