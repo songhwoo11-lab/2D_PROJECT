@@ -62,6 +62,7 @@ class TrainingScene:
         self.player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.target = TrainingTarget(SCREEN_WIDTH / 2 + 200, SCREEN_HEIGHT / 2 + 100)
         self._shots_fired = 0
+        self._hits = 0
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -135,6 +136,14 @@ class TrainingScene:
             self.random_source.uniform(margin, SCREEN_WIDTH - margin),
             self.random_source.uniform(margin, SCREEN_HEIGHT - margin),
         )
+
+    @property
+    def hits(self):
+        return self._hits
+
+    @property
+    def hit_count(self):
+        return self._hits
 
     @property
     def shots(self):
