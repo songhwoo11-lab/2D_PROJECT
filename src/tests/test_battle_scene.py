@@ -636,7 +636,7 @@ class BattleSceneFlowTests(unittest.TestCase):
     def test_resume_option_closes_the_pause_menu(self):
         self.scene.key_down("escape")
 
-        self.scene.key_down("return")
+        self.scene.key_down("space")
 
         self.assertFalse(self.scene.paused)
         self.assertFalse(self.scene.finished)
@@ -646,7 +646,7 @@ class BattleSceneFlowTests(unittest.TestCase):
         self.scene.key_down("s")
         self.scene.key_up("s")
 
-        self.scene.key_down("return")
+        self.scene.key_down("space")
 
         self.assertTrue(self.scene.finished)
         self.assertFalse(self.scene.paused)
@@ -682,7 +682,7 @@ class BattleSceneFlowTests(unittest.TestCase):
         self.scene.waves_cleared = True
         self.scene.update(0.0)
 
-        self.scene.key_down("return")
+        self.scene.key_down("space")
 
         self.assertTrue(self.scene.exit_requested)
 
@@ -1181,7 +1181,7 @@ class BattleSceneRecordTests(unittest.TestCase):
         self.scene.key_down("escape")
         self.scene.key_down("s")
         self.scene.key_up("s")
-        self.scene.key_down("return")
+        self.scene.key_down("space")
 
         self.assertIs(self.scene.result, BattleResult.QUIT)
         self.assertEqual(self.scene.reached_wave, 4)

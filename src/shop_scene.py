@@ -6,7 +6,7 @@ from hud import draw_centered_text
 
 SHOP_TITLE = "SHOP"
 SHOP_NOTICE = "SHOP OPENING SOON"
-SHOP_HINT = "PRESS ENTER : BACK TO LOBBY"
+SHOP_HINT = "PRESS SPACE : BACK TO LOBBY"
 SHOP_TITLE_Y = SCREEN_HEIGHT - 200
 SHOP_NOTICE_Y = SCREEN_HEIGHT - 300
 SHOP_HINT_Y = 120
@@ -48,7 +48,7 @@ class ShopScene:
         if key in self.keys:
             return
         self.keys.add(key)
-        if key in ("return", "enter", "q"):
+        if key in ("space", "q"):
             self.pending_action = "return_to_lobby"
 
     def key_up(self, key):

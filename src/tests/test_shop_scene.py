@@ -19,14 +19,14 @@ class ShopSceneTests(unittest.TestCase):
         self.scene.draw(lambda *args: None)
 
     def test_enter_key_asks_for_the_lobby_return(self):
-        self.scene.key_down("return")
+        self.scene.key_down("space")
 
         self.assertEqual(self.scene.pending_action, "return_to_lobby")
 
     def test_enter_key_is_not_triggered_twice(self):
-        self.scene.key_down("return")
+        self.scene.key_down("space")
         self.scene.pending_action = None
 
-        self.scene.key_down("return")
+        self.scene.key_down("space")
 
         self.assertIsNone(self.scene.pending_action)

@@ -6,7 +6,7 @@ from hud import draw_centered_text
 
 TRAINING_TITLE = "TRAINING"
 TRAINING_NOTICE = "TRAINING GROUND OPENING SOON"
-TRAINING_HINT = "PRESS ENTER : BACK TO LOBBY"
+TRAINING_HINT = "PRESS SPACE : BACK TO LOBBY"
 TRAINING_TITLE_Y = SCREEN_HEIGHT - 200
 TRAINING_NOTICE_Y = SCREEN_HEIGHT - 300
 TRAINING_HINT_Y = 120
@@ -53,7 +53,7 @@ class TrainingScene:
         if key in self.keys:
             return
         self.keys.add(key)
-        if key in ("return", "enter", "q"):
+        if key in ("space", "q"):
             self.pending_action = "return_to_lobby"
 
     def key_up(self, key):

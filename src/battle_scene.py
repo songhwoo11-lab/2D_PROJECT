@@ -354,7 +354,7 @@ class BattleScene:
             return
         self.keys.add(key)
         if self.finished:
-            if key in ("return", "enter"):
+            if key == "space":
                 self.exit_requested = True
             return
         if key == "escape":
@@ -371,7 +371,7 @@ class BattleScene:
                 self.pause_menu_index = (
                     self.pause_menu_index + 1
                 ) % len(PAUSE_MENU_ITEMS)
-            elif key in ("return", "enter"):
+            elif key == "space":
                 self._select_pause_menu_item()
             return
         if key == "f1":
@@ -845,7 +845,7 @@ class BattleScene:
         draw_centered_text(
             self.hud_font,
             SCREEN_HEIGHT / 2 - 80,
-            "PRESS ENTER TO RETURN TO LOBBY",
+            "PRESS SPACE TO RETURN TO LOBBY",
             (255, 255, 255),
         )
 

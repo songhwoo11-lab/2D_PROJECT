@@ -149,7 +149,7 @@ class LobbyScene:
         draw_centered_text(
             self.hud_font,
             120,
-            "W/S : SELECT    ENTER : CONFIRM    Q : CANCEL",
+            "W/S : SELECT    SPACE : CONFIRM    Q : CANCEL",
             (170, 190, 220),
         )
 
@@ -221,13 +221,13 @@ class LobbyScene:
         if self.panel is not None:
             if self.panel == "gun_select":
                 self._handle_gun_selection_key(key)
-            elif key in ("return", "enter", "q"):
+            elif key in ("space", "q"):
                 self.close_panel()
             return
         if key in ("w", "a", "s", "d"):
             self._move_to_adjacent_node(key)
             return
-        if key in ("return", "enter") and self.nearby_location is not None:
+        if key == "space" and self.nearby_location is not None:
             self._activate_location(self.nearby_location)
 
     def _activate_location(self, location):
@@ -273,7 +273,7 @@ class LobbyScene:
             self.gun_selection_index = (self.gun_selection_index - 1) % len(owned_guns)
         elif key in ("s", "down"):
             self.gun_selection_index = (self.gun_selection_index + 1) % len(owned_guns)
-        elif key in ("return", "enter"):
+        elif key == "space":
             self._confirm_gun_selection()
         elif key == "q":
             self.close_panel()

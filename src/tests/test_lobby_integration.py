@@ -47,30 +47,30 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
     def test_every_place_can_be_reached_and_used(self):
         press(self.app, "a")
         press(self.app, "a")
-        press(self.app, "return")
+        press(self.app, "space")
         self.assertEqual(self.app.scene.pending_action, "enter_shop")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "shop")
 
-        press(self.app, "return")
+        press(self.app, "space")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "lobby")
 
         press(self.app, "d")
         press(self.app, "d")
         press(self.app, "d")
-        press(self.app, "return")
+        press(self.app, "space")
         self.assertEqual(self.app.scene.pending_action, "enter_training")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "training")
 
-        press(self.app, "return")
+        press(self.app, "space")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "lobby")
 
         press(self.app, "a")
         press(self.app, "w")
-        press(self.app, "return")
+        press(self.app, "space")
         self.assertEqual(self.app.scene.pending_action, "start_battle")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "battle")
@@ -81,11 +81,11 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         )
 
         press(self.app, "a")
-        press(self.app, "return")
+        press(self.app, "space")
 
         self.assertEqual(self.app.scene.panel, "records")
 
-        press(self.app, "return")
+        press(self.app, "space")
         self.assertIsNone(self.app.scene.panel)
 
     def test_retry_after_a_defeat_keeps_the_lobby_usable(self):
@@ -109,7 +109,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         )
 
         press(self.app, "w")
-        press(self.app, "return")
+        press(self.app, "space")
         self.app.handle_scene_action()
 
         self.assertEqual(self.app.scene_kind, "battle")
@@ -149,7 +149,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.assertEqual(self.app.scene.current_node, "stairs")
         self.assertFalse(self.app.scene.exit_requested)
 
-        press(self.app, "return")
+        press(self.app, "space")
 
         self.assertTrue(self.app.scene.exit_requested)
 

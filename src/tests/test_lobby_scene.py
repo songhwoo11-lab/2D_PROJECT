@@ -196,7 +196,7 @@ class LobbyLocationTests(unittest.TestCase):
         self.assertEqual(location.key, "shop")
 
     def test_enter_at_the_center_does_nothing(self):
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertIsNone(self.scene.pending_action)
         self.assertFalse(self.scene.exit_requested)
@@ -206,35 +206,35 @@ class LobbyLocationTests(unittest.TestCase):
         press(self.scene, "a")
         press(self.scene, "a")
 
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertEqual(self.scene.pending_action, "enter_shop")
 
     def test_enter_at_the_training_ground_requests_the_training_scene(self):
         press(self.scene, "d")
 
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertEqual(self.scene.pending_action, "enter_training")
 
     def test_enter_at_the_portal_starts_the_battle(self):
         press(self.scene, "w")
 
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertEqual(self.scene.pending_action, "start_battle")
 
     def test_enter_at_records_opens_the_record_panel(self):
         press(self.scene, "a")
 
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertEqual(self.scene.panel, "records")
 
     def test_record_panel_can_be_closed(self):
         self.scene.open_records()
 
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertIsNone(self.scene.panel)
 
@@ -332,7 +332,7 @@ class LobbyPortalEntryTests(unittest.TestCase):
         self.state.owned_guns = ["pistol", "rifle"]
         press(self.scene, "w")
 
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertEqual(self.scene.panel, "gun_select")
         self.assertIsNone(self.scene.pending_action)
@@ -358,7 +358,7 @@ class LobbyPortalEntryTests(unittest.TestCase):
         self.scene.open_gun_selection()
         press(self.scene, "s")
 
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertEqual(self.state.selected_gun, "rifle")
         self.assertIsNone(self.scene.panel)
@@ -392,6 +392,6 @@ class LobbyStairsExitTests(unittest.TestCase):
     def test_enter_at_the_stairs_requests_the_game_exit(self):
         press(self.scene, "s")
 
-        press(self.scene, "return")
+        press(self.scene, "space")
 
         self.assertTrue(self.scene.exit_requested)

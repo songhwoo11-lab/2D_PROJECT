@@ -215,6 +215,7 @@ class GameApp:
                 pico2d.SDLK_d: "d",
                 pico2d.SDLK_e: "e",
                 pico2d.SDLK_r: "r",
+                pico2d.SDLK_SPACE: "space",
                 pico2d.SDLK_q: "q",
                 pico2d.SDLK_UP: "up",
                 pico2d.SDLK_DOWN: "down",
