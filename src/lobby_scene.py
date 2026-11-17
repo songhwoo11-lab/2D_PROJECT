@@ -1,5 +1,7 @@
 """Lobby scene shown when the game starts and after every battle."""
 
+import pico2d
+
 from battle_record import result_record_text
 from game_config import (
     LOBBY_WORLD_HEIGHT,
@@ -99,6 +101,7 @@ class LobbyScene:
             )
         if self.player is not None and self.player.image is not None:
             self.player.draw()
+        self._draw_direction_arrows()
         if self.hud_font is not None:
             self.hud_font.draw(
                 40,
@@ -152,6 +155,89 @@ class LobbyScene:
             "W/S : SELECT    SPACE : CONFIRM    Q : CANCEL",
             (170, 190, 220),
         )
+
+    def _draw_direction_arrows(self):
+        """Show the movement directions available from the current node."""
+        if self.player is None:
+            return
+        available = {
+            direction
+            for (node, direction) in LOBBY_MOVES
+            if node == self.current_node
+        }
+        size = 12.0
+        # Small isosceles triangles pointing toward the available node.
+        triangles = {
+            "w": (
+                (0.0, size * 1.5),
+                (-size, -size * 0.5),
+                (size, -size * 0.5),
+            ),
+            "a": (
+                (-size * 1.5, 0.0),
+                (size * 0.5, size),
+                (size * 0.5, -size),
+            ),
+            "s": (
+                (0.0, -size * 1.5),
+                (-size, size * 0.5),
+                (size, size * 0.5),
+            ),
+            "d": (
+                (size * 1.5, 0.0),
+                (-size * 0.5, size),
+                (-size * 0.5, -size),
+            ),
+        }
+        color = (170, 190, 220, 255)
+        for direction in ("w", "a", "s", "d"):
+            if direction not in available:
+                continue
+            base_x = self.player.x
+            base_y = self.player.y
+            offset = 70.0
+            if direction == "w":
+                base_y += offset
+            elif direction == "s":
+                base_y -= offset
+            elif direction == "a":
+                base_x -= offset
+            elif direction == "d":
+                base_x += offset
+            points = [
+                (base_x + dx, base_y + dy) for dx, dy in triangles[direction]
+            ]
+            # Fill the triangle with horizontal scanlines.
+            min_y = min(point[1] for point in points)
+            max_y = max(point[1] for point in points)
+            for scan_y in range(int(min_y), int(max_y) + 1):
+                intersections = []
+                for index in range(3):
+                    start = points[index]
+                    end = points[(index + 1) % 3]
+                    y1, y2 = start[1], end[1]
+                    if (y1 <= scan_y <= y2) or (y2 <= scan_y <= y1):
+                        if abs(y2 - y1) < 0.0001:
+                            intersections.append(start[0])
+                            intersections.append(end[0])
+                        else:
+                            ratio = (scan_y - y1) / (y2 - y1)
+                            intersections.append(start[0] + (end[0] - start[0]) * ratio)
+                if len(intersections) < 2:
+                    continue
+                left = int(min(intersections))
+                right = int(max(intersections))
+                try:
+                    pico2d.draw_line(
+                        left,
+                        scan_y,
+                        right,
+                        scan_y,
+                        *color[:3],
+                        color[3],
+                    )
+                except Exception:
+                    pass
 
     def _draw_location_labels(self):
         """Draw only the current location name."""
