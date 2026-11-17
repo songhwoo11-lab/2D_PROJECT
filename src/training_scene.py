@@ -21,11 +21,16 @@ class TrainingScene:
         self.hud_font = kwargs.pop("hud_font", None)
         self.player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.keys = set()
+        self.mouse_screen_x = SCREEN_WIDTH / 2
+        self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.exit_requested = False
         self.pending_action = None
 
     def update(self, delta_time):
+        canvas_x = self.mouse_screen_x
+        canvas_y = SCREEN_HEIGHT - self.mouse_screen_y
         if self.player is not None:
+            self.player.aim_at(canvas_x, canvas_y)
             self.player.x = SCREEN_WIDTH / 2
             self.player.y = SCREEN_HEIGHT / 2
             self.player.set_movement(0, 0)
@@ -73,6 +78,10 @@ class TrainingScene:
 
     def mouse_move(self, screen_x, screen_y):
         return None
+
+    def mouse_move(self, screen_x, screen_y):
+        self.mouse_screen_x = screen_x
+        self.mouse_screen_y = screen_y
 
     def mouse_down(self, button, screen_x=None, screen_y=None):
         return None
