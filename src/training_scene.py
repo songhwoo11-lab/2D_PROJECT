@@ -61,6 +61,7 @@ class TrainingScene:
             self.random_source = random.Random()
         self.player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.target = TrainingTarget(SCREEN_WIDTH / 2 + 200, SCREEN_HEIGHT / 2 + 100)
+        self._shots_fired = 0
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -134,6 +135,14 @@ class TrainingScene:
             self.random_source.uniform(margin, SCREEN_WIDTH - margin),
             self.random_source.uniform(margin, SCREEN_HEIGHT - margin),
         )
+
+    @property
+    def shots(self):
+        return self._shots_fired
+
+    @property
+    def shots_fired(self):
+        return self._shots_fired
 
     def _shot_hits_target(self, aim_x, aim_y):
         """Return whether the given aim point hits the current target."""
