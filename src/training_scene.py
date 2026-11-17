@@ -118,6 +118,10 @@ class TrainingScene:
         self.pending_action = None
         self.last_shot_result = None
         self.shot_result_timer = 0.0
+        self.phase = "countdown"
+        self.countdown_remaining = 3.0
+        self.time_remaining = 60.0
+        self.finish_timer = 2.0
 
     def update(self, delta_time):
         canvas_x = self.mouse_screen_x
@@ -132,6 +136,21 @@ class TrainingScene:
 
         self.shot_result_timer = max(0.0, self.shot_result_timer - delta_time)
 
+        if self.phase == "countdown":
+            self.countdown_remaining = max(0.0, self.countdown_remaining - delta_time)
+            if self.countdown_remaining <= 0.0:
+                self.phase = "playing"
+                self.time_remaining = 60.0
+            return
+
+        if self.phase == "finished":
+            self.finish_timer = max(0.0, self.finish_timer - delta_time)
+            if self.finish_timer <= 0.0:
+                self.pending_action = "return_to_lobby"
+            return
+
+        # playing
+        self.time_remaining = max(0.0, self.time_remaining - delta_time)
         self.gun.update(delta_time)
         fired = self.gun.handle_fire_input(
             mouse_held=self.mouse_held,
@@ -150,6 +169,10 @@ class TrainingScene:
                 self._misses += 1
                 self.last_shot_result = "MISS"
             self.shot_result_timer = 0.6
+
+        if self.time_remaining <= 0.0:
+            self.phase = "finished"
+            self.finish_timer = 2.0
 
     def draw(self, draw_rectangle):
         if self.background is not None:
@@ -183,33 +206,40 @@ class TrainingScene:
             TRAINING_TITLE,
             (255, 220, 100),
         )
-        draw_centered_text(
-            self.hud_font,
-            SCREEN_HEIGHT - 110,
-            "SHOTS {}  HITS {}  MISSES {}".format(
-                self._shots_fired,
-                self._hits,
-                self._misses,
-            ),
-        )
-        draw_centered_text(
-            self.hud_font,
-            SCREEN_HEIGHT - 160,
-            "ACCURACY {}%".format(round(self.accuracy * 100)),
-        )
-        if self.shot_result_timer > 0 and self.last_shot_result is not None:
+
+        if self.phase == "countdown":
             draw_centered_text(
                 self.hud_font,
                 SCREEN_HEIGHT / 2,
-                self.last_shot_result,
-                (255, 220, 80) if self.last_shot_result == "HIT" else (255, 120, 100),
+                str(int(self.countdown_remaining) + 1) if self.countdown_remaining > 0 else "START",
+                (255, 220, 100),
             )
-        draw_centered_text(
-            self.hud_font,
-            TRAINING_HINT_Y,
-            TRAINING_HINT,
-            (170, 190, 220),
-        )
+        elif self.phase == "finished":
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT / 2,
+                "TIME UP",
+                (255, 220, 80),
+            )
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT / 2 - 60,
+                "HITS {}".format(self._hits),
+                (255, 255, 255),
+            )
+        else:
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT - 80,
+                "TIME {:02d}".format(int(self.time_remaining)),
+                (255, 255, 255),
+            )
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT - 130,
+                "HITS {}".format(self._hits),
+                (255, 220, 100),
+            )
 
     def key_down(self, key):
         key = key.lower()
