@@ -139,6 +139,16 @@ class TrainingScene:
         )
 
     @property
+    def accuracy(self):
+        if self._shots_fired <= 0:
+            return 0.0
+        return self._hits / self._shots_fired
+
+    @property
+    def hit_rate(self):
+        return self.accuracy
+
+    @property
     def misses(self):
         return self._misses
 
