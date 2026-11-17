@@ -69,7 +69,7 @@ LOBBY_LOCATIONS = (
     ),
     LobbyLocation(
         key="stairs",
-        label="EXIT GAME",
+        label="EXIT STAIRS",
         zone_x=900.0,
         zone_y=120.0,
         zone_radius=80.0,
