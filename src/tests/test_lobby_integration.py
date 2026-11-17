@@ -4,6 +4,7 @@ import unittest
 
 from battle_scene import BattleResult
 from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
+from lobby_map import LOBBY_STAIRS_EXIT
 from lobby_scene import LobbyScene
 from main import GameApp
 from player import Player
@@ -139,6 +140,17 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
 
         self.assertEqual(len(self.app.state.records), 2)
         self.assertEqual(self.app.state.coins, 20)
+
+    def test_walking_down_the_stairs_exits_the_game(self):
+        self._walk_to(LOBBY_STAIRS_EXIT.center_x, 240.0)
+        self.app.scene.key_down("s")
+        self.app.scene.update(0.25)
+
+        self.assertTrue(self.app.scene.exit_requested)
+
+        self.app.handle_scene_exit()
+
+        self.assertFalse(self.app.running)
 
     def _make_record(self, result, reached_wave, elapsed_time):
         from battle_record import BattleRecord

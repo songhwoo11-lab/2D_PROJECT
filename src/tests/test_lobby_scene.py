@@ -13,6 +13,7 @@ from game_config import (
     SCREEN_WIDTH,
 )
 from game_state import GameState
+from lobby_map import LOBBY_STAIRS_EXIT
 from lobby_scene import LobbyScene
 from player import Player
 
@@ -116,6 +117,39 @@ class LobbyBoundsTests(unittest.TestCase):
 
         self.assertEqual(self.scene.player.x, LOBBY_PLAYER_START_X)
         self.assertEqual(self.scene.player.y, LOBBY_PLAYER_START_Y)
+
+
+class LobbyStairsExitTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene()
+
+    def tearDown(self):
+        self.scene.close()
+
+    def test_moving_onto_the_lower_stairs_requests_the_game_exit(self):
+        self.scene.player.x = LOBBY_STAIRS_EXIT.center_x
+        self.scene.player.y = 240.0
+        self.scene.key_down("s")
+
+        for _ in range(30):
+            self.scene.update(1.0 / 60)
+
+        self.assertLessEqual(self.scene.player.y, LOBBY_STAIRS_EXIT.top)
+        self.assertTrue(self.scene.exit_requested)
+
+    def test_the_stairs_exit_is_not_requested_away_from_the_stairs(self):
+        self.scene.player.x = 700.0
+        self.scene.player.y = 240.0 + self.scene.player.radius
+        self.scene.key_down("s")
+
+        for _ in range(30):
+            self.scene.update(1.0 / 60)
+
+        self.assertAlmostEqual(
+            self.scene.player.y,
+            240.0 + self.scene.player.radius,
+        )
+        self.assertFalse(self.scene.exit_requested)
 
 
 class LobbyMovementTests(unittest.TestCase):

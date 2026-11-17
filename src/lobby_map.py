@@ -29,6 +29,10 @@ class LobbyRect:
     def center_y(self):
         return (self.bottom + self.top) / 2
 
+    def contains(self, x, y):
+        """Check whether the given position is inside the rectangle."""
+        return self.left <= x <= self.right and self.bottom <= y <= self.top
+
 
 @dataclass(frozen=True)
 class LobbyLocation:
@@ -88,7 +92,14 @@ LOBBY_LOCATIONS = (    # 상점: 서쪽 시장 진열대 앞 (포털에서 먼 �
         zone_radius=110.0,
     ),
 )
+
+# 로비 아래쪽 중앙 계단. 이 영역에 들어가면 게임을 종료한다.
+LOBBY_STAIRS_EXIT = LobbyRect(820.0, 40.0, 980.0, 190.0)
+
 LOBBY_WALLS = (
+    # 계단 양옆의 아래쪽 벽: 중앙 계단으로만 내려갈 수 있게 한다.
+    LobbyRect(0, 0, 800, 240),
+    LobbyRect(1000, 0, 1800, 240),
     # 서쪽 시장 천막과 진열대
     LobbyRect(68, 500, 696, 830),
     # 남서쪽 시장 천막과 진열대

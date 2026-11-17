@@ -85,6 +85,14 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertFalse(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
 
+    def test_lobby_exit_request_stops_the_game(self):
+        self.app.scene.exit_requested = True
+
+        self.app.handle_scene_exit()
+
+        self.assertFalse(self.app.running)
+        self.assertEqual(self.app.scene_kind, "lobby")
+
     def test_pending_action_is_cleared_after_handling(self):
         self.app.scene.pending_action = "enter_shop"
         self.app.handle_scene_action()

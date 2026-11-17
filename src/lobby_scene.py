@@ -17,7 +17,12 @@ from game_config import (
     TOTAL_WAVES,
 )
 from hud import draw_centered_text, draw_text_at_center
-from lobby_map import LOCATION_ACTIONS, LOBBY_LOCATIONS, LOBBY_WALLS
+from lobby_map import (
+    LOCATION_ACTIONS,
+    LOBBY_LOCATIONS,
+    LOBBY_STAIRS_EXIT,
+    LOBBY_WALLS,
+)
 from weapon import weapon_display_name
 
 
@@ -53,6 +58,14 @@ class LobbyScene:
         self._update_player(delta_time)
         self._clamp_player_to_bounds()
         self._update_nearby_location()
+        self._update_stairs_exit()
+
+    def _update_stairs_exit(self):
+        """Exit the game once the player walks onto the lower stairs."""
+        if self.player is None:
+            return
+        if LOBBY_STAIRS_EXIT.contains(self.player.x, self.player.y):
+            self.exit_requested = True
 
     def _update_nearby_location(self):
         """Remember the location the player currently stands next to."""
@@ -207,6 +220,13 @@ class LobbyScene:
                 location.label,
                 (170, 190, 220),
             )
+        draw_text_at_center(
+            self.hud_font,
+            LOBBY_STAIRS_EXIT.center_x,
+            LOBBY_STAIRS_EXIT.top + 40.0,
+            "EXIT STAIRS",
+            (170, 190, 220),
+        )
         if self.nearby_location is None or self.panel is not None:
             return
         draw_centered_text(
