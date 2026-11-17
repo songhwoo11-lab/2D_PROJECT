@@ -22,7 +22,14 @@ from weapon import weapon_display_name
 class LobbyScene:
     """Lifecycle of the lobby: initialisation, update, and rendering."""
 
-    def __init__(self, player, background=None, hud_font=None, state=None):
+    def __init__(
+        self,
+        player,
+        background=None,
+        hud_font=None,
+        state=None,
+        node_key=None,
+    ):
         self.player = player
         self.background = background
         self.hud_font = hud_font
@@ -33,15 +40,20 @@ class LobbyScene:
         self.exit_requested = False
         self.pending_action = None
         self.locations = tuple(LOBBY_LOCATIONS)
-        self.current_node = LOBBY_START_KEY
+        self.current_node = (
+            node_key if node_key in LOBBY_NODE_BY_KEY else LOBBY_START_KEY
+        )
         self.nearby_location = None
         self.panel = None
         self.gun_selection_index = 0
-        self.reset_player_position()
+        self._place_player_at_current_node()
 
     def reset_player_position(self):
         """Put the lobby player back at the central node."""
         self.current_node = LOBBY_START_KEY
+        self._place_player_at_current_node()
+
+    def _place_player_at_current_node(self):
         self.nearby_location = LOBBY_NODE_BY_KEY.get(self.current_node)
         if self.player is None:
             return

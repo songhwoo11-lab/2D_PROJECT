@@ -3,6 +3,7 @@ import unittest
 from battle_scene import BattleResult
 from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
 from game_state import GameState
+from lobby_map import LOBBY_NODE_BY_KEY
 from main import GameApp
 
 
@@ -38,6 +39,51 @@ class SceneSwitchTests(unittest.TestCase):
 
     def test_app_starts_in_the_lobby(self):
         self.assertEqual(self.app.scene_kind, "lobby")
+
+    def test_shop_return_keeps_the_player_at_the_shop(self):
+        self.app.scene.key_down("a")
+        self.app.scene.key_up("a")
+        self.app.scene.key_down("a")
+        self.app.scene.key_up("a")
+        self.app.scene.pending_action = "enter_shop"
+        self.app.handle_scene_action()
+        self.app.scene.pending_action = "return_to_lobby"
+
+        self.app.handle_scene_action()
+
+        node = LOBBY_NODE_BY_KEY["shop"]
+        self.assertEqual(self.app.scene.current_node, "shop")
+        self.assertAlmostEqual(self.app.scene.player.x, node.zone_x)
+        self.assertAlmostEqual(self.app.scene.player.y, node.zone_y)
+
+    def test_training_return_keeps_the_player_at_the_training_ground(self):
+        self.app.scene.key_down("d")
+        self.app.scene.key_up("d")
+        self.app.scene.pending_action = "enter_training"
+        self.app.handle_scene_action()
+        self.app.scene.pending_action = "return_to_lobby"
+
+        self.app.handle_scene_action()
+
+        node = LOBBY_NODE_BY_KEY["training"]
+        self.assertEqual(self.app.scene.current_node, "training")
+        self.assertAlmostEqual(self.app.scene.player.x, node.zone_x)
+        self.assertAlmostEqual(self.app.scene.player.y, node.zone_y)
+
+    def test_battle_return_keeps_the_player_at_the_portal(self):
+        self.app.scene.key_down("w")
+        self.app.scene.key_up("w")
+        self.app.scene.pending_action = "start_battle"
+        self.app.handle_scene_action()
+        self.app.scene.result = BattleResult.QUIT
+
+        self.app.handle_scene_exit()
+
+        node = LOBBY_NODE_BY_KEY["portal"]
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertEqual(self.app.scene.current_node, "portal")
+        self.assertAlmostEqual(self.app.scene.player.x, node.zone_x)
+        self.assertAlmostEqual(self.app.scene.player.y, node.zone_y)
 
     def test_lobby_requests_the_shop(self):
         self.app.scene.pending_action = "enter_shop"

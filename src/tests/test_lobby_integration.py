@@ -57,6 +57,8 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.assertEqual(self.app.scene_kind, "lobby")
 
         press(self.app, "d")
+        press(self.app, "d")
+        press(self.app, "d")
         press(self.app, "return")
         self.assertEqual(self.app.scene.pending_action, "enter_training")
         self.app.handle_scene_action()
@@ -66,6 +68,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "lobby")
 
+        press(self.app, "a")
         press(self.app, "w")
         press(self.app, "return")
         self.assertEqual(self.app.scene.pending_action, "start_battle")

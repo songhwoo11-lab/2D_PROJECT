@@ -17,6 +17,7 @@ from game_config import (
     WORLD_WIDTH,
 )
 from game_state import GameState
+from lobby_map import LOBBY_START_KEY
 from lobby_scene import LobbyScene
 from player import Player
 from shop_scene import ShopScene
@@ -35,6 +36,7 @@ class GameApp:
         self.state = GameState()
         self.scene = None
         self.scene_kind = None
+        self.lobby_node_key = LOBBY_START_KEY
         self.running = True
 
     def load_assets(self):
@@ -92,6 +94,7 @@ class GameApp:
             self.assets["lobby_background"],
             hud_font=self.assets["hud_font"],
             state=self.state,
+            node_key=self.lobby_node_key,
         )
 
     def create_battle_scene(self):
@@ -120,6 +123,10 @@ class GameApp:
         )
 
     def switch_scene(self, kind):
+        if self.scene_kind == "lobby" and self.scene is not None:
+            self.lobby_node_key = getattr(
+                self.scene, "current_node", LOBBY_START_KEY
+            )
         if self.scene is not None:
             self.scene.close()
         if kind == "lobby":
