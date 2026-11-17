@@ -108,6 +108,20 @@ class TrainingScene:
         draw_centered_text(self.hud_font, TRAINING_NOTICE_Y, TRAINING_NOTICE)
         draw_centered_text(
             self.hud_font,
+            SCREEN_HEIGHT - 110,
+            "SHOTS {}  HITS {}  MISSES {}".format(
+                self._shots_fired,
+                self._hits,
+                self._misses,
+            ),
+        )
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT - 160,
+            "ACCURACY {}%".format(round(self.accuracy * 100)),
+        )
+        draw_centered_text(
+            self.hud_font,
             TRAINING_HINT_Y,
             TRAINING_HINT,
             (170, 190, 220),
