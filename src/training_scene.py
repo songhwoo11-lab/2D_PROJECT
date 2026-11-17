@@ -55,13 +55,34 @@ class TrainingScene:
     """Training ground lifecycle: initialisation, update, and rendering."""
 
     def __init__(self, *args, **kwargs):
-        self.state = kwargs.pop("state", None)
-        self.hud_font = kwargs.pop("hud_font", None)
-        self.random_source = kwargs.pop("random_source", None)
-        if self.random_source is None:
-            self.random_source = random.Random()
-        self.player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
-        self.gun = Gun()
+        state = kwargs.pop("state", None)
+        hud_font = kwargs.pop("hud_font", None)
+        random_source = kwargs.pop("random_source", None)
+        player = kwargs.pop("player", None)
+        gun = kwargs.pop("gun", None)
+        background = kwargs.pop("background", None)
+
+        for arg in args:
+            if player is None and isinstance(arg, Player):
+                player = arg
+            elif gun is None and isinstance(arg, Gun):
+                gun = arg
+            elif state is None and hasattr(arg, "owned_guns"):
+                state = arg
+            elif hud_font is None and hasattr(arg, "draw") and hasattr(arg, "font"):
+                hud_font = arg
+            elif background is None and hasattr(arg, "draw") and not hasattr(arg, "font"):
+                background = arg
+
+        if random_source is None:
+            random_source = random.Random()
+
+        self.state = state
+        self.hud_font = hud_font
+        self.random_source = random_source
+        self.background = background
+        self.player = player if player is not None else Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        self.gun = gun if gun is not None else Gun()
         self.target = TrainingTarget(SCREEN_WIDTH / 2 + 200, SCREEN_HEIGHT / 2 + 100)
         self._shots_fired = 0
         self._hits = 0
