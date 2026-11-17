@@ -3,6 +3,8 @@
 import math
 import random
 
+import pico2d
+
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import draw_centered_text
 from player import Player
@@ -38,20 +40,18 @@ class TrainingTarget:
         return math.hypot(self.x - x, self.y - y) <= self.radius
 
     def draw(self, draw_rectangle):
-        radius = self.radius
-        if self.hit_timer > 0:
-            color = (255, 220, 80)
-        else:
-            color = (220, 60, 60)
-        draw_rectangle(
-            self.x - radius,
-            self.y - radius,
-            self.x + radius,
-            self.y + radius,
-            *color,
-            255,
-            True,
-        )
+        color = (255, 220, 80) if self.hit_timer > 0 else (220, 60, 60)
+        try:
+            pico2d.draw_circle(
+                int(self.x),
+                int(self.y),
+                int(self.radius),
+                *color,
+                255,
+                True,
+            )
+        except Exception:
+            pass
 
 
 class TrainingScene:
@@ -86,6 +86,8 @@ class TrainingScene:
         self.background = background
         self.player = player if player is not None else Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.gun = gun if gun is not None else Gun()
+        self.gun.infinite_ammo = True
+        self.gun.heat_enabled = False
         self.target = TrainingTarget(SCREEN_WIDTH / 2 + 200, SCREEN_HEIGHT / 2 + 100)
         self._shots_fired = 0
         self._hits = 0
@@ -97,6 +99,8 @@ class TrainingScene:
         self._mouse_pressed = False
         self.exit_requested = False
         self.pending_action = None
+        self.last_shot_result = None
+        self.shot_result_timer = 0.0
 
     def update(self, delta_time):
         canvas_x = self.mouse_screen_x
@@ -108,6 +112,8 @@ class TrainingScene:
             self.player.set_movement(0, 0)
         if self.target is not None:
             self.target.update(delta_time)
+
+        self.shot_result_timer = max(0.0, self.shot_result_timer - delta_time)
 
         self.gun.update(delta_time)
         fired = self.gun.handle_fire_input(
@@ -122,8 +128,11 @@ class TrainingScene:
                 if self.target is not None:
                     self.target.hit_timer = 0.3
                     self._respawn_target()
+                self.last_shot_result = "HIT"
             else:
                 self._misses += 1
+                self.last_shot_result = "MISS"
+            self.shot_result_timer = 0.6
 
     def draw(self, draw_rectangle):
         draw_rectangle(
@@ -163,6 +172,13 @@ class TrainingScene:
             SCREEN_HEIGHT - 160,
             "ACCURACY {}%".format(round(self.accuracy * 100)),
         )
+        if self.shot_result_timer > 0 and self.last_shot_result is not None:
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT / 2,
+                self.last_shot_result,
+                (255, 220, 80) if self.last_shot_result == "HIT" else (255, 120, 100),
+            )
         draw_centered_text(
             self.hud_font,
             TRAINING_HINT_Y,
