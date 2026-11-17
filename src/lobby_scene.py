@@ -189,7 +189,7 @@ class LobbyScene:
                 (-size * 0.5, -size),
             ),
         }
-        color = (170, 190, 220, 255)
+        color = (15, 180, 15, 255)
         for direction in ("w", "a", "s", "d"):
             if direction not in available:
                 continue
@@ -248,12 +248,21 @@ class LobbyScene:
             location.zone_y + location.zone_radius + 40.0,
             SCREEN_HEIGHT - 120.0,
         )
+        location_colors = {
+            "shop": (255, 220, 100),
+            "records": (0, 128, 0),
+            "stairs": (255, 70, 60),
+            "training": (205, 133, 63),
+            "portal": (80, 140, 255),
+            "center": (255, 255, 255),
+        }
+        color = location_colors.get(location.key, (170, 190, 220))
         draw_text_at_center(
             self.hud_font,
             location.zone_x,
             label_y,
             location.label,
-            (170, 190, 220),
+            color,
         )
 
     def _draw_records_panel(self, draw_rectangle):
