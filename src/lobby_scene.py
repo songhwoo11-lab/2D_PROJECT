@@ -95,7 +95,6 @@ class LobbyScene:
                 (255, 255, 255),
             )
         self._draw_location_labels()
-        self._draw_nearby_location_marker(draw_rectangle)
         if self.panel == "records":
             self._draw_records_panel(draw_rectangle)
         elif self.panel == "gun_select":
@@ -143,45 +142,20 @@ class LobbyScene:
         )
 
     def _draw_location_labels(self):
-        """Draw the name of every fixed location and the current access guide."""
-        if self.hud_font is None:
+        """Draw only the current location name."""
+        if self.hud_font is None or self.nearby_location is None:
             return
-        for location in self.locations:
-            label_y = min(
-                location.zone_y + location.zone_radius + 40.0,
-                SCREEN_HEIGHT - 120.0,
-            )
-            draw_text_at_center(
-                self.hud_font,
-                location.zone_x,
-                label_y,
-                location.label,
-                (170, 190, 220),
-            )
-        if self.nearby_location is None or self.panel is not None:
-            return
-        draw_centered_text(
-            self.hud_font,
-            SCREEN_HEIGHT - 200.0,
-            "PRESS ENTER : {}".format(self.nearby_location.label),
-            (255, 220, 100),
-        )
-
-    def _draw_nearby_location_marker(self, draw_rectangle):
-        """Mark the fixed location the player is standing at."""
         location = self.nearby_location
-        if location is None or self.panel is not None:
-            return
-        draw_rectangle(
-            location.zone_x - location.zone_radius,
-            location.zone_y - location.zone_radius,
-            location.zone_x + location.zone_radius,
-            location.zone_y + location.zone_radius,
-            255,
-            220,
-            60,
-            220,
-            False,
+        label_y = min(
+            location.zone_y + location.zone_radius + 40.0,
+            SCREEN_HEIGHT - 120.0,
+        )
+        draw_text_at_center(
+            self.hud_font,
+            location.zone_x,
+            label_y,
+            location.label,
+            (170, 190, 220),
         )
 
     def _draw_records_panel(self, draw_rectangle):

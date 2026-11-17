@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock, patch
 
 from battle_record import BattleRecord
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
@@ -42,7 +43,7 @@ class LobbySceneLifecycleTests(unittest.TestCase):
 
         self.scene.draw(lambda *args: calls.append(args))
 
-        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls, [])
 
     def test_key_down_and_up_track_pressed_keys(self):
         self.scene.key_down("w")
@@ -277,7 +278,7 @@ class LobbyGuiTests(unittest.TestCase):
 
         self.assertEqual(self.scene.nearby_location.key, "records")
 
-    def test_location_labels_are_listed_for_every_fixed_place(self):
+    def test_every_fixed_place_has_a_label(self):
         labels = [location.label for location in LOBBY_LOCATIONS]
 
         self.assertIn("SHOP", labels)
@@ -287,20 +288,27 @@ class LobbyGuiTests(unittest.TestCase):
         self.assertIn("TRAINING", labels)
         self.assertIn("EXIT STAIRS", labels)
 
-    def test_draw_runs_with_the_location_guide(self):
+    def test_only_the_current_location_name_is_drawn(self):
+        self.scene.hud_font = MagicMock()
+        press(self.scene, "a")
+
+        with patch("lobby_scene.draw_text_at_center") as draw_at_center, patch(
+            "lobby_scene.draw_centered_text"
+        ) as draw_centered:
+            self.scene.draw(lambda *args: None)
+
+        labels = [call.args[3] for call in draw_at_center.call_args_list]
+        self.assertEqual(labels, ["RECORDS"])
+        draw_centered.assert_not_called()
+
+    def test_draw_does_not_render_a_location_marker(self):
         press(self.scene, "a")
         self.scene.update(1.0 / 60)
 
         calls = []
         self.scene.draw(lambda *args: calls.append(args))
 
-        self.assertTrue(calls)
-
-    def test_nearby_location_marker_is_drawn_at_the_current_node(self):
-        calls = []
-        self.scene.draw(lambda *args: calls.append(args))
-
-        self.assertTrue(calls)
+        self.assertEqual(calls, [])
 
 
 class LobbyPortalEntryTests(unittest.TestCase):
