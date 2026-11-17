@@ -173,6 +173,12 @@ class GameApp:
             return
         self.running = False
 
+    def handle_escape_key(self):
+        if self.scene_kind == "lobby":
+            self.running = False
+            return
+        self.scene.key_down("escape")
+
     def handle_battle_exit(self):
         """Store the finished battle result and go back to the lobby."""
         battle = self.scene
@@ -206,6 +212,7 @@ class GameApp:
                 pico2d.SDLK_UP: "up",
                 pico2d.SDLK_DOWN: "down",
                 pico2d.SDLK_RETURN: "return",
+                pico2d.SDLK_ESCAPE: "escape",
             }
 
             last_time = pico2d.get_time()
@@ -217,7 +224,7 @@ class GameApp:
                         self.running = False
                     elif event.type == pico2d.SDL_KEYDOWN:
                         if event.key == pico2d.SDLK_ESCAPE:
-                            self.running = False
+                            self.handle_escape_key()
                         elif event.key in key_map:
                             self.scene.key_down(key_map[event.key])
                     elif event.type == pico2d.SDL_KEYUP:

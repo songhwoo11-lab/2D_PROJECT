@@ -357,7 +357,7 @@ class BattleScene:
             if key in ("return", "enter"):
                 self.exit_requested = True
             return
-        if key == "q":
+        if key == "escape":
             self.paused = not self.paused
             if self.paused:
                 self.pause_menu_index = 0
@@ -373,8 +373,6 @@ class BattleScene:
                 ) % len(PAUSE_MENU_ITEMS)
             elif key in ("return", "enter"):
                 self._select_pause_menu_item()
-            elif key == "escape":
-                self.paused = False
             return
         if key == "f1":
             self.debug_mode = not self.debug_mode
