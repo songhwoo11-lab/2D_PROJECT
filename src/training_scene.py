@@ -119,6 +119,12 @@ class TrainingScene:
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
 
+    def _shot_hits_target(self, aim_x, aim_y):
+        """Return whether the given aim point hits the current target."""
+        if self.target is None:
+            return False
+        return self.target.contains(aim_x, aim_y)
+
     def mouse_down(self, button, screen_x=None, screen_y=None):
         return None
 
