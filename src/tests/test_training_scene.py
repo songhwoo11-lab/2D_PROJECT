@@ -14,6 +14,12 @@ class TrainingSceneTests(unittest.TestCase):
         self.assertIsNone(self.scene.pending_action)
         self.assertFalse(self.scene.exit_requested)
 
+    def test_zero_shot_accuracy_is_zero(self):
+        self.assertEqual(self.scene.shots, 0)
+        self.assertEqual(self.scene.hits, 0)
+        self.assertEqual(self.scene.misses, 0)
+        self.assertEqual(self.scene.accuracy, 0.0)
+
     def test_update_and_draw_run_without_error(self):
         self.scene.update(1.0 / 60)
         self.scene.draw(lambda *args: None)
