@@ -34,6 +34,9 @@ class TrainingTarget:
     def update(self, delta_time):
         self.hit_timer = max(0.0, self.hit_timer - delta_time)
 
+    def contains(self, x, y):
+        return math.hypot(self.x - x, self.y - y) <= self.radius
+
     def draw(self, draw_rectangle):
         radius = self.radius
         if self.hit_timer > 0:
