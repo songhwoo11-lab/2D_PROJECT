@@ -25,7 +25,10 @@ class TrainingScene:
         self.pending_action = None
 
     def update(self, delta_time):
-        return None
+        if self.player is not None:
+            self.player.x = SCREEN_WIDTH / 2
+            self.player.y = SCREEN_HEIGHT / 2
+            self.player.set_movement(0, 0)
 
     def draw(self, draw_rectangle):
         draw_rectangle(
