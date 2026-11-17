@@ -1,7 +1,8 @@
-"""Training scene placeholder that establishes the lobby entry and return contract."""
+"""Training scene where the player can practise aiming and shooting."""
 
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import draw_centered_text
+from player import Player
 
 
 TRAINING_TITLE = "TRAINING"
@@ -13,11 +14,12 @@ TRAINING_HINT_Y = 120
 
 
 class TrainingScene:
-    """Temporary training screen that returns to the lobby on the enter key."""
+    """Training ground lifecycle: initialisation, update, and rendering."""
 
-    def __init__(self, state=None, hud_font=None):
-        self.state = state
-        self.hud_font = hud_font
+    def __init__(self, *args, **kwargs):
+        self.state = kwargs.pop("state", None)
+        self.hud_font = kwargs.pop("hud_font", None)
+        self.player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.keys = set()
         self.exit_requested = False
         self.pending_action = None
@@ -39,6 +41,8 @@ class TrainingScene:
         )
         if self.hud_font is None:
             return
+        if self.player is not None and self.player.image is not None:
+            self.player.draw()
         draw_centered_text(
             self.hud_font,
             TRAINING_TITLE_Y,
@@ -46,7 +50,12 @@ class TrainingScene:
             (255, 220, 100),
         )
         draw_centered_text(self.hud_font, TRAINING_NOTICE_Y, TRAINING_NOTICE)
-        draw_centered_text(self.hud_font, TRAINING_HINT_Y, TRAINING_HINT, (170, 190, 220))
+        draw_centered_text(
+            self.hud_font,
+            TRAINING_HINT_Y,
+            TRAINING_HINT,
+            (170, 190, 220),
+        )
 
     def key_down(self, key):
         key = key.lower()
