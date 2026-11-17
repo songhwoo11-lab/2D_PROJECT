@@ -6,6 +6,7 @@ import random
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import draw_centered_text
 from player import Player
+from weapon import Gun
 
 
 TRAINING_TITLE = "TRAINING"
@@ -60,6 +61,7 @@ class TrainingScene:
         if self.random_source is None:
             self.random_source = random.Random()
         self.player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        self.gun = Gun()
         self.target = TrainingTarget(SCREEN_WIDTH / 2 + 200, SCREEN_HEIGHT / 2 + 100)
         self._shots_fired = 0
         self._hits = 0
@@ -67,6 +69,8 @@ class TrainingScene:
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
+        self.mouse_held = False
+        self._mouse_pressed = False
         self.exit_requested = False
         self.pending_action = None
 
@@ -80,6 +84,22 @@ class TrainingScene:
             self.player.set_movement(0, 0)
         if self.target is not None:
             self.target.update(delta_time)
+
+        self.gun.update(delta_time)
+        fired = self.gun.handle_fire_input(
+            mouse_held=self.mouse_held,
+            mouse_pressed=self._mouse_pressed,
+        )
+        self._mouse_pressed = False
+        if fired:
+            self._shots_fired += 1
+            if self._shot_hits_target(canvas_x, canvas_y):
+                self._hits += 1
+                if self.target is not None:
+                    self.target.hit_timer = 0.3
+                    self._respawn_target()
+            else:
+                self._misses += 1
 
     def draw(self, draw_rectangle):
         draw_rectangle(
@@ -132,7 +152,11 @@ class TrainingScene:
         if key in self.keys:
             return
         self.keys.add(key)
-        if key in ("space", "q"):
+        if key == "e":
+            self.gun.toggle_mode()
+        elif key == "r":
+            self.gun.start_reload()
+        elif key in ("space", "q"):
             self.pending_action = "return_to_lobby"
 
     def key_up(self, key):
@@ -197,6 +221,18 @@ class TrainingScene:
 
     def mouse_up(self, button):
         return None
+
+    def mouse_down(self, button, screen_x=None, screen_y=None):
+        if button == "left":
+            self.mouse_held = True
+            self._mouse_pressed = True
+            if screen_x is not None and screen_y is not None:
+                self.mouse_screen_x = screen_x
+                self.mouse_screen_y = screen_y
+
+    def mouse_up(self, button):
+        if button == "left":
+            self.mouse_held = False
 
     def close(self):
         return None
