@@ -125,7 +125,6 @@ class TrainingScene:
             TRAINING_TITLE,
             (255, 220, 100),
         )
-        draw_centered_text(self.hud_font, TRAINING_NOTICE_Y, TRAINING_NOTICE)
         draw_centered_text(
             self.hud_font,
             SCREEN_HEIGHT - 110,
@@ -161,9 +160,6 @@ class TrainingScene:
 
     def key_up(self, key):
         self.keys.discard(key.lower())
-
-    def mouse_move(self, screen_x, screen_y):
-        return None
 
     def mouse_move(self, screen_x, screen_y):
         self.mouse_screen_x = screen_x

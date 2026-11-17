@@ -148,9 +148,17 @@ class GameApp:
         )
 
     def create_training_scene(self):
+        player = Player(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2,
+            image=self.assets["player_image"],
+        )
         return TrainingScene(
-            state=self.state,
+            player=player,
+            gun=Gun(weapon_spec_or_default(self.state.selected_gun)),
+            background=None,
             hud_font=self.assets["hud_font"],
+            state=self.state,
         )
 
     def handle_scene_action(self):
