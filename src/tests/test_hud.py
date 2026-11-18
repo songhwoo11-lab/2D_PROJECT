@@ -9,6 +9,7 @@ from hud import (
     damage_reduction_text,
     damage_reduction_time_text,
     fire_status_text,
+    gun_label,
     remaining_enemies_text,
     temperature_text,
     wave_text,
@@ -26,6 +27,7 @@ def make_gun(**overrides):
         "magazine_ammo": 10,
         "reserve_ammo": 90,
         "fire_mode": SimpleNamespace(value="single"),
+        "gun_id": "pistol",
         "damage_reduction": 0.0,
         "damage_reduction_remaining": 0.0,
     }
@@ -38,6 +40,17 @@ class TemperatureTextTests(unittest.TestCase):
         gun = make_gun(temperature=42.4, temperature_limit=200.0)
 
         self.assertEqual(temperature_text(gun), "TEMP 42/200")
+
+
+class GunLabelTests(unittest.TestCase):
+    def test_gun_label_uses_the_current_gun(self):
+        self.assertEqual(gun_label(make_gun(gun_id="rifle")), "GUN: RIFLE")
+        self.assertEqual(gun_label(make_gun(gun_id="machine_gun")), "GUN: MACHINE GUN")
+
+    def test_gun_label_falls_back_to_pistol(self):
+        gun = SimpleNamespace()
+
+        self.assertEqual(gun_label(gun), "GUN: PISTOL")
 
 
 class WaveTextTests(unittest.TestCase):
@@ -244,6 +257,15 @@ class HudLayoutTests(unittest.TestCase):
         trailing = rectangles[1]
         current = rectangles[2]
         self.assertEqual(trailing, current)
+
+    def test_current_gun_is_centered_in_the_hud(self):
+        gun = make_gun(gun_id="rifle")
+
+        font, _ = self._draw_hud(gun)
+
+        x, y, text = self._text_draw(font, "GUN: RIFLE")
+        self.assertAlmostEqual(x, (SCREEN_WIDTH - self.TEXT_WIDTH) / 2)
+        self.assertEqual(y, hud.HUD_GUN_Y)
 
     def test_temperature_text_is_right_aligned_in_the_bottom_right(self):
         gun = make_gun()

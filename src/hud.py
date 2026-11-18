@@ -11,6 +11,7 @@ from game_config import (
     SCREEN_WIDTH,
     TOTAL_WAVES,
 )
+from weapon import weapon_display_name
 
 
 TEMPERATURE_BAR_WIDTH = 400
@@ -29,6 +30,7 @@ DAMAGE_REDUCTION_TIME_GAP = 24
 HUD_MARGIN = 40
 HUD_ROW_LOW = 110
 HUD_ROW_HIGH = 170
+HUD_GUN_Y = HUD_ROW_HIGH
 HUD_AMMO_Y = 120
 HUD_MODE_Y = 70
 HUD_RELOAD_Y = 20
@@ -89,6 +91,10 @@ def remaining_enemies_text(count):
 
 def coin_text(coins):
     return "COINS {}".format(coins)
+
+
+def gun_label(gun):
+    return "GUN: {}".format(weapon_display_name(getattr(gun, "gun_id", "pistol")))
 
 
 def fire_status_text(gun):
@@ -269,6 +275,7 @@ def draw_hud(
     if coins is not None:
         font.draw(HUD_MARGIN, HUD_ROW_HIGH, coin_text(coins), (255, 220, 100))
 
+    _draw_centered_text(font, HUD_GUN_Y, gun_label(gun))
     ammo_text = (
         "AMMO INF"
         if gun.infinite_ammo
