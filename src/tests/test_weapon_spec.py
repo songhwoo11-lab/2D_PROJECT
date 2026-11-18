@@ -119,6 +119,25 @@ class WeaponSpecModelTests(unittest.TestCase):
                     gun.spec.fire_interval_seconds * FPS,
                 )
 
+    def test_each_gun_applies_its_own_magazine_and_starting_ammo(self):
+        specs = {
+            DEFAULT_GUN_ID: PISTOL,
+            RIFLE_GUN_ID: RIFLE,
+            MACHINE_GUN_GUN_ID: MACHINE_GUN,
+        }
+        for gun_id, spec in specs.items():
+            with self.subTest(gun_id=gun_id):
+                gun = Gun.from_gun_id(gun_id)
+
+                self.assertEqual(gun.magazine_size, spec.magazine_size)
+                self.assertEqual(gun.starting_ammo, spec.starting_ammo)
+                self.assertEqual(gun.magazine_ammo, spec.magazine_size)
+                self.assertEqual(
+                    gun.reserve_ammo,
+                    spec.starting_ammo - spec.magazine_size,
+                )
+                self.assertEqual(gun.total_ammo, spec.starting_ammo)
+
     def test_new_spec_can_be_created_from_the_common_model(self):
         spec = WeaponSpec(
             name="Test",

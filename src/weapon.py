@@ -140,8 +140,8 @@ class Gun:
         return gun_id_for_spec(self.spec)
 
     def reset(self):
-        self.magazine_ammo = min(self.spec.magazine_size, self.spec.starting_ammo)
-        self.reserve_ammo = self.spec.starting_ammo - self.magazine_ammo
+        self.magazine_ammo = min(self.magazine_size, self.starting_ammo)
+        self.reserve_ammo = self.starting_ammo - self.magazine_ammo
         self.cooldown_remaining = 0.0
         self.reload_remaining = 0.0
         self.fire_mode = FireMode.SINGLE
@@ -168,6 +168,14 @@ class Gun:
     @property
     def fire_interval_frames(self):
         return self.spec.fire_interval_seconds * FPS
+
+    @property
+    def magazine_size(self):
+        return self.spec.magazine_size
+
+    @property
+    def starting_ammo(self):
+        return self.spec.starting_ammo
 
     @property
     def fire_blocked(self):
@@ -293,7 +301,7 @@ class Gun:
     def start_reload(self):
         if self.infinite_ammo or self.reloading:
             return False
-        if self.magazine_ammo >= self.spec.magazine_size or self.reserve_ammo <= 0:
+        if self.magazine_ammo >= self.magazine_size or self.reserve_ammo <= 0:
             return False
         self.reload_remaining = self.spec.reload_seconds
         if self.reload_remaining <= 0:
@@ -301,7 +309,7 @@ class Gun:
         return True
 
     def _finish_reload(self):
-        needed = self.spec.magazine_size - self.magazine_ammo
+        needed = self.magazine_size - self.magazine_ammo
         loaded = min(needed, self.reserve_ammo)
         self.magazine_ammo += loaded
         self.reserve_ammo -= loaded
