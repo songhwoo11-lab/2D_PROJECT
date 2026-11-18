@@ -62,6 +62,9 @@ class GameApp:
         self.assets["health_image"] = pico2d.load_image(
             str(directory / "health potion.png")
         )
+        self.assets["cooling_image"] = pico2d.load_image(
+            str(directory / "ice potion.png")
+        )
         self.assets["training_target_image"] = pico2d.load_image(
             str(directory / "Training_Target.png")
         )
@@ -127,6 +130,7 @@ class GameApp:
             arrow_image=self.assets["arrow_image"],
             ammo_image=self.assets["ammo_image"],
             health_image=self.assets["health_image"],
+            cooling_image=self.assets.get("cooling_image"),
             total_waves=development_total_waves(),
             wave_spawn_rate=development_spawn_rate(),
         )

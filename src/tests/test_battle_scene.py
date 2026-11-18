@@ -234,7 +234,7 @@ class BattleSceneRewardTests(unittest.TestCase):
         self.scene.update(0.0)
 
     def test_defeating_an_enemy_awards_coins_and_can_drop_a_magazine(self):
-        self.scene.random_source = StubRandom(coin=4, roll=0.0)
+        self.scene.random_source = SequenceStubRandom(coin=4, rolls=[0.9, 0.9, 0.0])
 
         self._defeat_one_enemy()
 
@@ -243,7 +243,7 @@ class BattleSceneRewardTests(unittest.TestCase):
         self.assertEqual(self.scene.pickups[0].amount, 10)
 
     def test_magazine_can_drop_at_three_hundred_or_more_ammo(self):
-        self.scene.random_source = StubRandom(coin=2, roll=0.0)
+        self.scene.random_source = SequenceStubRandom(coin=2, rolls=[0.9, 0.9, 0.0])
         self.scene.gun.magazine_ammo = 10
         self.scene.gun.reserve_ammo = 290
 
@@ -275,7 +275,7 @@ class BattleSceneRewardTests(unittest.TestCase):
         self.scene.player.hp = 50
         self.scene.random_source = SequenceStubRandom(
             coin=1,
-            rolls=[0.9, 0.0],
+            rolls=[0.9, 0.9, 0.0],
         )
 
         self._defeat_one_enemy()
@@ -286,14 +286,19 @@ class BattleSceneRewardTests(unittest.TestCase):
     def test_only_one_drop_type_appears_per_enemy(self):
         self.scene.player.hp = 50
 
-        for rolls in ([0.0], [0.9, 0.0], [0.9, 0.9], [0.0, 0.0]):
+        for rolls in ([0.0, 0.9, 0.9], [0.9, 0.0, 0.9], [0.9, 0.9, 0.0], [0.0, 0.0, 0.9]):
             self.scene.pickups = []
             self.scene.health_pickups = []
+            self.scene.cooling_pickups = []
             self.scene.random_source = SequenceStubRandom(coin=1, rolls=list(rolls))
 
             self._defeat_one_enemy()
 
-            total = len(self.scene.pickups) + len(self.scene.health_pickups)
+            total = (
+                len(self.scene.pickups)
+                + len(self.scene.health_pickups)
+                + len(self.scene.cooling_pickups)
+            )
             self.assertLessEqual(total, 1, "한 번의 처치로 두 종류가 함께 드롭되면 안 된다")
 
     def test_health_drop_is_skipped_when_the_map_limit_is_reached(self):
@@ -302,7 +307,8 @@ class BattleSceneRewardTests(unittest.TestCase):
             HealthPickup(0.0, 0.0),
             HealthPickup(10.0, 10.0),
         ]
-        self.scene.random_source = SequenceStubRandom(coin=1, rolls=[0.0, 0.0])
+        self.scene.cooling_pickups = []
+        self.scene.random_source = SequenceStubRandom(coin=1, rolls=[0.9, 0.0])
 
         self._defeat_one_enemy()
 
@@ -419,7 +425,7 @@ class BattleScenePickupImageTests(unittest.TestCase):
         self.scene.update(0.0)
 
     def test_magazine_drop_uses_the_ammo_image(self):
-        self.scene.random_source = StubRandom(coin=1, roll=0.0)
+        self.scene.random_source = SequenceStubRandom(coin=1, rolls=[0.9, 0.9, 0.0])
 
         self._defeat_one_enemy()
 

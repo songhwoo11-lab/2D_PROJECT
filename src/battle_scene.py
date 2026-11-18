@@ -24,6 +24,8 @@ from game_config import (
     AIM_CURSOR_GAP,
     AIM_CURSOR_RADIUS,
     AIM_CURSOR_THICKNESS,
+    COOLING_DROP_CHANCE,
+    COOLING_PICKUP_LIMIT,
     HEALTH_PICKUP_LIMIT,
     MAGAZINE_PICKUP_AMMO,
     PICKUP_DRAW_SIZE,
@@ -36,6 +38,7 @@ from game_config import (
 from hud import draw_centered_text, draw_hud
 from player import Player
 from pickup import (
+    CoolingPickup,
     HealthPickup,
     MagazinePickup,
     roll_coin_reward,
@@ -123,6 +126,7 @@ class BattleScene:
         arrow_image=None,
         ammo_image=None,
         health_image=None,
+        cooling_image=None,
         random_source=None,
         total_waves=None,
         wave_spawn_rate=None,
@@ -144,6 +148,7 @@ class BattleScene:
         self.arrow_image = arrow_image
         self.ammo_image = ammo_image
         self.health_image = health_image
+        self.cooling_image = cooling_image
         self.initial_player_position = (player.x, player.y)
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
@@ -170,6 +175,7 @@ class BattleScene:
         self.coins = 0
         self.pickups = []
         self.health_pickups = []
+        self.cooling_pickups = []
         self.paused = False
         self.pause_menu_index = 0
         self.finished = False
@@ -237,6 +243,8 @@ class BattleScene:
             return
         if self._drop_health_pickup(enemy):
             return
+        if self._drop_cooling_pickup(enemy):
+            return
         if roll_magazine_drop(self.gun.total_ammo, self.random_source):
             self.pickups.append(
                 MagazinePickup(
@@ -268,6 +276,22 @@ class BattleScene:
         )
         return True
 
+    def _drop_cooling_pickup(self, enemy):
+        """Drop a cooling item. Returns True when it was dropped."""
+        if len(self.cooling_pickups) >= COOLING_PICKUP_LIMIT:
+            return False
+        if self.random_source.random() >= COOLING_DROP_CHANCE:
+            return False
+        self.cooling_pickups.append(
+            CoolingPickup(
+                enemy.x,
+                enemy.y,
+                image=self.cooling_image,
+                phase=self._pickup_bob_phase(),
+            )
+        )
+        return True
+
     def _pickup_bob_phase(self):
         return self.random_source.uniform(0.0, 2.0 * math.pi)
 
@@ -288,6 +312,14 @@ class BattleScene:
                     continue
             remaining_health.append(pickup)
         self.health_pickups = remaining_health
+        remaining_cooling = []
+        for pickup in self.cooling_pickups:
+            pickup.update(delta_time)
+            if pickup.can_collect(self.player):
+                self.gun.apply_cooling_item()
+                continue
+            remaining_cooling.append(pickup)
+        self.cooling_pickups = remaining_cooling
 
     def _alive_enemy_count(self):
         return sum(
@@ -561,6 +593,7 @@ class BattleScene:
         self.coins = 0
         self.pickups = []
         self.health_pickups = []
+        self.cooling_pickups = []
         self.paused = False
         self.pause_menu_index = 0
         self.finished = False
@@ -936,6 +969,7 @@ class BattleScene:
         groups = (
             (self.pickups, (235, 190, 65)),
             (self.health_pickups, (235, 70, 70)),
+            (self.cooling_pickups, (80, 140, 255)),
         )
         for pickups, color in groups:
             for pickup in pickups:

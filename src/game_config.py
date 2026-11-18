@@ -79,6 +79,16 @@ SPAWN_WARNING_SECONDS = 0.5
 COIN_REWARD_MIN = 1
 COIN_REWARD_MAX = 5
 MAGAZINE_PICKUP_AMMO = 10
+# 냉각 아이템 드롭 확률
+COOLING_DROP_CHANCE = 0.2
+# 맵에 유지 가능한 냉각 아이템 최대 개수
+COOLING_PICKUP_LIMIT = 1
+# 냉각 아이템 사용 시 현재 온도 감소 비율
+COOLING_TEMPERATURE_REDUCTION = 0.8
+# 냉각 아이템 사용 시 공격력 감소 패널티
+COOLING_DAMAGE_PENALTY = 0.3
+# 냉각 아이템 공격력 감소 패널티 지속 시간(초)
+COOLING_DAMAGE_PENALTY_DURATION = 10.0
 # 탄창 드롭 확률은 남은 탄약 수와 무관하게 30%로 고정한다.
 MAGAZINE_DROP_CHANCE = 0.30
 # 현재 HP 비율(%)이 상한 미만일 때 적용되는 회복 아이템 드롭 확률

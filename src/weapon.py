@@ -18,6 +18,9 @@ from game_config import (
     FPS,
     COOLING_PER_SECOND_BLOCKED,
     COOLING_PER_SECOND_FIREABLE,
+    COOLING_DAMAGE_PENALTY,
+    COOLING_DAMAGE_PENALTY_DURATION,
+    COOLING_TEMPERATURE_REDUCTION,
     MIN_TEMPERATURE,
     OVERHEAT_INITIAL_REDUCTION,
     OVERHEAT_REDUCTION_CURVE_EXPONENT,
@@ -202,6 +205,8 @@ class Gun:
         self._idle_seconds = 0.0
         self._reset_auto_streak()
         self._damage_reduction_elapsed = None
+        self._cooling_penalty_elapsed = None
+        self._cooling_penalty_initial = 0.0
 
     @property
     def reloading(self):
@@ -250,33 +255,61 @@ class Gun:
 
     @property
     def damage_reduction(self):
+        total = 0.0
         elapsed = self._damage_reduction_elapsed
-        if elapsed is None:
-            return 0.0
-        if elapsed < OVERHEAT_REDUCTION_HOLD_SECONDS:
-            return OVERHEAT_INITIAL_REDUCTION
-        recovery_elapsed = elapsed - OVERHEAT_REDUCTION_HOLD_SECONDS
-        if recovery_elapsed >= OVERHEAT_REDUCTION_RECOVERY_SECONDS:
-            return 0.0
-        curve = (
-            math.exp(OVERHEAT_REDUCTION_CURVE_EXPONENT)
-            - math.exp(
-                OVERHEAT_REDUCTION_CURVE_EXPONENT
-                * recovery_elapsed
-                / OVERHEAT_REDUCTION_RECOVERY_SECONDS
-            )
-        ) / (math.exp(OVERHEAT_REDUCTION_CURVE_EXPONENT) - 1.0)
-        return OVERHEAT_INITIAL_REDUCTION * curve
+        if elapsed is not None:
+            if elapsed < OVERHEAT_REDUCTION_HOLD_SECONDS:
+                total += OVERHEAT_INITIAL_REDUCTION
+            else:
+                recovery_elapsed = elapsed - OVERHEAT_REDUCTION_HOLD_SECONDS
+                if recovery_elapsed < OVERHEAT_REDUCTION_RECOVERY_SECONDS:
+                    curve = (
+                        math.exp(OVERHEAT_REDUCTION_CURVE_EXPONENT)
+                        - math.exp(
+                            OVERHEAT_REDUCTION_CURVE_EXPONENT
+                            * recovery_elapsed
+                            / OVERHEAT_REDUCTION_RECOVERY_SECONDS
+                        )
+                    ) / (math.exp(OVERHEAT_REDUCTION_CURVE_EXPONENT) - 1.0)
+                    total += OVERHEAT_INITIAL_REDUCTION * curve
+        # 냉각 아이템 패널티
+        cooling_elapsed = self._cooling_penalty_elapsed
+        if cooling_elapsed is not None:
+            duration = COOLING_DAMAGE_PENALTY_DURATION
+            if cooling_elapsed < duration:
+                curve = (
+                    math.exp(OVERHEAT_REDUCTION_CURVE_EXPONENT)
+                    - math.exp(
+                        OVERHEAT_REDUCTION_CURVE_EXPONENT
+                        * cooling_elapsed
+                        / duration
+                    )
+                ) / (math.exp(OVERHEAT_REDUCTION_CURVE_EXPONENT) - 1.0)
+                total += self._cooling_penalty_initial * curve
+            else:
+                self._cooling_penalty_elapsed = None
+        return min(1.0, total)
 
     @property
     def damage_reduction_remaining(self):
+        remaining = 0.0
         elapsed = self._damage_reduction_elapsed
-        if elapsed is None:
-            return 0.0
-        if elapsed < OVERHEAT_REDUCTION_HOLD_SECONDS:
-            return OVERHEAT_REDUCTION_HOLD_SECONDS - elapsed
-        recovery_elapsed = elapsed - OVERHEAT_REDUCTION_HOLD_SECONDS
-        return max(0.0, OVERHEAT_REDUCTION_RECOVERY_SECONDS - recovery_elapsed)
+        if elapsed is not None:
+            if elapsed < OVERHEAT_REDUCTION_HOLD_SECONDS:
+                remaining = max(remaining, OVERHEAT_REDUCTION_HOLD_SECONDS - elapsed)
+            else:
+                recovery_elapsed = elapsed - OVERHEAT_REDUCTION_HOLD_SECONDS
+                remaining = max(
+                    remaining,
+                    max(0.0, OVERHEAT_REDUCTION_RECOVERY_SECONDS - recovery_elapsed),
+                )
+        cooling_elapsed = self._cooling_penalty_elapsed
+        if cooling_elapsed is not None:
+            remaining = max(
+                remaining,
+                max(0.0, COOLING_DAMAGE_PENALTY_DURATION - cooling_elapsed),
+            )
+        return remaining
 
     @property
     def damage_multiplier(self):
@@ -297,6 +330,7 @@ class Gun:
         self._idle_seconds += delta_time
         self._decay_auto_streak(delta_time)
         self._update_damage_reduction(delta_time)
+        self._update_cooling_penalty(delta_time)
         self._cool(delta_time)
 
     @property
@@ -335,6 +369,23 @@ class Gun:
             + OVERHEAT_REDUCTION_RECOVERY_SECONDS
         ):
             self._damage_reduction_elapsed = None
+
+    def apply_cooling_item(self):
+        """Apply the cooling pickup: reduce temperature and add a damage penalty."""
+        self.temperature = max(
+            MIN_TEMPERATURE,
+            self.temperature * (1.0 - COOLING_TEMPERATURE_REDUCTION),
+        )
+        self._reset_auto_streak()
+        self._cooling_penalty_elapsed = 0.0
+        self._cooling_penalty_initial = COOLING_DAMAGE_PENALTY
+
+    def _update_cooling_penalty(self, delta_time):
+        if self._cooling_penalty_elapsed is None:
+            return
+        self._cooling_penalty_elapsed += delta_time
+        if self._cooling_penalty_elapsed >= COOLING_DAMAGE_PENALTY_DURATION:
+            self._cooling_penalty_elapsed = None
 
     def _reset_auto_streak(self):
         self.auto_shot_streak = 0
@@ -461,6 +512,8 @@ class WeaponStates:
             "auto_idle_seconds": gun._auto_idle_seconds,
             "idle_seconds": gun._idle_seconds,
             "damage_reduction_elapsed": gun._damage_reduction_elapsed,
+            "cooling_penalty_elapsed": gun._cooling_penalty_elapsed,
+            "cooling_penalty_initial": gun._cooling_penalty_initial,
         }
 
     def _save_current(self):
@@ -481,6 +534,8 @@ class WeaponStates:
         self.gun._auto_idle_seconds = state["auto_idle_seconds"]
         self.gun._idle_seconds = state["idle_seconds"]
         self.gun._damage_reduction_elapsed = state["damage_reduction_elapsed"]
+        self.gun._cooling_penalty_elapsed = state["cooling_penalty_elapsed"]
+        self.gun._cooling_penalty_initial = state["cooling_penalty_initial"]
 
     @property
     def ammo_snapshot(self):
