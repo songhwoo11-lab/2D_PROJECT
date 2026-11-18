@@ -1,6 +1,6 @@
 """Shared weapon data and state used by every gun."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 import math
 
@@ -89,6 +89,56 @@ WEAPON_SPECS = {
     RIFLE_GUN_ID: RIFLE,
     MACHINE_GUN_GUN_ID: MACHINE_GUN,
 }
+
+
+MAX_UPGRADE_LEVEL = 10
+
+
+@dataclass(frozen=True)
+class WeaponUpgradeEffects:
+    damage: tuple
+    magazine_size: tuple
+    reload_seconds: tuple
+
+
+UPGRADE_EFFECTS = {
+    DEFAULT_GUN_ID: WeaponUpgradeEffects(
+        damage=(5, 6, 6, 7, 7, 8, 8, 10, 10, 10, 10),
+        magazine_size=(10, 10, 12, 12, 14, 14, 16, 16, 20, 20, 20),
+        reload_seconds=(2.0, 2.0, 2.0, 2.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.0, 1.0),
+    ),
+    RIFLE_GUN_ID: WeaponUpgradeEffects(
+        damage=(20, 25, 25, 30, 30, 35, 35, 40, 40, 40, 40),
+        magazine_size=(30, 30, 35, 35, 40, 40, 45, 45, 50, 50, 50),
+        reload_seconds=(3.0, 3.0, 3.0, 3.0, 2.2, 2.2, 2.2, 2.2, 2.2, 1.6, 1.6),
+    ),
+    MACHINE_GUN_GUN_ID: WeaponUpgradeEffects(
+        damage=(12, 14, 14, 16, 16, 20, 20, 24, 24, 24, 24),
+        magazine_size=(50, 50, 70, 70, 90, 90, 110, 110, 150, 150, 150),
+        reload_seconds=(5.0, 5.0, 5.0, 5.0, 3.5, 3.5, 3.5, 3.5, 3.5, 2.0, 2.0),
+    ),
+}
+
+
+def upgrade_effects(gun_id):
+    if gun_id not in UPGRADE_EFFECTS:
+        raise KeyError("unknown gun: {}".format(gun_id))
+    return UPGRADE_EFFECTS[gun_id]
+
+
+def weapon_stats_at_level(gun_id, level):
+    if not isinstance(level, int) or not 0 <= level <= MAX_UPGRADE_LEVEL:
+        raise ValueError("upgrade level must be between 0 and 10")
+    spec = weapon_spec(gun_id)
+    if level == 0:
+        return spec
+    effects = upgrade_effects(gun_id)
+    return replace(
+        spec,
+        damage=effects.damage[level],
+        magazine_size=effects.magazine_size[level],
+        reload_seconds=effects.reload_seconds[level],
+    )
 
 
 def weapon_spec(gun_id):

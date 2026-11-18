@@ -32,9 +32,12 @@ from weapon import (
     RIFLE,
     RIFLE_GUN_ID,
     WeaponSpec,
+    MAX_UPGRADE_LEVEL,
+    upgrade_effects,
     weapon_display_name,
     weapon_spec,
     weapon_spec_or_default,
+    weapon_stats_at_level,
 )
 
 
@@ -167,6 +170,56 @@ class WeaponSpecModelTests(unittest.TestCase):
                 self.assertEqual(gun.temperature, spec.temperature_limit)
                 self.assertTrue(gun.overheated)
                 self.assertTrue(gun.fire_blocked)
+
+    def test_upgrade_effects_are_separate_from_weapon_specs(self):
+        specs = {
+            DEFAULT_GUN_ID: PISTOL,
+            RIFLE_GUN_ID: RIFLE,
+            MACHINE_GUN_GUN_ID: MACHINE_GUN,
+        }
+        for gun_id, spec in specs.items():
+            with self.subTest(gun_id=gun_id):
+                effects = upgrade_effects(gun_id)
+
+                self.assertEqual(len(effects.damage), MAX_UPGRADE_LEVEL + 1)
+                self.assertEqual(len(effects.magazine_size), MAX_UPGRADE_LEVEL + 1)
+                self.assertEqual(len(effects.reload_seconds), MAX_UPGRADE_LEVEL + 1)
+                self.assertIs(weapon_stats_at_level(gun_id, 0), spec)
+                self.assertEqual(
+                    effects.damage[0],
+                    spec.damage,
+                )
+                self.assertEqual(effects.magazine_size[0], spec.magazine_size)
+                self.assertEqual(effects.reload_seconds[0], spec.reload_seconds)
+
+    def test_upgrade_effects_apply_prd_values_for_each_level(self):
+        self.assertEqual(weapon_stats_at_level(DEFAULT_GUN_ID, 1).damage, 6)
+        self.assertEqual(
+            weapon_stats_at_level(DEFAULT_GUN_ID, 2).magazine_size,
+            12,
+        )
+        self.assertEqual(
+            weapon_stats_at_level(RIFLE_GUN_ID, 5).reload_seconds,
+            2.2,
+        )
+        self.assertEqual(
+            weapon_stats_at_level(MACHINE_GUN_GUN_ID, 8).damage,
+            24,
+        )
+        self.assertEqual(
+            weapon_stats_at_level(MACHINE_GUN_GUN_ID, 9).magazine_size,
+            150,
+        )
+        self.assertEqual(
+            weapon_stats_at_level(DEFAULT_GUN_ID, 10).reload_seconds,
+            1.0,
+        )
+
+    def test_upgrade_levels_outside_the_allowed_range_are_rejected(self):
+        with self.assertRaises(ValueError):
+            weapon_stats_at_level(DEFAULT_GUN_ID, -1)
+        with self.assertRaises(ValueError):
+            weapon_stats_at_level(DEFAULT_GUN_ID, MAX_UPGRADE_LEVEL + 1)
 
     def test_new_spec_can_be_created_from_the_common_model(self):
         spec = WeaponSpec(
