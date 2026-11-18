@@ -152,6 +152,22 @@ class WeaponSpecModelTests(unittest.TestCase):
                 self.assertTrue(gun.start_reload())
                 self.assertAlmostEqual(gun.reload_remaining, spec.reload_seconds)
 
+    def test_each_gun_applies_its_own_temperature_limit(self):
+        for gun_id, spec in {
+            DEFAULT_GUN_ID: PISTOL,
+            RIFLE_GUN_ID: RIFLE,
+            MACHINE_GUN_GUN_ID: MACHINE_GUN,
+        }.items():
+            with self.subTest(gun_id=gun_id):
+                gun = Gun.from_gun_id(gun_id)
+
+                self.assertEqual(gun.temperature_limit, spec.temperature_limit)
+                gun._add_heat(spec.temperature_limit + 100)
+
+                self.assertEqual(gun.temperature, spec.temperature_limit)
+                self.assertTrue(gun.overheated)
+                self.assertTrue(gun.fire_blocked)
+
     def test_new_spec_can_be_created_from_the_common_model(self):
         spec = WeaponSpec(
             name="Test",
