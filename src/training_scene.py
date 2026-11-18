@@ -5,7 +5,14 @@ import random
 
 import pico2d
 
-from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
+from game_config import (
+    AIM_CURSOR_ALPHA,
+    AIM_CURSOR_GAP,
+    AIM_CURSOR_RADIUS,
+    AIM_CURSOR_THICKNESS,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 from hud import draw_centered_text
 from player import Player
 from weapon import Gun
@@ -14,6 +21,8 @@ from weapon import Gun
 TRAINING_TITLE = "TRAINING"
 TRAINING_NOTICE = "TRAINING GROUND OPENING SOON"
 TRAINING_HINT = "PRESS SPACE : BACK TO LOBBY"
+TRAINING_CURSOR_COLOR = (20, 20, 20)
+TRAINING_CURSOR_ALPHA = AIM_CURSOR_ALPHA
 TRAINING_TITLE_Y = SCREEN_HEIGHT - 200
 TRAINING_NOTICE_Y = SCREEN_HEIGHT - 300
 TRAINING_HINT_Y = 120
@@ -194,12 +203,13 @@ class TrainingScene:
                 255,
                 True,
             )
-        if self.hud_font is None:
-            return
         if self.target is not None:
             self.target.draw(draw_rectangle)
         if self.player is not None and self.player.image is not None:
             self.player.draw()
+        self._draw_aim_cursor(draw_rectangle)
+        if self.hud_font is None:
+            return
         draw_centered_text(
             self.hud_font,
             TRAINING_TITLE_Y,
@@ -251,6 +261,45 @@ class TrainingScene:
                 "HITS {}".format(self._hits),
                 (120, 20, 0),
             )
+
+    @property
+    def aim_cursor_position(self):
+        return self.mouse_screen_x, SCREEN_HEIGHT - self.mouse_screen_y
+
+    def _draw_aim_cursor(self, draw_rectangle):
+        cursor_x, cursor_y = self.aim_cursor_position
+        radius = AIM_CURSOR_RADIUS
+        gap = AIM_CURSOR_GAP
+        half = AIM_CURSOR_THICKNESS / 2.0
+        segments = (
+            (cursor_x - radius, cursor_y - half, cursor_x - gap, cursor_y + half),
+            (cursor_x + gap, cursor_y - half, cursor_x + radius, cursor_y + half),
+            (cursor_x - half, cursor_y - radius, cursor_x + half, cursor_y - gap),
+            (cursor_x - half, cursor_y + gap, cursor_x + half, cursor_y + radius),
+        )
+        for x1, y1, x2, y2 in segments:
+            draw_rectangle(
+                x1,
+                y1,
+                x2,
+                y2,
+                TRAINING_CURSOR_COLOR[0],
+                TRAINING_CURSOR_COLOR[1],
+                TRAINING_CURSOR_COLOR[2],
+                TRAINING_CURSOR_ALPHA,
+                True,
+            )
+        draw_rectangle(
+            cursor_x - half,
+            cursor_y - half,
+            cursor_x + half,
+            cursor_y + half,
+            TRAINING_CURSOR_COLOR[0],
+            TRAINING_CURSOR_COLOR[1],
+            TRAINING_CURSOR_COLOR[2],
+            TRAINING_CURSOR_ALPHA,
+            True,
+        )
 
     def key_down(self, key):
         key = key.lower()
