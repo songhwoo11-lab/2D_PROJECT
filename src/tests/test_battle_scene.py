@@ -800,6 +800,26 @@ class BattleSceneAimCursorTests(unittest.TestCase):
         self.scene.finished = True
         self.assertFalse(self.scene.shows_aim_cursor)
 
+    def test_system_cursor_shows_while_paused_or_finished(self):
+        self.assertFalse(self.scene.shows_system_cursor)
+
+        self.scene.paused = True
+        self.assertTrue(self.scene.shows_system_cursor)
+
+        self.scene.paused = False
+        self.scene.finished = True
+        self.assertTrue(self.scene.shows_system_cursor)
+
+    def test_system_cursor_shows_over_the_debug_menu(self):
+        self.scene.debug_mode = True
+        self.scene.mouse_move(battle_scene.DEBUG_MENU_LEFT + 50, 30)
+
+        self.assertTrue(self.scene.shows_system_cursor)
+
+        self.scene.mouse_move(100, 100)
+
+        self.assertFalse(self.scene.shows_system_cursor)
+
     def test_cursor_is_drawn_as_four_segments_and_a_center_dot(self):
         self.scene.mouse_move(300.0, 200.0)
 

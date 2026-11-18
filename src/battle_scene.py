@@ -431,6 +431,15 @@ class BattleScene:
     def shows_aim_cursor(self):
         return not self.paused and not self.finished
 
+    @property
+    def shows_system_cursor(self):
+        if not self.shows_aim_cursor:
+            return True
+        return self.debug_mode and self._debug_menu_contains(
+            self.mouse_screen_x,
+            self.mouse_screen_y,
+        )
+
     def mouse_down(self, button, screen_x=None, screen_y=None):
         if (
             button == "left"
@@ -469,12 +478,17 @@ class BattleScene:
             top + DEBUG_BUTTON_HEIGHT,
         )
 
-    def _handle_debug_click(self, screen_x, screen_y):
+    def _debug_menu_contains(self, screen_x, screen_y):
+        if screen_x is None or screen_y is None:
+            return False
         menu_bottom = DEBUG_BUTTON_TOP + len(DEBUG_MENU_ITEMS) * DEBUG_BUTTON_SPACING
-        if not (
+        return (
             DEBUG_MENU_LEFT <= screen_x <= SCREEN_WIDTH - 16
             and 16 <= screen_y <= menu_bottom
-        ):
+        )
+
+    def _handle_debug_click(self, screen_x, screen_y):
+        if not self._debug_menu_contains(screen_x, screen_y):
             return False
 
         for index, (action, _) in enumerate(self._debug_menu_items()):

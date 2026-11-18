@@ -100,3 +100,12 @@ class TrainingCursorTests(unittest.TestCase):
 
         self.scene.phase = "finished"
         self.assertFalse(self.scene.shows_aim_cursor)
+
+    def test_system_cursor_is_hidden_only_while_aiming(self):
+        self.assertTrue(self.scene.shows_system_cursor)
+
+        self.scene.phase = "playing"
+        self.assertFalse(self.scene.shows_system_cursor)
+
+        self.scene.phase = "finished"
+        self.assertTrue(self.scene.shows_system_cursor)

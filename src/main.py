@@ -205,7 +205,7 @@ class GameApp:
         self.scene.key_down("escape")
 
     def update_cursor_visibility(self):
-        should_hide = bool(getattr(self.scene, "shows_aim_cursor", False))
+        should_hide = not bool(getattr(self.scene, "shows_system_cursor", True))
         if should_hide == self.cursor_hidden:
             return
         if should_hide:

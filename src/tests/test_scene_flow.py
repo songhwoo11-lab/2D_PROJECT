@@ -157,7 +157,7 @@ class SceneSwitchTests(unittest.TestCase):
         with patch("main.pico2d.hide_cursor") as hide, patch(
             "main.pico2d.show_cursor"
         ) as show:
-            self.app.scene.shows_aim_cursor = True
+            self.app.scene.shows_system_cursor = False
 
             self.app.update_cursor_visibility()
             self.app.update_cursor_visibility()
@@ -165,7 +165,7 @@ class SceneSwitchTests(unittest.TestCase):
             hide.assert_called_once_with()
             show.assert_not_called()
 
-            self.app.scene.shows_aim_cursor = False
+            self.app.scene.shows_system_cursor = True
             self.app.update_cursor_visibility()
             self.app.update_cursor_visibility()
 

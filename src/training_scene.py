@@ -271,6 +271,10 @@ class TrainingScene:
     def shows_aim_cursor(self):
         return self.phase == "playing"
 
+    @property
+    def shows_system_cursor(self):
+        return not self.shows_aim_cursor
+
     def _draw_aim_cursor(self, draw_rectangle):
         cursor_x, cursor_y = self.aim_cursor_position
         radius = AIM_CURSOR_RADIUS
