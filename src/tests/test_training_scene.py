@@ -86,7 +86,17 @@ class TrainingCursorTests(unittest.TestCase):
 
     def test_cursor_is_drawn_with_the_scene(self):
         self.scene.mouse_move(300.0, 200.0)
+        self.scene.phase = "playing"
 
         self.scene.draw(lambda *args: self.rectangles.append(args))
 
         self.assertEqual(len(self.rectangles), 6)
+
+    def test_aim_cursor_is_visible_only_while_playing(self):
+        self.assertFalse(self.scene.shows_aim_cursor)
+
+        self.scene.phase = "playing"
+        self.assertTrue(self.scene.shows_aim_cursor)
+
+        self.scene.phase = "finished"
+        self.assertFalse(self.scene.shows_aim_cursor)

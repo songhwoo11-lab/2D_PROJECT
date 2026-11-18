@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from battle_scene import BattleResult
 from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
@@ -151,6 +152,24 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertTrue(self.app.running)
         self.assertTrue(self.app.scene.paused)
+
+    def test_cursor_visibility_follows_the_active_scene(self):
+        with patch("main.pico2d.hide_cursor") as hide, patch(
+            "main.pico2d.show_cursor"
+        ) as show:
+            self.app.scene.shows_aim_cursor = True
+
+            self.app.update_cursor_visibility()
+            self.app.update_cursor_visibility()
+
+            hide.assert_called_once_with()
+            show.assert_not_called()
+
+            self.app.scene.shows_aim_cursor = False
+            self.app.update_cursor_visibility()
+            self.app.update_cursor_visibility()
+
+            show.assert_called_once_with()
 
     def test_pending_action_is_cleared_after_handling(self):
         self.app.scene.pending_action = "enter_shop"

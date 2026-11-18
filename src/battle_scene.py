@@ -427,6 +427,10 @@ class BattleScene:
         """Cursor position in canvas coordinates (origin at the bottom-left)."""
         return self.mouse_screen_x, SCREEN_HEIGHT - self.mouse_screen_y
 
+    @property
+    def shows_aim_cursor(self):
+        return not self.paused and not self.finished
+
     def mouse_down(self, button, screen_x=None, screen_y=None):
         if (
             button == "left"
@@ -706,7 +710,8 @@ class BattleScene:
                 label,
                 SHOT_FEEDBACK_COLOR,
             )
-        self._draw_aim_cursor(draw_rectangle)
+        if self.shows_aim_cursor:
+            self._draw_aim_cursor(draw_rectangle)
         if (
             self.show_attack_ranges
             or self.show_hitboxes

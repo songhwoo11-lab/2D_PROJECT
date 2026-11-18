@@ -207,7 +207,8 @@ class TrainingScene:
             self.target.draw(draw_rectangle)
         if self.player is not None and self.player.image is not None:
             self.player.draw()
-        self._draw_aim_cursor(draw_rectangle)
+        if self.shows_aim_cursor:
+            self._draw_aim_cursor(draw_rectangle)
         if self.hud_font is None:
             return
         draw_centered_text(
@@ -265,6 +266,10 @@ class TrainingScene:
     @property
     def aim_cursor_position(self):
         return self.mouse_screen_x, SCREEN_HEIGHT - self.mouse_screen_y
+
+    @property
+    def shows_aim_cursor(self):
+        return self.phase == "playing"
 
     def _draw_aim_cursor(self, draw_rectangle):
         cursor_x, cursor_y = self.aim_cursor_position

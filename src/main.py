@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pico2d
+
 from battle_record import BattleRecord
 from battle_scene import DEBUG_FONT_SIZE, SHOT_FEEDBACK_FONT_SIZE, BattleScene
 from dev_settings import development_spawn_rate, development_total_waves
@@ -37,6 +39,7 @@ class GameApp:
         self.scene = None
         self.scene_kind = None
         self.lobby_node_key = LOBBY_START_KEY
+        self.cursor_hidden = False
         self.running = True
 
     def load_assets(self):
@@ -201,6 +204,16 @@ class GameApp:
             return
         self.scene.key_down("escape")
 
+    def update_cursor_visibility(self):
+        should_hide = bool(getattr(self.scene, "shows_aim_cursor", False))
+        if should_hide == self.cursor_hidden:
+            return
+        if should_hide:
+            pico2d.hide_cursor()
+        else:
+            pico2d.show_cursor()
+        self.cursor_hidden = should_hide
+
     def handle_battle_exit(self):
         """Store the finished battle result and go back to the lobby."""
         battle = self.scene
@@ -266,6 +279,7 @@ class GameApp:
                 self.handle_scene_action()
                 pico2d.clear_canvas()
                 self.scene.draw(pico2d.draw_rectangle)
+                self.update_cursor_visibility()
                 pico2d.update_canvas()
                 if self.scene.exit_requested:
                     self.handle_scene_exit()
@@ -275,6 +289,9 @@ class GameApp:
         finally:
             if self.scene is not None:
                 self.scene.close()
+            if self.cursor_hidden:
+                pico2d.show_cursor()
+                self.cursor_hidden = False
             pico2d.close_canvas()
 
 

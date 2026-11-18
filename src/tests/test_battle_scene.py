@@ -790,6 +790,16 @@ class BattleSceneAimCursorTests(unittest.TestCase):
         self.assertEqual(cursor_x, 300.0)
         self.assertEqual(cursor_y, SCREEN_HEIGHT - 200.0)
 
+    def test_aim_cursor_is_hidden_while_paused_or_finished(self):
+        self.assertTrue(self.scene.shows_aim_cursor)
+
+        self.scene.paused = True
+        self.assertFalse(self.scene.shows_aim_cursor)
+
+        self.scene.paused = False
+        self.scene.finished = True
+        self.assertFalse(self.scene.shows_aim_cursor)
+
     def test_cursor_is_drawn_as_four_segments_and_a_center_dot(self):
         self.scene.mouse_move(300.0, 200.0)
 
