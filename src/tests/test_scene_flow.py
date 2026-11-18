@@ -6,7 +6,7 @@ from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
 from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY
 from main import GameApp
-from weapon import PISTOL
+from weapon import PISTOL, RIFLE
 
 
 def make_app():
@@ -133,7 +133,7 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.app.switch_scene("battle")
 
-        self.assertIsNotNone(self.app.scene.gun)
+        self.assertIs(self.app.scene.gun.spec, RIFLE)
 
     def test_no_action_keeps_the_current_scene(self):
         self.assertFalse(self.app.handle_scene_action())

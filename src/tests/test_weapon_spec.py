@@ -8,11 +8,19 @@ from game_config import (
     PISTOL_RELOAD_SECONDS,
     PISTOL_STARTING_AMMO,
     PISTOL_TEMPERATURE_LIMIT,
+    RIFLE_DAMAGE,
+    RIFLE_FIRE_INTERVAL_SECONDS,
+    RIFLE_MAGAZINE_SIZE,
+    RIFLE_RELOAD_SECONDS,
+    RIFLE_STARTING_AMMO,
+    RIFLE_TEMPERATURE_LIMIT,
 )
 from weapon import (
     DEFAULT_GUN_ID,
     PISTOL,
     Gun,
+    RIFLE,
+    RIFLE_GUN_ID,
     WeaponSpec,
     weapon_display_name,
     weapon_spec,
@@ -46,6 +54,16 @@ class WeaponSpecModelTests(unittest.TestCase):
     def test_unknown_registered_lookup_raises(self):
         with self.assertRaises(KeyError):
             weapon_spec("unknown")
+
+    def test_rifle_uses_the_prd_stats(self):
+        self.assertEqual(RIFLE.damage, RIFLE_DAMAGE)
+        self.assertEqual(RIFLE.fire_interval_seconds, RIFLE_FIRE_INTERVAL_SECONDS)
+        self.assertEqual(RIFLE.reload_seconds, RIFLE_RELOAD_SECONDS)
+        self.assertEqual(RIFLE.temperature_limit, RIFLE_TEMPERATURE_LIMIT)
+        self.assertEqual(RIFLE.magazine_size, RIFLE_MAGAZINE_SIZE)
+        self.assertEqual(RIFLE.starting_ammo, RIFLE_STARTING_AMMO)
+        self.assertIs(weapon_spec(RIFLE_GUN_ID), RIFLE)
+        self.assertEqual(weapon_display_name(RIFLE_GUN_ID), "RIFLE")
 
     def test_gun_connects_to_the_registered_pistol_spec(self):
         gun = Gun.from_gun_id(DEFAULT_GUN_ID)

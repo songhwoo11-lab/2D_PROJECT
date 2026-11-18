@@ -22,6 +22,12 @@ from game_config import (
     PISTOL_RELOAD_SECONDS,
     PISTOL_STARTING_AMMO,
     PISTOL_TEMPERATURE_LIMIT,
+    RIFLE_DAMAGE,
+    RIFLE_FIRE_INTERVAL_SECONDS,
+    RIFLE_MAGAZINE_SIZE,
+    RIFLE_RELOAD_SECONDS,
+    RIFLE_STARTING_AMMO,
+    RIFLE_TEMPERATURE_LIMIT,
     SINGLE_FIRE_INTERVAL_MULTIPLIER,
 )
 
@@ -47,11 +53,23 @@ PISTOL = WeaponSpec(
     starting_ammo=PISTOL_STARTING_AMMO,
 )
 
+RIFLE = WeaponSpec(
+    name="Rifle",
+    damage=RIFLE_DAMAGE,
+    fire_interval_seconds=RIFLE_FIRE_INTERVAL_SECONDS,
+    reload_seconds=RIFLE_RELOAD_SECONDS,
+    temperature_limit=RIFLE_TEMPERATURE_LIMIT,
+    magazine_size=RIFLE_MAGAZINE_SIZE,
+    starting_ammo=RIFLE_STARTING_AMMO,
+)
+
 DEFAULT_GUN_ID = "pistol"
+RIFLE_GUN_ID = "rifle"
 
 # 총기 id별 능력치 목록. 6단계에서 나머지 총기를 등록한다.
 WEAPON_SPECS = {
     DEFAULT_GUN_ID: PISTOL,
+    RIFLE_GUN_ID: RIFLE,
 }
 
 
