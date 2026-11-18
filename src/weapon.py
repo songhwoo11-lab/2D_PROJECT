@@ -1,4 +1,4 @@
-"""Weapon data and state used by the first-stage pistol."""
+"""Shared weapon data and state used by every gun."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -47,9 +47,11 @@ PISTOL = WeaponSpec(
     starting_ammo=PISTOL_STARTING_AMMO,
 )
 
+DEFAULT_GUN_ID = "pistol"
+
 # 총기 id별 능력치 목록. 6단계에서 나머지 총기를 등록한다.
 WEAPON_SPECS = {
-    "pistol": PISTOL,
+    DEFAULT_GUN_ID: PISTOL,
 }
 
 
@@ -69,7 +71,7 @@ def weapon_display_name(gun_id):
 
 def weapon_spec_or_default(gun_id):
     """Return the weapon data of the gun id, or the pistol when it is unknown."""
-    return WEAPON_SPECS.get(gun_id, PISTOL)
+    return WEAPON_SPECS.get(gun_id, WEAPON_SPECS[DEFAULT_GUN_ID])
 
 
 class FireMode(Enum):
