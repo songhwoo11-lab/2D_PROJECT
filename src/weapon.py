@@ -74,6 +74,14 @@ def weapon_spec_or_default(gun_id):
     return WEAPON_SPECS.get(gun_id, WEAPON_SPECS[DEFAULT_GUN_ID])
 
 
+def gun_id_for_spec(spec):
+    """Return the registered id of a weapon spec, or the default id."""
+    for gun_id, registered in WEAPON_SPECS.items():
+        if registered is spec:
+            return gun_id
+    return DEFAULT_GUN_ID
+
+
 class FireMode(Enum):
     SINGLE = "single"
     AUTO = "auto"
@@ -86,6 +94,14 @@ class Gun:
         self.spec = spec
         self.infinite_ammo = False
         self.reset()
+
+    @classmethod
+    def from_gun_id(cls, gun_id):
+        return cls(weapon_spec_or_default(gun_id))
+
+    @property
+    def gun_id(self):
+        return gun_id_for_spec(self.spec)
 
     def reset(self):
         self.magazine_ammo = min(self.spec.magazine_size, self.spec.starting_ammo)

@@ -12,6 +12,7 @@ from game_config import (
 from weapon import (
     DEFAULT_GUN_ID,
     PISTOL,
+    Gun,
     WeaponSpec,
     weapon_display_name,
     weapon_spec,
@@ -45,6 +46,13 @@ class WeaponSpecModelTests(unittest.TestCase):
     def test_unknown_registered_lookup_raises(self):
         with self.assertRaises(KeyError):
             weapon_spec("unknown")
+
+    def test_gun_connects_to_the_registered_pistol_spec(self):
+        gun = Gun.from_gun_id(DEFAULT_GUN_ID)
+
+        self.assertIs(gun.spec, PISTOL)
+        self.assertEqual(gun.gun_id, DEFAULT_GUN_ID)
+        self.assertEqual(gun.effective_damage, PISTOL_DAMAGE)
 
     def test_new_spec_can_be_created_from_the_common_model(self):
         spec = WeaponSpec(

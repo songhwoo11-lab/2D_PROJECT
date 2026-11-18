@@ -6,6 +6,7 @@ from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
 from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY
 from main import GameApp
+from weapon import PISTOL
 
 
 def make_app():
@@ -119,6 +120,12 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertTrue(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "battle")
+
+    def test_battle_scene_uses_the_common_pistol_spec(self):
+        self.app.switch_scene("battle")
+
+        self.assertIs(self.app.scene.gun.spec, PISTOL)
+        self.assertEqual(self.app.scene.gun.gun_id, "pistol")
 
     def test_battle_scene_uses_the_selected_gun(self):
         self.app.state.owned_guns = ["pistol", "rifle"]
