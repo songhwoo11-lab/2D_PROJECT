@@ -15,6 +15,7 @@ from game_config import (
     AUTO_SHOT_HEAT_STEP,
     AUTO_STREAK_DECAY_SECONDS,
     COOLING_ACCELERATION_SCALE_SECONDS,
+    FPS,
     COOLING_PER_SECOND_BLOCKED,
     COOLING_PER_SECOND_FIREABLE,
     MIN_TEMPERATURE,
@@ -159,6 +160,14 @@ class Gun:
     @property
     def temperature_limit(self):
         return self.spec.temperature_limit
+
+    @property
+    def fire_interval_seconds(self):
+        return self.spec.fire_interval_seconds
+
+    @property
+    def fire_interval_frames(self):
+        return self.spec.fire_interval_seconds * FPS
 
     @property
     def fire_blocked(self):
@@ -310,7 +319,7 @@ class Gun:
             return False
         if not self.infinite_ammo:
             self.magazine_ammo -= 1
-        fire_interval = self.spec.fire_interval_seconds
+        fire_interval = self.fire_interval_seconds
         if self.fire_mode is FireMode.SINGLE:
             fire_interval *= SINGLE_FIRE_INTERVAL_MULTIPLIER
         if self.heat_enabled:

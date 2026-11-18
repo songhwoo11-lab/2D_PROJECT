@@ -2,6 +2,7 @@ import unittest
 from dataclasses import FrozenInstanceError
 
 from game_config import (
+    FPS,
     MACHINE_GUN_DAMAGE,
     MACHINE_GUN_FIRE_INTERVAL_SECONDS,
     MACHINE_GUN_MAGAZINE_SIZE,
@@ -20,6 +21,7 @@ from game_config import (
     RIFLE_RELOAD_SECONDS,
     RIFLE_STARTING_AMMO,
     RIFLE_TEMPERATURE_LIMIT,
+    SINGLE_FIRE_INTERVAL_MULTIPLIER,
 )
 from weapon import (
     DEFAULT_GUN_ID,
@@ -95,6 +97,27 @@ class WeaponSpecModelTests(unittest.TestCase):
         self.assertIs(gun.spec, PISTOL)
         self.assertEqual(gun.gun_id, DEFAULT_GUN_ID)
         self.assertEqual(gun.effective_damage, PISTOL_DAMAGE)
+
+    def test_each_gun_applies_its_own_fire_interval(self):
+        expected_frames = {
+            DEFAULT_GUN_ID: 10,
+            RIFLE_GUN_ID: 5,
+            MACHINE_GUN_GUN_ID: 1,
+        }
+        for gun_id, frames in expected_frames.items():
+            with self.subTest(gun_id=gun_id):
+                gun = Gun.from_gun_id(gun_id)
+
+                self.assertAlmostEqual(gun.fire_interval_frames, frames)
+                self.assertTrue(gun.try_fire())
+                self.assertAlmostEqual(
+                    gun.cooldown_remaining,
+                    gun.fire_interval_seconds * SINGLE_FIRE_INTERVAL_MULTIPLIER,
+                )
+                self.assertAlmostEqual(
+                    gun.fire_interval_seconds * FPS,
+                    gun.spec.fire_interval_seconds * FPS,
+                )
 
     def test_new_spec_can_be_created_from_the_common_model(self):
         spec = WeaponSpec(
