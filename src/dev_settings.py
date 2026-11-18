@@ -2,9 +2,12 @@
 
 import os
 
+from weapon import WEAPON_SPECS
+
 
 WAVES_ENV = "CHALLENGING_GUNNER_WAVES"
 SPAWN_RATE_ENV = "CHALLENGING_GUNNER_SPAWN_RATE"
+GUN_ENV = "CHALLENGING_GUNNER_GUN"
 
 
 def _read_environment(name, environ):
@@ -35,3 +38,11 @@ def development_spawn_rate(environ=None):
     except ValueError:
         return None
     return rate if rate > 0 else None
+
+
+def development_gun(environ=None):
+    value = _read_environment(GUN_ENV, environ)
+    if value is None:
+        return None
+    value = value.lower()
+    return value if value in WEAPON_SPECS else None
