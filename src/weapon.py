@@ -426,3 +426,54 @@ class Gun:
         if self.fire_mode is FireMode.SINGLE:
             return self.try_fire() if mouse_pressed else False
         return self.try_fire() if mouse_held else False
+
+
+class WeaponStates:
+    def __init__(self, gun_ids=None, initial_gun_id=DEFAULT_GUN_ID):
+        ids = tuple(gun_ids) if gun_ids is not None else tuple(WEAPON_SPECS)
+        if not ids:
+            raise ValueError("at least one gun is required")
+        for gun_id in ids:
+            weapon_spec(gun_id)
+        if initial_gun_id not in ids:
+            raise ValueError("initial gun is not managed: {}".format(initial_gun_id))
+        self.gun_ids = ids
+        self.current_id = initial_gun_id
+        self._ammo = {
+            gun_id: self._initial_ammo(gun_id) for gun_id in self.gun_ids
+        }
+        self.gun = Gun.from_gun_id(self.current_id)
+        self._apply_ammo(self.current_id)
+
+    @staticmethod
+    def _initial_ammo(gun_id):
+        spec = weapon_spec(gun_id)
+        magazine_ammo = min(spec.magazine_size, spec.starting_ammo)
+        return magazine_ammo, spec.starting_ammo - magazine_ammo
+
+    def _save_current(self):
+        self._ammo[self.current_id] = (
+            self.gun.magazine_ammo,
+            self.gun.reserve_ammo,
+        )
+
+    def _apply_ammo(self, gun_id):
+        magazine_ammo, reserve_ammo = self._ammo[gun_id]
+        self.gun.magazine_ammo = magazine_ammo
+        self.gun.reserve_ammo = reserve_ammo
+
+    @property
+    def ammo_snapshot(self):
+        self._save_current()
+        return dict(self._ammo)
+
+    def select(self, gun_id):
+        if gun_id not in self._ammo:
+            raise ValueError("gun is not managed: {}".format(gun_id))
+        if gun_id == self.current_id:
+            return self.gun
+        self._save_current()
+        self.current_id = gun_id
+        self.gun.spec = weapon_spec(gun_id)
+        self._apply_ammo(gun_id)
+        return self.gun
