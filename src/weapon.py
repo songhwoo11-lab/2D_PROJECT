@@ -6,6 +6,12 @@ import math
 
 from game_config import (
     AUTO_SHOT_HEAT_BASE,
+    MACHINE_GUN_DAMAGE,
+    MACHINE_GUN_FIRE_INTERVAL_SECONDS,
+    MACHINE_GUN_MAGAZINE_SIZE,
+    MACHINE_GUN_RELOAD_SECONDS,
+    MACHINE_GUN_STARTING_AMMO,
+    MACHINE_GUN_TEMPERATURE_LIMIT,
     AUTO_SHOT_HEAT_STEP,
     AUTO_STREAK_DECAY_SECONDS,
     COOLING_ACCELERATION_SCALE_SECONDS,
@@ -63,13 +69,24 @@ RIFLE = WeaponSpec(
     starting_ammo=RIFLE_STARTING_AMMO,
 )
 
+MACHINE_GUN = WeaponSpec(
+    name="Machine Gun",
+    damage=MACHINE_GUN_DAMAGE,
+    fire_interval_seconds=MACHINE_GUN_FIRE_INTERVAL_SECONDS,
+    reload_seconds=MACHINE_GUN_RELOAD_SECONDS,
+    temperature_limit=MACHINE_GUN_TEMPERATURE_LIMIT,
+    magazine_size=MACHINE_GUN_MAGAZINE_SIZE,
+    starting_ammo=MACHINE_GUN_STARTING_AMMO,
+)
+
 DEFAULT_GUN_ID = "pistol"
 RIFLE_GUN_ID = "rifle"
+MACHINE_GUN_GUN_ID = "machine_gun"
 
-# 총기 id별 능력치 목록. 6단계에서 나머지 총기를 등록한다.
 WEAPON_SPECS = {
     DEFAULT_GUN_ID: PISTOL,
     RIFLE_GUN_ID: RIFLE,
+    MACHINE_GUN_GUN_ID: MACHINE_GUN,
 }
 
 

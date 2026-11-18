@@ -2,6 +2,12 @@ import unittest
 from dataclasses import FrozenInstanceError
 
 from game_config import (
+    MACHINE_GUN_DAMAGE,
+    MACHINE_GUN_FIRE_INTERVAL_SECONDS,
+    MACHINE_GUN_MAGAZINE_SIZE,
+    MACHINE_GUN_RELOAD_SECONDS,
+    MACHINE_GUN_STARTING_AMMO,
+    MACHINE_GUN_TEMPERATURE_LIMIT,
     PISTOL_DAMAGE,
     PISTOL_FIRE_INTERVAL_SECONDS,
     PISTOL_MAGAZINE_SIZE,
@@ -19,6 +25,8 @@ from weapon import (
     DEFAULT_GUN_ID,
     PISTOL,
     Gun,
+    MACHINE_GUN,
+    MACHINE_GUN_GUN_ID,
     RIFLE,
     RIFLE_GUN_ID,
     WeaponSpec,
@@ -64,6 +72,22 @@ class WeaponSpecModelTests(unittest.TestCase):
         self.assertEqual(RIFLE.starting_ammo, RIFLE_STARTING_AMMO)
         self.assertIs(weapon_spec(RIFLE_GUN_ID), RIFLE)
         self.assertEqual(weapon_display_name(RIFLE_GUN_ID), "RIFLE")
+
+    def test_machine_gun_uses_the_prd_stats(self):
+        self.assertEqual(MACHINE_GUN.damage, MACHINE_GUN_DAMAGE)
+        self.assertEqual(
+            MACHINE_GUN.fire_interval_seconds,
+            MACHINE_GUN_FIRE_INTERVAL_SECONDS,
+        )
+        self.assertEqual(MACHINE_GUN.reload_seconds, MACHINE_GUN_RELOAD_SECONDS)
+        self.assertEqual(
+            MACHINE_GUN.temperature_limit,
+            MACHINE_GUN_TEMPERATURE_LIMIT,
+        )
+        self.assertEqual(MACHINE_GUN.magazine_size, MACHINE_GUN_MAGAZINE_SIZE)
+        self.assertEqual(MACHINE_GUN.starting_ammo, MACHINE_GUN_STARTING_AMMO)
+        self.assertIs(weapon_spec(MACHINE_GUN_GUN_ID), MACHINE_GUN)
+        self.assertEqual(weapon_display_name(MACHINE_GUN_GUN_ID), "MACHINE GUN")
 
     def test_gun_connects_to_the_registered_pistol_spec(self):
         gun = Gun.from_gun_id(DEFAULT_GUN_ID)
