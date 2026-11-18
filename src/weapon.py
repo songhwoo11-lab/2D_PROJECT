@@ -439,41 +439,72 @@ class WeaponStates:
             raise ValueError("initial gun is not managed: {}".format(initial_gun_id))
         self.gun_ids = ids
         self.current_id = initial_gun_id
-        self._ammo = {
-            gun_id: self._initial_ammo(gun_id) for gun_id in self.gun_ids
+        self._states = {
+            gun_id: self._capture(Gun.from_gun_id(gun_id)) for gun_id in self.gun_ids
         }
         self.gun = Gun.from_gun_id(self.current_id)
-        self._apply_ammo(self.current_id)
+        self._restore(self.current_id)
 
     @staticmethod
-    def _initial_ammo(gun_id):
-        spec = weapon_spec(gun_id)
-        magazine_ammo = min(spec.magazine_size, spec.starting_ammo)
-        return magazine_ammo, spec.starting_ammo - magazine_ammo
+    def _capture(gun):
+        return {
+            "magazine_ammo": gun.magazine_ammo,
+            "reserve_ammo": gun.reserve_ammo,
+            "cooldown_remaining": gun.cooldown_remaining,
+            "reload_remaining": gun.reload_remaining,
+            "fire_mode": gun.fire_mode,
+            "infinite_ammo": gun.infinite_ammo,
+            "heat_enabled": gun.heat_enabled,
+            "temperature": gun.temperature,
+            "overheated": gun.overheated,
+            "auto_shot_streak": gun.auto_shot_streak,
+            "auto_idle_seconds": gun._auto_idle_seconds,
+            "idle_seconds": gun._idle_seconds,
+            "damage_reduction_elapsed": gun._damage_reduction_elapsed,
+        }
 
     def _save_current(self):
-        self._ammo[self.current_id] = (
-            self.gun.magazine_ammo,
-            self.gun.reserve_ammo,
-        )
+        self._states[self.current_id] = self._capture(self.gun)
 
-    def _apply_ammo(self, gun_id):
-        magazine_ammo, reserve_ammo = self._ammo[gun_id]
-        self.gun.magazine_ammo = magazine_ammo
-        self.gun.reserve_ammo = reserve_ammo
+    def _restore(self, gun_id):
+        state = self._states[gun_id]
+        self.gun.magazine_ammo = state["magazine_ammo"]
+        self.gun.reserve_ammo = state["reserve_ammo"]
+        self.gun.cooldown_remaining = state["cooldown_remaining"]
+        self.gun.reload_remaining = state["reload_remaining"]
+        self.gun.fire_mode = state["fire_mode"]
+        self.gun.infinite_ammo = state["infinite_ammo"]
+        self.gun.heat_enabled = state["heat_enabled"]
+        self.gun.temperature = state["temperature"]
+        self.gun.overheated = state["overheated"]
+        self.gun.auto_shot_streak = state["auto_shot_streak"]
+        self.gun._auto_idle_seconds = state["auto_idle_seconds"]
+        self.gun._idle_seconds = state["idle_seconds"]
+        self.gun._damage_reduction_elapsed = state["damage_reduction_elapsed"]
 
     @property
     def ammo_snapshot(self):
         self._save_current()
-        return dict(self._ammo)
+        return {
+            gun_id: (
+                state["magazine_ammo"],
+                state["reserve_ammo"],
+            )
+            for gun_id, state in self._states.items()
+        }
+
+    @property
+    def state_snapshot(self):
+        self._save_current()
+        return {gun_id: dict(state) for gun_id, state in self._states.items()}
 
     def select(self, gun_id):
-        if gun_id not in self._ammo:
+        if gun_id not in self._states:
             raise ValueError("gun is not managed: {}".format(gun_id))
         if gun_id == self.current_id:
             return self.gun
         self._save_current()
         self.current_id = gun_id
         self.gun.spec = weapon_spec(gun_id)
-        self._apply_ammo(gun_id)
+        self._restore(gun_id)
         return self.gun
