@@ -138,6 +138,20 @@ class WeaponSpecModelTests(unittest.TestCase):
                 )
                 self.assertEqual(gun.total_ammo, spec.starting_ammo)
 
+    def test_each_gun_applies_its_own_reload_time(self):
+        for gun_id, spec in {
+            DEFAULT_GUN_ID: PISTOL,
+            RIFLE_GUN_ID: RIFLE,
+            MACHINE_GUN_GUN_ID: MACHINE_GUN,
+        }.items():
+            with self.subTest(gun_id=gun_id):
+                gun = Gun.from_gun_id(gun_id)
+                gun.magazine_ammo = 0
+
+                self.assertEqual(gun.reload_seconds, spec.reload_seconds)
+                self.assertTrue(gun.start_reload())
+                self.assertAlmostEqual(gun.reload_remaining, spec.reload_seconds)
+
     def test_new_spec_can_be_created_from_the_common_model(self):
         spec = WeaponSpec(
             name="Test",

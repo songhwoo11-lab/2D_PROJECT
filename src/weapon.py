@@ -178,6 +178,10 @@ class Gun:
         return self.spec.starting_ammo
 
     @property
+    def reload_seconds(self):
+        return self.spec.reload_seconds
+
+    @property
     def fire_blocked(self):
         return self.overheated
 
@@ -303,7 +307,7 @@ class Gun:
             return False
         if self.magazine_ammo >= self.magazine_size or self.reserve_ammo <= 0:
             return False
-        self.reload_remaining = self.spec.reload_seconds
+        self.reload_remaining = self.reload_seconds
         if self.reload_remaining <= 0:
             self._finish_reload()
         return True
