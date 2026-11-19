@@ -2,6 +2,7 @@
 
 from battle_record import BattleRecord
 from dev_settings import development_coins, development_gun
+from weapon import WEAPON_SPECS
 
 
 DEFAULT_OWNED_GUNS = ("pistol",)
@@ -16,8 +17,14 @@ class GameState:
         coins=None,
         records=None,
         dev_gun=None,
+        upgrade_levels=None,
     ):
         self.owned_guns = list(owned_guns)
+        self.upgrade_levels = {
+            gun_id: 0 for gun_id in WEAPON_SPECS
+        }
+        if upgrade_levels is not None:
+            self.upgrade_levels.update(upgrade_levels)
         coin_override = development_coins() if coins is None else coins
         self.coins = 0 if coin_override is None else coin_override
         self.records = list(records or [])
@@ -32,6 +39,13 @@ class GameState:
 
     def owns_gun(self, gun_id):
         return gun_id in self.owned_guns
+
+    def upgrade_level(self, gun_id):
+        return self.upgrade_levels.get(gun_id, 0)
+
+    def set_upgrade_level(self, gun_id, level):
+        self.upgrade_levels[gun_id] = level
+        return level
 
     def needs_gun_selection(self):
         """Check whether a gun selection screen is required before a battle."""

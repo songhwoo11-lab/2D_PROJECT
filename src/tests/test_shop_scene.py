@@ -3,7 +3,13 @@ from unittest import mock
 
 from game_state import GameState
 import shop_scene
-from shop import GUN_PRICES, PurchaseResult, gun_price, purchase_gun
+from shop import (
+    GUN_PRICES,
+    PurchaseResult,
+    UpgradeResult,
+    gun_price,
+    purchase_gun,
+)
 from shop_scene import ShopScene
 
 
@@ -116,3 +122,14 @@ class GunPurchaseTests(unittest.TestCase):
         self.assertEqual(scene.gun_index, 1)
         self.assertIn("rifle", state.owned_guns)
         self.assertEqual(scene.last_result.result, PurchaseResult.PURCHASED)
+
+    def test_d_selects_upgrade_action_and_space_upgrades(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state)
+        scene.key_down("d")
+
+        scene.key_down("space")
+
+        self.assertEqual(scene.action_index, 1)
+        self.assertEqual(state.upgrade_level("pistol"), 1)
+        self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)

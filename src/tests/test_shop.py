@@ -1,13 +1,16 @@
 import unittest
 
+from game_state import GameState
 from shop import (
     DEFAULT_GUN_ID,
     MAX_UPGRADE_LEVEL,
     UPGRADE_COSTS,
     UPGRADE_PROBABILITIES,
+    UpgradeResult,
     gun_price,
     upgrade_chances,
     upgrade_cost,
+    upgrade_gun,
 )
 from weapon import UPGRADE_EFFECTS, weapon_stats_at_level
 
@@ -95,6 +98,25 @@ class UpgradeEffectDataTests(unittest.TestCase):
         self.assertEqual(upgraded.magazine_size, 30)
         self.assertEqual(upgraded.reload_seconds, 3.0)
         self.assertEqual(upgraded.fire_interval_seconds, base.fire_interval_seconds)
+
+
+class UpgradeEngineTests(unittest.TestCase):
+    def test_level_zero_upgrade_is_guaranteed(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+
+        outcome = upgrade_gun(state, "pistol", roll=100)
+
+        self.assertEqual(outcome.result, UpgradeResult.SUCCESS)
+        self.assertEqual(outcome.level_before, 0)
+        self.assertEqual(outcome.level_after, 1)
+        self.assertEqual(state.upgrade_level("pistol"), 1)
+
+    def test_upgrade_levels_start_at_zero_for_every_gun(self):
+        state = GameState()
+
+        self.assertEqual(state.upgrade_level("pistol"), 0)
+        self.assertEqual(state.upgrade_level("rifle"), 0)
+        self.assertEqual(state.upgrade_level("machine_gun"), 0)
 
 
 if __name__ == "__main__":

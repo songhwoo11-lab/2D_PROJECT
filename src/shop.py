@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass
 from enum import Enum
 
@@ -84,12 +85,34 @@ class PurchaseResult(Enum):
     INSUFFICIENT_COINS = "insufficient_coins"
 
 
+class UpgradeResult(Enum):
+    SUCCESS = "success"
+    FAILURE = "failure"
+    DOWNGRADE = "downgrade"
+    DESTROY = "destroy"
+    NOT_OWNED = "not_owned"
+    MAX_LEVEL = "max_level"
+    INSUFFICIENT_COINS = "insufficient_coins"
+
+
 @dataclass(frozen=True)
 class PurchaseOutcome:
     result: PurchaseResult
     gun_id: str
     cost: int
     coins_after: int
+
+
+@dataclass(frozen=True)
+class UpgradeOutcome:
+    result: UpgradeResult
+    gun_id: str
+    level_before: int
+    level_after: int
+    cost: int
+    refund: int
+    coins_after: int
+    roll: int
 
 
 def purchase_gun(state, gun_id):
@@ -115,4 +138,81 @@ def purchase_gun(state, gun_id):
         gun_id,
         price,
         state.coins,
+    )
+
+
+def upgrade_gun(state, gun_id, roll=None):
+    if not state.owns_gun(gun_id):
+        return UpgradeOutcome(
+            UpgradeResult.NOT_OWNED,
+            gun_id,
+            state.upgrade_level(gun_id),
+            state.upgrade_level(gun_id),
+            0,
+            0,
+            state.coins,
+            0,
+        )
+
+    level = state.upgrade_level(gun_id)
+    if level >= MAX_UPGRADE_LEVEL:
+        return UpgradeOutcome(
+            UpgradeResult.MAX_LEVEL,
+            gun_id,
+            level,
+            level,
+            0,
+            0,
+            state.coins,
+            0,
+        )
+
+    cost = upgrade_cost(gun_id, level)
+    if state.coins < cost:
+        return UpgradeOutcome(
+            UpgradeResult.INSUFFICIENT_COINS,
+            gun_id,
+            level,
+            level,
+            cost,
+            0,
+            state.coins,
+            0,
+        )
+
+    state.coins -= cost
+    if roll is None:
+        roll = random.randint(1, 100)
+    if not 1 <= roll <= 100:
+        raise ValueError("roll must be between 1 and 100")
+
+    chances = upgrade_chances(level)
+    if level == 0 or roll <= chances.success:
+        new_level = min(level + 1, MAX_UPGRADE_LEVEL)
+        result = UpgradeResult.SUCCESS
+        refund = 0
+    elif roll <= chances.success + chances.failure:
+        new_level = level
+        result = UpgradeResult.FAILURE
+        refund = cost * 50 // 100
+    elif roll <= chances.success + chances.failure + chances.downgrade:
+        new_level = max(level - 1, 0)
+        result = UpgradeResult.DOWNGRADE
+        refund = cost * 70 // 100
+    else:
+        new_level = 0
+        result = UpgradeResult.DESTROY
+        refund = cost
+
+    state.set_upgrade_level(gun_id, new_level)
+    state.coins += refund
+    return UpgradeOutcome(
+        result,
+        gun_id,
+        level,
+        new_level,
+        cost,
+        refund,
+        state.coins,
+        roll,
     )
