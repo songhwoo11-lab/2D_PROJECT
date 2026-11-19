@@ -773,6 +773,30 @@ class BattleSceneDebugTests(unittest.TestCase):
         self.assertTrue(self.scene.gun.infinite_ammo)
         self.assertFalse(self.scene.gun.heat_enabled)
 
+    def test_debug_menu_has_add_coins_item(self):
+        self.assertIn(("add_coins", "+10000 Coins"), battle_scene.DEBUG_MENU_ITEMS)
+
+    def test_debug_menu_click_adds_ten_thousand_coins(self):
+        self.scene.key_down("f1")
+        self.scene.coins = 3
+        index = [
+            action for action, _ in battle_scene.DEBUG_MENU_ITEMS
+        ].index("add_coins")
+        left, top, right, bottom = self.scene._debug_button_bounds(index)
+
+        self.scene.mouse_down("left", (left + right) / 2, (top + bottom) / 2)
+
+        self.assertEqual(self.scene.coins, 10003)
+
+    def test_debug_menu_draws_add_coins_label(self):
+        self.scene.debug_mode = True
+
+        with mock.patch.object(self.scene.debug_font, "draw") as draw:
+            self.scene._draw_debug_menu(lambda *args: None)
+
+        labels = [call.args[2] for call in draw.call_args_list]
+        self.assertIn("+10000 Coins", labels)
+
 
 class BattleSceneAimCursorTests(unittest.TestCase):
     def setUp(self):

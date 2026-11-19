@@ -93,6 +93,8 @@ DEBUG_BUTTON_HEIGHT = 52
 DEBUG_BUTTON_SPACING = 60
 DEBUG_BUTTON_TEXT_Y_OFFSET = 10
 DEBUG_FONT_SIZE = 30
+DEBUG_COIN_AMOUNT = 10000
+DEBUG_ADD_COINS_LABEL = "+10000 Coins"
 DEBUG_MENU_ITEMS = (
     ("spawn_basic", "Basic Enemy"),
     ("spawn_explosive", "Explosive Enemy"),
@@ -102,6 +104,7 @@ DEBUG_MENU_ITEMS = (
     ("remove_all_enemies", "Remove All Enemies"),
     ("reset_hp", "Reset Player HP"),
     ("reset_map", "Reset Map"),
+    ("add_coins", DEBUG_ADD_COINS_LABEL),
     ("toggle_attack_ranges", "Attack Ranges: OFF"),
     ("toggle_hitboxes", "Hitboxes: OFF"),
     ("toggle_assassin_reveal_range", "Assassin Reveal: OFF"),
@@ -551,6 +554,8 @@ class BattleScene:
             self.reset_map()
         elif action == "remove_all_enemies":
             self._remove_all_enemies()
+        elif action == "add_coins":
+            self.coins += DEBUG_COIN_AMOUNT
         elif action == "toggle_attack_ranges":
             self.show_attack_ranges = not self.show_attack_ranges
         elif action == "toggle_hitboxes":
