@@ -18,12 +18,14 @@ from weapon import weapon_display_name
 NO_ACTION = -1
 BUY_ACTION = 0
 UPGRADE_ACTION = 1
+STATE_ACTION = 2
 
 SHOP_TITLE = "SHOP"
 BUY_LABEL = "구매"
 OWNED_LABEL = "소지중"
 UPGRADE_LABEL = "강화"
 UPGRADE_DONE_LABEL = "강화완료"
+STATE_LABEL = "State"
 EXIT_LABEL = "나가기"
 
 SHOP_TITLE_Y = SCREEN_HEIGHT - 120
@@ -35,7 +37,7 @@ SHOP_CARD_GAP = 60
 SHOP_CARD_LEFT = (
     SCREEN_WIDTH - (len(GUN_SHOP_ORDER) * SHOP_CARD_WIDTH + (len(GUN_SHOP_ORDER) - 1) * SHOP_CARD_GAP)
 ) // 2
-SHOP_CARD_BOTTOM = 420
+SHOP_CARD_BOTTOM = 320
 SHOP_CARD_TOP = 850
 SHOP_NAME_Y = 800
 SHOP_IMAGE_Y = 710
@@ -48,6 +50,11 @@ SHOP_BUTTON_GAP = 40
 SHOP_BUTTON_BOTTOM = 450
 SHOP_BUTTON_TOP = 540
 SHOP_BUTTON_TEXT_Y = 495
+
+SHOP_STATE_BUTTON_WIDTH = 420
+SHOP_STATE_BUTTON_BOTTOM = 340
+SHOP_STATE_BUTTON_TOP = 430
+SHOP_STATE_BUTTON_TEXT_Y = 385
 
 SHOP_EXIT_BUTTON = (SCREEN_WIDTH - 280, 60, SCREEN_WIDTH - 60, 160)
 
@@ -70,6 +77,14 @@ def card_rect(index):
 
 def button_rect(index, action):
     card_left = card_rect(index)[0]
+    if action == STATE_ACTION:
+        left = card_left + (SHOP_CARD_WIDTH - SHOP_STATE_BUTTON_WIDTH) // 2
+        return (
+            left,
+            SHOP_STATE_BUTTON_BOTTOM,
+            left + SHOP_STATE_BUTTON_WIDTH,
+            SHOP_STATE_BUTTON_TOP,
+        )
     left = card_left + SHOP_BUTTON_MARGIN + action * (
         SHOP_BUTTON_WIDTH + SHOP_BUTTON_GAP
     )
@@ -95,6 +110,10 @@ def upgrade_available(state, gun_id):
     )
 
 
+def state_available(state, gun_id):
+    return True
+
+
 class ShopScene:
     """Shop card layout that keeps key and mouse controls in sync."""
 
@@ -117,12 +136,14 @@ class ShopScene:
         gun_id = GUN_SHOP_ORDER[index]
         if action == BUY_ACTION:
             return purchase_available(self.state, gun_id)
-        return upgrade_available(self.state, gun_id)
+        if action == UPGRADE_ACTION:
+            return upgrade_available(self.state, gun_id)
+        return state_available(self.state, gun_id)
 
     def _available_actions(self):
         return tuple(
             action
-            for action in (BUY_ACTION, UPGRADE_ACTION)
+            for action in (BUY_ACTION, UPGRADE_ACTION, STATE_ACTION)
             if self._action_available(self.gun_index, action)
         )
 
@@ -228,6 +249,15 @@ class ShopScene:
                     label_color,
                 )
 
+            self._draw_button(draw_rectangle, index, STATE_ACTION, True)
+            draw_text_at(
+                self.hud_font,
+                center_x,
+                SHOP_STATE_BUTTON_TEXT_Y,
+                STATE_LABEL,
+                (255, 255, 255),
+            )
+
     def _draw_gun_image(self, gun_id, center_x):
         image = self.gun_images.get(gun_id)
         if image is None:
@@ -278,8 +308,10 @@ class ShopScene:
         gun_id = GUN_SHOP_ORDER[self.gun_index]
         if self.action_index == BUY_ACTION:
             self.last_result = purchase_gun(self.state, gun_id)
-        else:
+        elif self.action_index == UPGRADE_ACTION:
             self.last_result = upgrade_gun(self.state, gun_id)
+        else:
+            return
         self._select_first_available_action()
 
     def key_down(self, key):
@@ -298,7 +330,7 @@ class ShopScene:
         if contains(SHOP_EXIT_BUTTON, screen_x, canvas_y):
             return ("exit",)
         for index in range(len(GUN_SHOP_ORDER)):
-            for action in (BUY_ACTION, UPGRADE_ACTION):
+            for action in (BUY_ACTION, UPGRADE_ACTION, STATE_ACTION):
                 if not self._action_available(index, action):
                     continue
                 if contains(button_rect(index, action), screen_x, canvas_y):
@@ -326,6 +358,8 @@ class ShopScene:
         elif target[0] == "button":
             self.gun_index = target[1]
             self.action_index = target[2]
+            if target[2] == STATE_ACTION:
+                return
             self._execute_action()
 
     def mouse_up(self, button):

@@ -286,7 +286,7 @@ class LobbyGuiTests(unittest.TestCase):
         self.assertIn("CENTER", labels)
         self.assertIn("BATTLE PORTAL", labels)
         self.assertIn("TRAINING", labels)
-        self.assertIn("EXIT STAIRS", labels)
+        self.assertIn("EXIT GAME", labels)
 
     def test_only_the_current_location_name_is_drawn(self):
         self.scene.hud_font = MagicMock()

@@ -14,12 +14,12 @@ from shop import (
 )
 from shop_scene import (
     BUY_ACTION,
-    NO_ACTION,
     SHOP_COINS_Y,
     SHOP_EXIT_BUTTON,
     SHOP_LEVEL_Y,
     SHOP_RESULT_Y,
     SHOP_TITLE_Y,
+    STATE_ACTION,
     UPGRADE_ACTION,
     button_rect,
     card_rect,
@@ -58,6 +58,18 @@ class ShopLayoutTests(unittest.TestCase):
             self.assertLessEqual(buy[2], upgrade[0])
             self.assertGreaterEqual(buy[0], card[0])
             self.assertLessEqual(upgrade[2], card[2])
+
+    def test_state_button_is_below_the_other_buttons_inside_each_card(self):
+        for index in range(3):
+            card = card_rect(index)
+            buy = button_rect(index, BUY_ACTION)
+            state = button_rect(index, STATE_ACTION)
+
+            self.assertLess(state[3], buy[1])
+            self.assertGreaterEqual(state[0], card[0])
+            self.assertLessEqual(state[2], card[2])
+            self.assertGreaterEqual(state[1], card[1])
+            self.assertLessEqual(state[3], card[3])
 
     def test_shop_text_rows_do_not_overlap(self):
         rows = [
@@ -138,6 +150,14 @@ class ShopSceneTests(unittest.TestCase):
             "COIN 1000",
         ):
             self.assertIn(expected, texts)
+
+    def test_shop_draws_a_state_button_on_every_card(self):
+        state = GameState(owned_guns=["pistol"])
+        scene = ShopScene(state=state, hud_font=object())
+
+        texts = draw_and_collect_text(scene)
+
+        self.assertEqual(texts.count("State"), 3)
 
     def test_purchase_button_shows_owned_when_already_owned(self):
         state = GameState(owned_guns=["pistol", "rifle"])
@@ -223,6 +243,45 @@ class ShopSceneTests(unittest.TestCase):
         self.assertEqual(scene.action_index, UPGRADE_ACTION)
         self.assertEqual(state.upgrade_level("pistol"), 1)
         self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
+
+    def test_state_button_selects_without_running_a_function(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+
+        click_rect(scene, button_rect(1, STATE_ACTION))
+
+        self.assertEqual(scene.gun_index, 1)
+        self.assertEqual(scene.action_index, STATE_ACTION)
+        self.assertEqual(state.coins, 100000)
+        self.assertNotIn("rifle", state.owned_guns)
+        self.assertEqual(state.upgrade_level("rifle"), 0)
+        self.assertIsNone(scene.last_result)
+        self.assertIsNone(scene.pending_action)
+
+    def test_state_button_hover_target_on_an_unowned_gun(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state)
+        rect = button_rect(1, STATE_ACTION)
+        center_x = (rect[0] + rect[2]) / 2
+        canvas_y = (rect[1] + rect[3]) / 2
+
+        scene.mouse_move(center_x, SCREEN_HEIGHT - canvas_y)
+
+        self.assertEqual(scene.hover_target, ("button", 1, STATE_ACTION))
+
+    def test_state_button_is_not_dimmed_on_an_unowned_gun(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+        rects = []
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at"):
+                scene.draw(lambda *args: rects.append(args))
+
+        button_colors = [
+            args[4:7] for args in rects if args[:4] == button_rect(1, STATE_ACTION)
+        ]
+        self.assertEqual(button_colors, [(62, 74, 96)])
 
     def test_escape_key_asks_for_the_lobby_return(self):
         self.scene.key_down("escape")
@@ -359,7 +418,7 @@ class DisabledShopActionTests(unittest.TestCase):
         ]
         self.assertEqual(button_colors, [(35, 40, 50)])
 
-    def test_maxed_gun_has_no_selectable_action(self):
+    def test_maxed_gun_selects_the_state_action(self):
         state = GameState(
             owned_guns=["pistol"],
             upgrade_levels={"pistol": MAX_UPGRADE_LEVEL},
@@ -367,7 +426,7 @@ class DisabledShopActionTests(unittest.TestCase):
         )
         scene = ShopScene(state=state)
 
-        self.assertEqual(scene.action_index, NO_ACTION)
+        self.assertEqual(scene.action_index, STATE_ACTION)
         self.assertEqual(state.coins, 1000)
         self.assertIsNone(scene.last_result)
 
@@ -384,7 +443,7 @@ class DisabledShopActionTests(unittest.TestCase):
         self.assertEqual(state.coins, 1000)
         self.assertEqual(state.upgrade_level("pistol"), MAX_UPGRADE_LEVEL)
         self.assertIsNone(scene.last_result)
-        self.assertEqual(scene.action_index, NO_ACTION)
+        self.assertEqual(scene.action_index, STATE_ACTION)
 
     def test_purchase_switches_to_the_upgrade_action(self):
         state = GameState(owned_guns=["pistol"], coins=100000)
@@ -395,7 +454,7 @@ class DisabledShopActionTests(unittest.TestCase):
         self.assertIn("rifle", state.owned_guns)
         self.assertEqual(scene.action_index, UPGRADE_ACTION)
 
-    def test_reaching_max_level_clears_the_selected_action(self):
+    def test_reaching_max_level_selects_the_state_action(self):
         state = GameState(
             owned_guns=["pistol"],
             upgrade_levels={"pistol": MAX_UPGRADE_LEVEL - 1},
@@ -407,7 +466,7 @@ class DisabledShopActionTests(unittest.TestCase):
             click_rect(scene, button_rect(0, UPGRADE_ACTION))
 
         self.assertEqual(state.upgrade_level("pistol"), MAX_UPGRADE_LEVEL)
-        self.assertEqual(scene.action_index, NO_ACTION)
+        self.assertEqual(scene.action_index, STATE_ACTION)
 
 
 class GunPurchaseTests(unittest.TestCase):
