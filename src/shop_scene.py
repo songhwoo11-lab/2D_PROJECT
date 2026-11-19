@@ -2,13 +2,13 @@
 
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import draw_centered_text
-from shop import GUN_SHOP_ORDER, gun_price
+from shop import GUN_SHOP_ORDER, gun_price, purchase_gun
 from weapon import weapon_display_name
 
 
 SHOP_TITLE = "SHOP"
 SHOP_NOTICE = "SHOP OPENING SOON"
-SHOP_HINT = "PRESS SPACE : BACK TO LOBBY"
+SHOP_HINT = "W/S SELECT  SPACE BUY  Q BACK"
 SHOP_TITLE_Y = SCREEN_HEIGHT - 200
 SHOP_COINS_Y = SCREEN_HEIGHT - 260
 SHOP_NOTICE_Y = SCREEN_HEIGHT - 300
@@ -24,6 +24,8 @@ class ShopScene:
         self.state = state
         self.hud_font = hud_font
         self.keys = set()
+        self.gun_index = 0
+        self.last_result = None
         self.exit_requested = False
         self.pending_action = None
 
@@ -75,7 +77,14 @@ class ShopScene:
         if key in self.keys:
             return
         self.keys.add(key)
-        if key in ("space", "q"):
+        if key in ("w", "up"):
+            self.gun_index = (self.gun_index - 1) % len(GUN_SHOP_ORDER)
+        elif key in ("s", "down"):
+            self.gun_index = (self.gun_index + 1) % len(GUN_SHOP_ORDER)
+        elif key == "space" and self.state is not None:
+            gun_id = GUN_SHOP_ORDER[self.gun_index]
+            self.last_result = purchase_gun(self.state, gun_id)
+        elif key in ("q", "return"):
             self.pending_action = "return_to_lobby"
 
     def key_up(self, key):

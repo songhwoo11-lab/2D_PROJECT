@@ -3,7 +3,7 @@ from unittest import mock
 
 from game_state import GameState
 import shop_scene
-from shop import GUN_PRICES, gun_price
+from shop import GUN_PRICES, PurchaseResult, gun_price, purchase_gun
 from shop_scene import ShopScene
 
 
@@ -56,15 +56,43 @@ class ShopSceneTests(unittest.TestCase):
         texts = [call.args[2] for call in draw.call_args_list]
         self.assertIn("COINS 77", texts)
 
-    def test_enter_key_asks_for_the_lobby_return(self):
-        self.scene.key_down("space")
+    def test_q_key_asks_for_the_lobby_return(self):
+        self.scene.key_down("q")
 
         self.assertEqual(self.scene.pending_action, "return_to_lobby")
 
-    def test_enter_key_is_not_triggered_twice(self):
-        self.scene.key_down("space")
+    def test_return_key_asks_for_the_lobby_return(self):
+        self.scene.key_down("return")
+
+        self.assertEqual(self.scene.pending_action, "return_to_lobby")
+
+    def test_return_key_is_not_triggered_twice(self):
+        self.scene.key_down("q")
         self.scene.pending_action = None
 
-        self.scene.key_down("space")
+        self.scene.key_down("q")
 
         self.assertIsNone(self.scene.pending_action)
+
+
+class GunPurchaseTests(unittest.TestCase):
+    def test_purchase_deducts_coins_and_adds_ownership(self):
+        state = GameState(owned_guns=["pistol"], coins=150000)
+
+        outcome = purchase_gun(state, "rifle")
+
+        self.assertEqual(outcome.result, PurchaseResult.PURCHASED)
+        self.assertEqual(outcome.cost, 100000)
+        self.assertEqual(state.coins, 50000)
+        self.assertIn("rifle", state.owned_guns)
+
+    def test_space_buys_the_selected_gun(self):
+        state = GameState(owned_guns=["pistol"], coins=150000)
+        scene = ShopScene(state=state)
+        scene.key_down("s")
+
+        scene.key_down("space")
+
+        self.assertEqual(scene.gun_index, 1)
+        self.assertIn("rifle", state.owned_guns)
+        self.assertEqual(scene.last_result.result, PurchaseResult.PURCHASED)
