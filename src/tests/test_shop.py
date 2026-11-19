@@ -111,6 +111,26 @@ class UpgradeEngineTests(unittest.TestCase):
         self.assertEqual(outcome.level_after, 1)
         self.assertEqual(state.upgrade_level("pistol"), 1)
 
+    def test_upgrade_deducts_the_current_level_cost(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+
+        outcome = upgrade_gun(state, "pistol", roll=1)
+
+        self.assertEqual(outcome.cost, 10)
+        self.assertEqual(outcome.coins_after, 90)
+        self.assertEqual(state.coins, 90)
+
+    def test_upgrade_is_blocked_when_coins_are_insufficient(self):
+        state = GameState(owned_guns=["pistol"], coins=9)
+
+        outcome = upgrade_gun(state, "pistol", roll=1)
+
+        self.assertEqual(outcome.result, UpgradeResult.INSUFFICIENT_COINS)
+        self.assertEqual(outcome.cost, 10)
+        self.assertEqual(outcome.refund, 0)
+        self.assertEqual(state.coins, 9)
+        self.assertEqual(state.upgrade_level("pistol"), 0)
+
     def test_upgrade_levels_start_at_zero_for_every_gun(self):
         state = GameState()
 
