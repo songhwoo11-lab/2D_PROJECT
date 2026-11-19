@@ -2,6 +2,8 @@
 
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import draw_centered_text
+from shop import GUN_SHOP_ORDER, gun_price
+from weapon import weapon_display_name
 
 
 SHOP_TITLE = "SHOP"
@@ -11,6 +13,8 @@ SHOP_TITLE_Y = SCREEN_HEIGHT - 200
 SHOP_COINS_Y = SCREEN_HEIGHT - 260
 SHOP_NOTICE_Y = SCREEN_HEIGHT - 300
 SHOP_HINT_Y = 120
+SHOP_ROW_TOP_Y = 800
+SHOP_ROW_SPACING = 60
 
 
 class ShopScene:
@@ -49,7 +53,22 @@ class ShopScene:
                 (255, 220, 100),
             )
         draw_centered_text(self.hud_font, SHOP_NOTICE_Y, SHOP_NOTICE)
+        self._draw_gun_rows()
         draw_centered_text(self.hud_font, SHOP_HINT_Y, SHOP_HINT, (170, 190, 220))
+
+    def _draw_gun_rows(self):
+        for index, gun_id in enumerate(GUN_SHOP_ORDER):
+            owned = self.state is not None and gun_id in self.state.owned_guns
+            label = "{} | PRICE {} | {}".format(
+                weapon_display_name(gun_id),
+                gun_price(gun_id),
+                "OWNED" if owned else "NOT OWNED",
+            )
+            draw_centered_text(
+                self.hud_font,
+                SHOP_ROW_TOP_Y - index * SHOP_ROW_SPACING,
+                label,
+            )
 
     def key_down(self, key):
         key = key.lower()
