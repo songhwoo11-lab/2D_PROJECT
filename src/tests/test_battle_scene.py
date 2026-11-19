@@ -18,7 +18,7 @@ from game_config import (
 import game_world
 import hud
 from player import Player
-from pickup import HealthPickup, MagazinePickup
+from pickup import CoolingPickup, HealthPickup, MagazinePickup
 from weapon import Gun
 from waves import WaveDirector
 
@@ -588,6 +588,29 @@ class BattleSceneHealthDropTests(unittest.TestCase):
         self.scene._update_pickups(0.0)
 
         self.assertEqual(len(self.scene.health_pickups), 1)
+
+    def test_overheated_gun_leaves_the_cooling_pickup_on_the_map(self):
+        self.scene.gun.temperature = 100.0
+        self.scene.gun.overheated = True
+        self.scene.cooling_pickups.append(
+            CoolingPickup(self.scene.player.x, self.scene.player.y)
+        )
+
+        self.scene._update_pickups(0.0)
+
+        self.assertEqual(self.scene.gun.temperature, 100.0)
+        self.assertEqual(len(self.scene.cooling_pickups), 1)
+
+    def test_walking_over_cooling_item_reduces_temperature(self):
+        self.scene.gun.temperature = 100.0
+        self.scene.cooling_pickups.append(
+            CoolingPickup(self.scene.player.x, self.scene.player.y)
+        )
+
+        self.scene._update_pickups(0.0)
+
+        self.assertLess(self.scene.gun.temperature, 100.0)
+        self.assertEqual(self.scene.cooling_pickups, [])
 
 
 class BattleSceneFlowTests(unittest.TestCase):

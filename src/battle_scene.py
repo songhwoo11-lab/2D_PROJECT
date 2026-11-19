@@ -321,8 +321,8 @@ class BattleScene:
         for pickup in self.cooling_pickups:
             pickup.update(delta_time)
             if pickup.can_collect(self.player):
-                self.gun.apply_cooling_item()
-                continue
+                if self.gun.apply_cooling_item():
+                    continue
             remaining_cooling.append(pickup)
         self.cooling_pickups = remaining_cooling
 

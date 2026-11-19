@@ -376,6 +376,8 @@ class Gun:
 
     def apply_cooling_item(self):
         """Apply the cooling pickup: reduce temperature and add a damage penalty."""
+        if self.overheated:
+            return False
         self.temperature = max(
             MIN_TEMPERATURE,
             self.temperature * (1.0 - COOLING_TEMPERATURE_REDUCTION),
@@ -383,6 +385,7 @@ class Gun:
         self._reset_auto_streak()
         self._cooling_penalty_elapsed = 0.0
         self._cooling_penalty_initial = COOLING_DAMAGE_PENALTY
+        return True
 
     def _update_cooling_penalty(self, delta_time):
         if self._cooling_penalty_elapsed is None:

@@ -2,8 +2,10 @@ import unittest
 
 from game_config import (
     COOLING_ACCELERATION_SCALE_SECONDS,
+    COOLING_DAMAGE_PENALTY,
     COOLING_PER_SECOND_BLOCKED,
     COOLING_PER_SECOND_FIREABLE,
+    COOLING_TEMPERATURE_REDUCTION,
     FRAME_TIME,
     MIN_TEMPERATURE,
     OVERHEAT_REDUCTION_HOLD_SECONDS,
@@ -551,6 +553,28 @@ class OverheatDamageReductionTests(unittest.TestCase):
         )
 
         self.assertEqual(gun.damage_reduction_remaining, 0.0)
+
+
+class CoolingItemTests(unittest.TestCase):
+    def test_cooling_item_is_not_applied_while_overheated(self):
+        gun = Gun()
+        gun.temperature = 100.0
+        gun.overheated = True
+
+        self.assertFalse(gun.apply_cooling_item())
+        self.assertEqual(gun.temperature, 100.0)
+        self.assertEqual(gun.damage_reduction, 0.0)
+
+    def test_cooling_item_is_applied_when_not_overheated(self):
+        gun = Gun()
+        gun.temperature = 100.0
+
+        self.assertTrue(gun.apply_cooling_item())
+        self.assertAlmostEqual(
+            gun.temperature,
+            100.0 * (1.0 - COOLING_TEMPERATURE_REDUCTION),
+        )
+        self.assertAlmostEqual(gun.damage_reduction, COOLING_DAMAGE_PENALTY)
 
 
 if __name__ == "__main__":
