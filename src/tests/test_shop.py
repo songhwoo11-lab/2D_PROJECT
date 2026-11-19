@@ -101,6 +101,30 @@ class UpgradeEffectDataTests(unittest.TestCase):
 
 
 class UpgradeEngineTests(unittest.TestCase):
+    def test_unowned_gun_cannot_be_upgraded(self):
+        state = GameState(owned_guns=["pistol"], coins=1000000)
+
+        outcome = upgrade_gun(state, "rifle", roll=1)
+
+        self.assertEqual(outcome.result, UpgradeResult.NOT_OWNED)
+        self.assertEqual(outcome.cost, 0)
+        self.assertEqual(state.coins, 1000000)
+        self.assertEqual(state.upgrade_level("rifle"), 0)
+
+    def test_max_level_upgrade_is_blocked(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            coins=1000000,
+            upgrade_levels={"pistol": 10},
+        )
+
+        outcome = upgrade_gun(state, "pistol", roll=1)
+
+        self.assertEqual(outcome.result, UpgradeResult.MAX_LEVEL)
+        self.assertEqual(outcome.level_before, 10)
+        self.assertEqual(outcome.level_after, 10)
+        self.assertEqual(state.coins, 1000000)
+
     def test_level_zero_upgrade_is_guaranteed(self):
         state = GameState(owned_guns=["pistol"], coins=100)
 
