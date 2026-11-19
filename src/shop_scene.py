@@ -18,13 +18,16 @@ from weapon import weapon_display_name
 SHOP_TITLE = "SHOP"
 SHOP_NOTICE = "SHOP OPENING SOON"
 SHOP_HINT = "W/S GUN  A/D ACTION  SPACE EXECUTE  Q BACK"
-SHOP_TITLE_Y = SCREEN_HEIGHT - 200
-SHOP_COINS_Y = SCREEN_HEIGHT - 260
-SHOP_NOTICE_Y = SCREEN_HEIGHT - 300
-SHOP_RESULT_Y = SCREEN_HEIGHT - 360
+SHOP_TITLE_Y = SCREEN_HEIGHT - 120
+SHOP_COINS_Y = SCREEN_HEIGHT - 180
+SHOP_NOTICE_Y = SCREEN_HEIGHT - 230
+SHOP_ACTION_Y = SCREEN_HEIGHT - 280
+SHOP_RESULT_Y = SCREEN_HEIGHT - 330
 SHOP_HINT_Y = 120
-SHOP_ROW_TOP_Y = 800
-SHOP_ROW_SPACING = 60
+SHOP_ROW_TOP_Y = SCREEN_HEIGHT - 410
+SHOP_ROW_SPACING = 70
+SHOP_ACTION_LABELS = ("BUY", "UPGRADE")
+SHOP_SELECTED_PREFIX = "> "
 
 
 class ShopScene:
@@ -66,6 +69,14 @@ class ShopScene:
                 (255, 220, 100),
             )
         draw_centered_text(self.hud_font, SHOP_NOTICE_Y, SHOP_NOTICE)
+        selected_gun = weapon_display_name(GUN_SHOP_ORDER[self.gun_index])
+        action = SHOP_ACTION_LABELS[self.action_index]
+        draw_centered_text(
+            self.hud_font,
+            SHOP_ACTION_Y,
+            "SELECTED: {} | ACTION: {}".format(selected_gun, action),
+            (255, 255, 180),
+        )
         self._draw_result()
         self._draw_gun_rows()
         draw_centered_text(self.hud_font, SHOP_HINT_Y, SHOP_HINT, (170, 190, 220))
@@ -88,6 +99,8 @@ class ShopScene:
                 if level >= MAX_UPGRADE_LEVEL
                 else str(upgrade_cost(gun_id, level))
             )
+            selected = index == self.gun_index
+            prefix = SHOP_SELECTED_PREFIX if selected else ""
             label = "{} | LV {} | PRICE {} | UPGRADE {} | {}".format(
                 weapon_display_name(gun_id),
                 level,
@@ -98,7 +111,8 @@ class ShopScene:
             draw_centered_text(
                 self.hud_font,
                 SHOP_ROW_TOP_Y - index * SHOP_ROW_SPACING,
-                label,
+                prefix + label,
+                (255, 220, 100) if selected else (230, 230, 230),
             )
 
     def key_down(self, key):

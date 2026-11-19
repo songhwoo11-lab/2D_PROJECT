@@ -1,6 +1,7 @@
 import unittest
 from unittest import mock
 
+from game_config import HUD_FONT_SIZE
 from game_state import GameState
 import shop_scene
 from shop import (
@@ -10,7 +11,16 @@ from shop import (
     gun_price,
     purchase_gun,
 )
-from shop_scene import ShopScene
+from shop_scene import (
+    SHOP_ACTION_Y,
+    SHOP_COINS_Y,
+    SHOP_NOTICE_Y,
+    SHOP_RESULT_Y,
+    SHOP_ROW_SPACING,
+    SHOP_ROW_TOP_Y,
+    SHOP_TITLE_Y,
+    ShopScene,
+)
 
 
 class ShopSceneTests(unittest.TestCase):
@@ -27,6 +37,22 @@ class ShopSceneTests(unittest.TestCase):
     def test_update_and_draw_run_without_error(self):
         self.scene.update(1.0 / 60)
         self.scene.draw(lambda *args: None)
+
+    def test_shop_text_rows_do_not_overlap(self):
+        rows = [
+            SHOP_TITLE_Y,
+            SHOP_COINS_Y,
+            SHOP_NOTICE_Y,
+            SHOP_ACTION_Y,
+            SHOP_RESULT_Y,
+            SHOP_ROW_TOP_Y,
+            SHOP_ROW_TOP_Y - SHOP_ROW_SPACING,
+            SHOP_ROW_TOP_Y - SHOP_ROW_SPACING * 2,
+        ]
+
+        for upper, lower in zip(rows, rows[1:]):
+            with self.subTest(upper=upper, lower=lower):
+                self.assertGreaterEqual(upper - lower, HUD_FONT_SIZE + 10)
 
     def test_gun_prices_follow_the_prd(self):
         self.assertEqual(
@@ -49,7 +75,7 @@ class ShopSceneTests(unittest.TestCase):
             scene.draw(lambda *args: None)
 
         texts = [call.args[2] for call in draw.call_args_list]
-        self.assertIn("PISTOL | LV 0 | PRICE 0 | UPGRADE 10 | OWNED", texts)
+        self.assertIn("> PISTOL | LV 0 | PRICE 0 | UPGRADE 10 | OWNED", texts)
         self.assertIn(
             "RIFLE | LV 0 | PRICE 100000 | UPGRADE 100 | OWNED",
             texts,
@@ -67,6 +93,20 @@ class ShopSceneTests(unittest.TestCase):
 
         texts = [call.args[2] for call in draw.call_args_list]
         self.assertIn("COINS 77", texts)
+
+    def test_shop_draws_the_selected_gun_and_action(self):
+        state = GameState(owned_guns=["pistol", "rifle"])
+        scene = ShopScene(state=state, hud_font=object())
+        scene.key_down("s")
+        scene.key_down("d")
+
+        with mock.patch.object(shop_scene, "draw_centered_text") as draw:
+            scene.draw(lambda *args: None)
+
+        texts = [call.args[2] for call in draw.call_args_list]
+        self.assertIn("SELECTED: RIFLE | ACTION: UPGRADE", texts)
+        self.assertIn("> RIFLE | LV 0 | PRICE 100000 | UPGRADE 100 | OWNED", texts)
+        self.assertIn("PISTOL | LV 0 | PRICE 0 | UPGRADE 10 | OWNED", texts)
 
     def test_shop_draws_the_last_purchase_result(self):
         state = GameState(owned_guns=["pistol"], coins=150000)
