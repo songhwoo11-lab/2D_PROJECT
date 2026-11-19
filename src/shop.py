@@ -16,11 +16,38 @@ GUN_SHOP_ORDER = (
     MACHINE_GUN_GUN_ID,
 )
 
+UPGRADE_COSTS = {
+    DEFAULT_GUN_ID: (10, 100, 200, 400, 800, 1000, 2000, 4000, 8000, 10000),
+    RIFLE_GUN_ID: (100, 500, 1000, 2000, 4000, 8000, 10000, 15000, 20000, 40000),
+    MACHINE_GUN_GUN_ID: (
+        1000,
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        60000,
+        70000,
+        80000,
+        100000,
+    ),
+}
+
+MAX_UPGRADE_LEVEL = 10
+
 
 def gun_price(gun_id):
     if gun_id not in GUN_PRICES:
         raise KeyError("unknown gun: {}".format(gun_id))
     return GUN_PRICES[gun_id]
+
+
+def upgrade_cost(gun_id, level):
+    if gun_id not in UPGRADE_COSTS:
+        raise KeyError("unknown gun: {}".format(gun_id))
+    if level < 0 or level >= MAX_UPGRADE_LEVEL:
+        raise IndexError("invalid upgrade level: {}".format(level))
+    return UPGRADE_COSTS[gun_id][level]
 
 
 class PurchaseResult(Enum):
