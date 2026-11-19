@@ -286,3 +286,58 @@ class BattleReturnTests(unittest.TestCase):
         self.app.scene.close()
 
         self.assertEqual(game_world.world, [[], []])
+
+
+class ShopEconomyIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        self.app = make_app()
+        self.app.state.coins = 1000000
+
+    def tearDown(self):
+        if self.app.scene is not None:
+            self.app.scene.close()
+
+    def _buy_and_upgrade_rifle(self):
+        self.app.switch_scene("shop")
+        shop = self.app.scene
+        shop.key_down("s")
+        shop.key_down("space")
+        shop.key_up("s")
+        shop.key_up("space")
+        shop.key_down("d")
+        shop.key_down("space")
+        shop.pending_action = "return_to_lobby"
+        self.app.handle_scene_action()
+
+    def test_shop_spending_and_upgrades_follow_the_battle_gun(self):
+        self._buy_and_upgrade_rifle()
+
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertEqual(self.app.state.coins, 899900)
+        self.assertTrue(self.app.state.owns_gun("rifle"))
+        self.assertEqual(self.app.state.upgrade_level("rifle"), 1)
+
+        self.app.state.select_gun("rifle")
+        self.app.switch_scene("battle")
+
+        gun = self.app.scene.gun
+        self.assertEqual(gun.gun_id, "rifle")
+        self.assertEqual(gun.effective_damage, 25)
+        self.assertEqual(gun.magazine_size, 30)
+
+    def test_battle_rewards_are_added_to_the_post_shop_balance(self):
+        self._buy_and_upgrade_rifle()
+        balance = self.app.state.coins
+
+        self.app.switch_scene("battle")
+        battle = self.app.scene
+        battle.coins = 123
+        battle.result = BattleResult.VICTORY
+        battle.reached_wave = 1
+        battle.elapsed_time = 1.0
+        battle.clear_time = 1.0
+        self.app.handle_battle_exit()
+
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertEqual(self.app.state.coins, balance + 123)
+        self.assertEqual(self.app.state.records[0].result, "victory")
