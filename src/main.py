@@ -56,6 +56,11 @@ class GameApp:
         )
         self.assets["player_image"] = pico2d.load_image(str(directory / "boy.png"))
         self.assets["gun_image"] = pico2d.load_image(str(directory / "gun.png"))
+        self.assets["shop_gun_images"] = {
+            "pistol": self.assets["gun_image"],
+            "rifle": pico2d.load_image(str(directory / "rifle.png")),
+            "machine_gun": pico2d.load_image(str(directory / "machineGun.png")),
+        }
         self.assets["bullet_image"] = pico2d.load_image(str(directory / "bullet.png"))
         self.assets["arrow_image"] = pico2d.load_image(str(directory / "arrow.png"))
         self.assets["ammo_image"] = pico2d.load_image(str(directory / "ammo.png"))
@@ -161,6 +166,7 @@ class GameApp:
         return ShopScene(
             state=self.state,
             hud_font=self.assets["hud_font"],
+            gun_images=self.assets.get("shop_gun_images"),
         )
 
     def create_training_scene(self):
