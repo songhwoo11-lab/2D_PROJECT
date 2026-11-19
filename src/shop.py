@@ -12,8 +12,8 @@ from weapon import (
 
 GUN_PRICES = {
     DEFAULT_GUN_ID: 0,
-    RIFLE_GUN_ID: 100000,
-    MACHINE_GUN_GUN_ID: 1000000,
+    RIFLE_GUN_ID: 100,
+    MACHINE_GUN_GUN_ID: 1000,
 }
 
 GUN_SHOP_ORDER = (

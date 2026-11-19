@@ -101,11 +101,27 @@ class WeaponSpecModelTests(unittest.TestCase):
         self.assertEqual(gun.gun_id, DEFAULT_GUN_ID)
         self.assertEqual(gun.effective_damage, PISTOL_DAMAGE)
 
+    def test_rifle_fire_rate_is_one_and_a_half_times_the_pistol(self):
+        self.assertAlmostEqual(
+            RIFLE.fire_interval_seconds,
+            PISTOL.fire_interval_seconds / 1.5,
+        )
+        self.assertAlmostEqual(
+            1.0 / RIFLE.fire_interval_seconds,
+            (1.0 / PISTOL.fire_interval_seconds) * 1.5,
+        )
+
+    def test_machine_gun_fire_interval_matches_the_rifle(self):
+        self.assertAlmostEqual(
+            MACHINE_GUN.fire_interval_seconds,
+            RIFLE.fire_interval_seconds,
+        )
+
     def test_each_gun_applies_its_own_fire_interval(self):
         expected_frames = {
             DEFAULT_GUN_ID: 10,
-            RIFLE_GUN_ID: 5,
-            MACHINE_GUN_GUN_ID: 1,
+            RIFLE_GUN_ID: 10 / 1.5,
+            MACHINE_GUN_GUN_ID: 10 / 1.5,
         }
         for gun_id, frames in expected_frames.items():
             with self.subTest(gun_id=gun_id):

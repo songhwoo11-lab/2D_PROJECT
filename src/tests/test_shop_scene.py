@@ -141,11 +141,12 @@ class ShopSceneTests(unittest.TestCase):
             GUN_PRICES,
             {
                 "pistol": 0,
-                "rifle": 100000,
-                "machine_gun": 1000000,
+                "rifle": 100,
+                "machine_gun": 1000,
             },
         )
-        self.assertEqual(gun_price("rifle"), 100000)
+        self.assertEqual(gun_price("rifle"), 100)
+        self.assertEqual(gun_price("machine_gun"), 1000)
         with self.assertRaises(KeyError):
             gun_price("unknown")
 
@@ -162,9 +163,7 @@ class ShopSceneTests(unittest.TestCase):
             "LV 0",
             "COIN 0",
             "COIN 10",
-            "COIN 100000",
             "COIN 100",
-            "COIN 1000000",
             "COIN 1000",
         ):
             self.assertIn(expected, texts)
@@ -266,7 +265,7 @@ class ShopSceneTests(unittest.TestCase):
 
         self.assertEqual(scene.gun_index, 1)
         self.assertIn("rifle", state.owned_guns)
-        self.assertEqual(state.coins, 50000)
+        self.assertEqual(state.coins, 149900)
 
     def test_upgrade_button_click_opens_modal_without_upgrading(self):
         state = GameState(owned_guns=["pistol"], coins=100)
@@ -728,18 +727,18 @@ class GunPurchaseTests(unittest.TestCase):
         outcome = purchase_gun(state, "rifle")
 
         self.assertEqual(outcome.result, PurchaseResult.PURCHASED)
-        self.assertEqual(outcome.cost, 100000)
-        self.assertEqual(state.coins, 50000)
+        self.assertEqual(outcome.cost, 100)
+        self.assertEqual(state.coins, 149900)
         self.assertIn("rifle", state.owned_guns)
 
     def test_purchase_is_blocked_when_coins_are_insufficient(self):
-        state = GameState(owned_guns=["pistol"], coins=99999)
+        state = GameState(owned_guns=["pistol"], coins=99)
 
         outcome = purchase_gun(state, "rifle")
 
         self.assertEqual(outcome.result, PurchaseResult.INSUFFICIENT_COINS)
-        self.assertEqual(outcome.cost, 100000)
-        self.assertEqual(state.coins, 99999)
+        self.assertEqual(outcome.cost, 100)
+        self.assertEqual(state.coins, 99)
         self.assertNotIn("rifle", state.owned_guns)
 
     def test_duplicate_purchase_is_blocked(self):

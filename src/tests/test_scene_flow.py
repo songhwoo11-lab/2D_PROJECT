@@ -354,7 +354,7 @@ class ShopEconomyIntegrationTests(unittest.TestCase):
         self._buy_and_upgrade_rifle()
 
         self.assertEqual(self.app.scene_kind, "lobby")
-        self.assertEqual(self.app.state.coins, 899900)
+        self.assertEqual(self.app.state.coins, 999800)
         self.assertTrue(self.app.state.owns_gun("rifle"))
         self.assertEqual(self.app.state.upgrade_level("rifle"), 1)
 

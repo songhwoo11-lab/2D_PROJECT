@@ -1,6 +1,11 @@
 import unittest
 
-from game_config import FPS
+from game_config import (
+    FPS,
+    MACHINE_GUN_FIRE_INTERVAL_SECONDS,
+    PISTOL_FIRE_INTERVAL_SECONDS,
+    RIFLE_FIRE_INTERVAL_SECONDS,
+)
 from weapon import (
     DEFAULT_GUN_ID,
     MACHINE_GUN_GUN_ID,
@@ -12,8 +17,8 @@ from weapon import (
 EXPECTED_STATS = {
     DEFAULT_GUN_ID: {
         "damage": 5,
-        "fire_interval_seconds": 10.0 / FPS,
-        "fire_interval_frames": 10,
+        "fire_interval_seconds": PISTOL_FIRE_INTERVAL_SECONDS,
+        "fire_interval_frames": PISTOL_FIRE_INTERVAL_SECONDS * FPS,
         "reload_seconds": 2.0,
         "temperature_limit": 200.0,
         "magazine_size": 10,
@@ -21,8 +26,8 @@ EXPECTED_STATS = {
     },
     RIFLE_GUN_ID: {
         "damage": 20,
-        "fire_interval_seconds": 5.0 / FPS,
-        "fire_interval_frames": 5,
+        "fire_interval_seconds": RIFLE_FIRE_INTERVAL_SECONDS,
+        "fire_interval_frames": RIFLE_FIRE_INTERVAL_SECONDS * FPS,
         "reload_seconds": 3.0,
         "temperature_limit": 300.0,
         "magazine_size": 30,
@@ -30,8 +35,8 @@ EXPECTED_STATS = {
     },
     MACHINE_GUN_GUN_ID: {
         "damage": 12,
-        "fire_interval_seconds": 1.0 / FPS,
-        "fire_interval_frames": 1,
+        "fire_interval_seconds": MACHINE_GUN_FIRE_INTERVAL_SECONDS,
+        "fire_interval_frames": MACHINE_GUN_FIRE_INTERVAL_SECONDS * FPS,
         "reload_seconds": 5.0,
         "temperature_limit": 500.0,
         "magazine_size": 50,
