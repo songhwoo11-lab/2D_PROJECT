@@ -372,8 +372,8 @@ class HudLayoutTests(unittest.TestCase):
             any(draw_call[2] == "READY" for draw_call in font.draws)
         )
 
-    def test_temperature_warning_is_centered_on_the_gauge_at_160(self):
-        gun = make_gun(temperature=160.0)
+    def test_temperature_warning_is_centered_on_the_gauge_at_120(self):
+        gun = make_gun(temperature=120.0)
 
         font, _ = self._draw_hud(gun)
 
@@ -392,8 +392,8 @@ class HudLayoutTests(unittest.TestCase):
             hud.TEMPERATURE_WARNING_YELLOW_COLOR,
         )
 
-    def test_temperature_warning_is_yellow_below_180(self):
-        gun = make_gun(temperature=179.9)
+    def test_temperature_warning_is_yellow_below_160(self):
+        gun = make_gun(temperature=159.9)
 
         font, _ = self._draw_hud(gun)
 
@@ -402,8 +402,8 @@ class HudLayoutTests(unittest.TestCase):
             hud.TEMPERATURE_WARNING_YELLOW_COLOR,
         )
 
-    def test_temperature_warning_is_red_from_180(self):
-        gun = make_gun(temperature=180.0)
+    def test_temperature_warning_is_red_from_160(self):
+        gun = make_gun(temperature=160.0)
 
         font, _ = self._draw_hud(gun)
 
@@ -422,8 +422,22 @@ class HudLayoutTests(unittest.TestCase):
             hud.TEMPERATURE_WARNING_RED_COLOR,
         )
 
-    def test_temperature_warning_is_hidden_below_160(self):
-        gun = make_gun(temperature=159.9)
+    def test_warning_thresholds_scale_with_the_temperature_limit(self):
+        self.assertEqual(
+            hud.temperature_warning_color(
+                make_gun(temperature=60.0, temperature_limit=100.0)
+            ),
+            hud.TEMPERATURE_WARNING_YELLOW_COLOR,
+        )
+        self.assertEqual(
+            hud.temperature_warning_color(
+                make_gun(temperature=80.0, temperature_limit=100.0)
+            ),
+            hud.TEMPERATURE_WARNING_RED_COLOR,
+        )
+
+    def test_temperature_warning_is_hidden_below_120(self):
+        gun = make_gun(temperature=119.9)
 
         font, _ = self._draw_hud(gun)
 
@@ -431,13 +445,14 @@ class HudLayoutTests(unittest.TestCase):
             any(draw_call[2] == "WARNING!" for draw_call in font.draws)
         )
 
-    def test_temperature_warning_is_hidden_at_the_limit(self):
+    def test_temperature_warning_is_red_at_the_limit(self):
         gun = make_gun(temperature=200.0)
 
         font, _ = self._draw_hud(gun)
 
-        self.assertFalse(
-            any(draw_call[2] == "WARNING!" for draw_call in font.draws)
+        self.assertEqual(
+            self._text_color(font, "WARNING!"),
+            hud.TEMPERATURE_WARNING_RED_COLOR,
         )
 
     def test_overheat_status_is_centered_on_the_gauge(self):

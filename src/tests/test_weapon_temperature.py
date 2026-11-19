@@ -3,16 +3,23 @@ import unittest
 from game_config import (
     COOLING_ACCELERATION_SCALE_SECONDS,
     COOLING_DAMAGE_PENALTY,
-    COOLING_PER_SECOND_BLOCKED,
     COOLING_PER_SECOND_FIREABLE,
     COOLING_TEMPERATURE_REDUCTION,
+    FPS,
     FRAME_TIME,
     MIN_TEMPERATURE,
+    OVERHEAT_COOLDOWN_SECONDS,
     OVERHEAT_REDUCTION_HOLD_SECONDS,
     OVERHEAT_REDUCTION_RECOVERY_SECONDS,
     PISTOL_TEMPERATURE_LIMIT,
 )
-from weapon import FireMode, Gun
+from weapon import (
+    DEFAULT_GUN_ID,
+    FireMode,
+    Gun,
+    MACHINE_GUN_GUN_ID,
+    RIFLE_GUN_ID,
+)
 
 
 class GunTemperatureStateTests(unittest.TestCase):
@@ -327,7 +334,7 @@ class CoolingAccelerationTests(unittest.TestCase):
 
         self.assertAlmostEqual(
             gun.temperature,
-            100.0 - COOLING_PER_SECOND_BLOCKED * 1.0,
+            100.0 - gun.blocked_cooling_rate * 1.0,
         )
 
     def test_reset_clears_the_cooling_acceleration(self):
@@ -354,7 +361,7 @@ class OverheatTests(unittest.TestCase):
         gun.cooldown_remaining = 0.0
         self.assertFalse(gun.try_fire())
 
-    def test_blocked_gun_cools_half_degree_per_frame(self):
+    def test_blocked_gun_cools_from_limit_over_six_seconds(self):
         gun = Gun()
         gun.overheated = True
         gun.temperature = gun.temperature_limit
@@ -362,8 +369,13 @@ class OverheatTests(unittest.TestCase):
         gun.update(FRAME_TIME)
 
         self.assertAlmostEqual(
+            gun.blocked_cooling_rate,
+            (gun.temperature_limit - MIN_TEMPERATURE)
+            / OVERHEAT_COOLDOWN_SECONDS,
+        )
+        self.assertAlmostEqual(
             gun.temperature,
-            gun.temperature_limit - 0.5,
+            gun.temperature_limit - gun.blocked_cooling_rate * FRAME_TIME,
         )
 
     def test_gun_becomes_fireable_again_at_minimum_temperature(self):
@@ -377,16 +389,29 @@ class OverheatTests(unittest.TestCase):
         self.assertFalse(gun.overheated)
         self.assertTrue(gun.can_fire)
 
-    def test_full_recovery_from_limit_takes_380_frames(self):
+    def test_full_recovery_from_limit_takes_360_frames(self):
         gun = Gun()
         gun.overheated = True
         gun.temperature = gun.temperature_limit
 
-        for _ in range(380):
+        for _ in range(int(OVERHEAT_COOLDOWN_SECONDS * FPS)):
             gun.update(FRAME_TIME)
 
         self.assertEqual(gun.temperature, MIN_TEMPERATURE)
         self.assertFalse(gun.overheated)
+
+    def test_all_guns_recover_from_limit_in_the_same_six_seconds(self):
+        for gun_id in (DEFAULT_GUN_ID, RIFLE_GUN_ID, MACHINE_GUN_GUN_ID):
+            with self.subTest(gun_id=gun_id):
+                gun = Gun.from_gun_id(gun_id)
+                gun.overheated = True
+                gun.temperature = gun.temperature_limit
+
+                for _ in range(int(OVERHEAT_COOLDOWN_SECONDS * FPS)):
+                    gun.update(FRAME_TIME)
+
+                self.assertEqual(gun.temperature, MIN_TEMPERATURE)
+                self.assertFalse(gun.overheated)
 
 
 class OverheatAutoStreakResetTests(unittest.TestCase):
@@ -409,7 +434,10 @@ class OverheatAutoStreakResetTests(unittest.TestCase):
 
         self.assertEqual(gun.auto_shot_streak, 3)
         self.assertTrue(gun.overheated)
-        self.assertAlmostEqual(gun.temperature, MIN_TEMPERATURE + 0.5)
+        self.assertAlmostEqual(
+            gun.temperature,
+            MIN_TEMPERATURE + 1.0 - gun.blocked_cooling_rate * FRAME_TIME,
+        )
 
     def test_streak_is_reset_when_the_gun_becomes_fireable_again(self):
         gun = self._overheated_auto_gun(3)
@@ -436,7 +464,7 @@ class OverheatAutoStreakResetTests(unittest.TestCase):
     def test_streak_is_reset_after_a_full_recovery_from_the_limit(self):
         gun = self._overheated_auto_gun(5)
 
-        for _ in range(380):
+        for _ in range(int(OVERHEAT_COOLDOWN_SECONDS * FPS)):
             gun.update(FRAME_TIME)
 
         self.assertFalse(gun.overheated)

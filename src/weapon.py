@@ -16,12 +16,12 @@ from game_config import (
     AUTO_STREAK_DECAY_SECONDS,
     COOLING_ACCELERATION_SCALE_SECONDS,
     FPS,
-    COOLING_PER_SECOND_BLOCKED,
     COOLING_PER_SECOND_FIREABLE,
     COOLING_DAMAGE_PENALTY,
     COOLING_DAMAGE_PENALTY_DURATION,
     COOLING_TEMPERATURE_REDUCTION,
     MIN_TEMPERATURE,
+    OVERHEAT_COOLDOWN_SECONDS,
     OVERHEAT_INITIAL_REDUCTION,
     OVERHEAT_REDUCTION_CURVE_EXPONENT,
     OVERHEAT_REDUCTION_HOLD_SECONDS,
@@ -346,13 +346,17 @@ class Gun:
         ramp = self._idle_seconds / COOLING_ACCELERATION_SCALE_SECONDS
         return COOLING_PER_SECOND_FIREABLE * (1.0 + ramp * ramp)
 
+    @property
+    def blocked_cooling_rate(self):
+        return (self.temperature_limit - MIN_TEMPERATURE) / OVERHEAT_COOLDOWN_SECONDS
+
     def _cool(self, delta_time):
         if self.overheated:
             self.temperature = max(
                 MIN_TEMPERATURE,
-                self.temperature - COOLING_PER_SECOND_BLOCKED * delta_time,
+                self.temperature - self.blocked_cooling_rate * delta_time,
             )
-            if self.temperature <= MIN_TEMPERATURE:
+            if self.temperature <= MIN_TEMPERATURE + 1e-9:
                 self.temperature = MIN_TEMPERATURE
                 self.overheated = False
                 self._reset_auto_streak()
