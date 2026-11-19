@@ -4,9 +4,12 @@ from shop import (
     DEFAULT_GUN_ID,
     MAX_UPGRADE_LEVEL,
     UPGRADE_COSTS,
+    UPGRADE_PROBABILITIES,
     gun_price,
+    upgrade_chances,
     upgrade_cost,
 )
+from weapon import UPGRADE_EFFECTS, weapon_stats_at_level
 
 
 class UpgradeCostTests(unittest.TestCase):
@@ -38,6 +41,60 @@ class UpgradeCostTests(unittest.TestCase):
     def test_upgrade_cost_rejects_unknown_gun(self):
         with self.assertRaises(KeyError):
             upgrade_cost("unknown", 0)
+
+
+class UpgradeProbabilityTests(unittest.TestCase):
+    def test_probabilities_follow_the_prd(self):
+        self.assertEqual(
+            UPGRADE_PROBABILITIES,
+            (
+                (100, 0, 0, 0),
+                (90, 9, 1, 0),
+                (80, 18, 2, 0),
+                (70, 27, 3, 0),
+                (60, 36, 4, 0),
+                (50, 44, 5, 1),
+                (40, 52, 6, 2),
+                (30, 60, 7, 3),
+                (20, 68, 8, 4),
+                (10, 76, 9, 5),
+            ),
+        )
+
+    def test_each_level_totals_one_hundred_percent(self):
+        for chances in UPGRADE_PROBABILITIES:
+            self.assertEqual(sum(chances), 100)
+
+    def test_chances_are_returned_by_level(self):
+        first = upgrade_chances(0)
+        self.assertEqual(
+            (first.success, first.failure, first.downgrade, first.destroy),
+            (100, 0, 0, 0),
+        )
+        last = upgrade_chances(9)
+        self.assertEqual(
+            (last.success, last.failure, last.downgrade, last.destroy),
+            (10, 76, 9, 5),
+        )
+        with self.assertRaises(IndexError):
+            upgrade_chances(MAX_UPGRADE_LEVEL)
+
+
+class UpgradeEffectDataTests(unittest.TestCase):
+    def test_effects_cover_every_level(self):
+        for gun_id, effects in UPGRADE_EFFECTS.items():
+            self.assertEqual(len(effects.damage), MAX_UPGRADE_LEVEL + 1)
+            self.assertEqual(len(effects.magazine_size), MAX_UPGRADE_LEVEL + 1)
+            self.assertEqual(len(effects.reload_seconds), MAX_UPGRADE_LEVEL + 1)
+
+    def test_effects_apply_at_the_target_level(self):
+        base = weapon_stats_at_level("rifle", 0)
+        upgraded = weapon_stats_at_level("rifle", 1)
+
+        self.assertEqual(upgraded.damage, 25)
+        self.assertEqual(upgraded.magazine_size, 30)
+        self.assertEqual(upgraded.reload_seconds, 3.0)
+        self.assertEqual(upgraded.fire_interval_seconds, base.fire_interval_seconds)
 
 
 if __name__ == "__main__":

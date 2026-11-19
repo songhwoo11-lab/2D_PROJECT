@@ -35,6 +35,19 @@ UPGRADE_COSTS = {
 
 MAX_UPGRADE_LEVEL = 10
 
+UPGRADE_PROBABILITIES = (
+    (100, 0, 0, 0),
+    (90, 9, 1, 0),
+    (80, 18, 2, 0),
+    (70, 27, 3, 0),
+    (60, 36, 4, 0),
+    (50, 44, 5, 1),
+    (40, 52, 6, 2),
+    (30, 60, 7, 3),
+    (20, 68, 8, 4),
+    (10, 76, 9, 5),
+)
+
 
 def gun_price(gun_id):
     if gun_id not in GUN_PRICES:
@@ -48,6 +61,21 @@ def upgrade_cost(gun_id, level):
     if level < 0 or level >= MAX_UPGRADE_LEVEL:
         raise IndexError("invalid upgrade level: {}".format(level))
     return UPGRADE_COSTS[gun_id][level]
+
+
+@dataclass(frozen=True)
+class UpgradeChances:
+    success: int
+    failure: int
+    downgrade: int
+    destroy: int
+
+
+def upgrade_chances(level):
+    if level < 0 or level >= MAX_UPGRADE_LEVEL:
+        raise IndexError("invalid upgrade level: {}".format(level))
+    success, failure, downgrade, destroy = UPGRADE_PROBABILITIES[level]
+    return UpgradeChances(success, failure, downgrade, destroy)
 
 
 class PurchaseResult(Enum):
