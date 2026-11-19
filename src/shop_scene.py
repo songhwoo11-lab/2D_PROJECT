@@ -12,7 +12,7 @@ from shop import (
     upgrade_gun,
     upgrade_result_message,
 )
-from weapon import weapon_display_name
+from weapon import weapon_display_name, weapon_stats_at_level
 
 
 NO_ACTION = -1
@@ -58,6 +58,13 @@ SHOP_STATE_BUTTON_TEXT_Y = 385
 
 SHOP_EXIT_BUTTON = (SCREEN_WIDTH - 280, 60, SCREEN_WIDTH - 60, 160)
 
+STATE_PANEL_WIDTH = 760
+STATE_PANEL_BOTTOM = 450
+STATE_PANEL_TOP = 900
+STATE_PANEL_TITLE_Y = 850
+STATE_PANEL_ROW_TOP = 790
+STATE_PANEL_ROW_GAP = 45
+
 GUN_IMAGE_SIZES = {
     "pistol": (220, 125),
     "rifle": (280, 112),
@@ -89,6 +96,11 @@ def button_rect(index, action):
         SHOP_BUTTON_WIDTH + SHOP_BUTTON_GAP
     )
     return left, SHOP_BUTTON_BOTTOM, left + SHOP_BUTTON_WIDTH, SHOP_BUTTON_TOP
+
+
+def state_panel_rect():
+    left = (SCREEN_WIDTH - STATE_PANEL_WIDTH) // 2
+    return left, STATE_PANEL_BOTTOM, left + STATE_PANEL_WIDTH, STATE_PANEL_TOP
 
 
 def contains(rect, x, y):
@@ -129,6 +141,7 @@ class ShopScene:
         self.mouse_x = SCREEN_WIDTH / 2
         self.mouse_y = SCREEN_HEIGHT / 2
         self.hover_target = None
+        self.state_panel_gun_id = None
         self.exit_requested = False
         self.pending_action = None
 
@@ -155,6 +168,9 @@ class ShopScene:
     def _select_first_available_action(self):
         available = self._available_actions()
         self.action_index = available[0] if available else NO_ACTION
+
+    def _hide_state_panel(self):
+        self.state_panel_gun_id = None
 
     def update(self, delta_time):
         return None
@@ -183,6 +199,7 @@ class ShopScene:
             )
         self._draw_result()
         self._draw_cards(draw_rectangle)
+        self._draw_state_panel(draw_rectangle)
         self._draw_exit_button(draw_rectangle)
 
     def _draw_result(self):
@@ -299,6 +316,65 @@ class ShopScene:
             (255, 255, 255),
         )
 
+    def _state_panel_rows(self):
+        gun_id = self.state_panel_gun_id
+        level = self.state.upgrade_level(gun_id) if self.state is not None else 0
+        spec = weapon_stats_at_level(gun_id, level)
+        return (
+            ("NAME", spec.name.upper()),
+            ("LEVEL", str(level)),
+            ("DAMAGE", str(spec.damage)),
+            ("FIRE INTERVAL", "{:.3f}s".format(spec.fire_interval_seconds)),
+            ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
+            ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
+            ("MAGAZINE SIZE", str(spec.magazine_size)),
+            ("STARTING AMMO", str(spec.starting_ammo)),
+        )
+
+    def _draw_state_panel(self, draw_rectangle):
+        if self.state_panel_gun_id is None:
+            return
+        left, bottom, right, top = state_panel_rect()
+        center_x = (left + right) / 2
+        gun_id = self.state_panel_gun_id
+
+        draw_rectangle(
+            left,
+            bottom,
+            right,
+            top,
+            20,
+            24,
+            34,
+            245,
+            True,
+        )
+        draw_rectangle(
+            left,
+            bottom,
+            right,
+            top,
+            255,
+            220,
+            100,
+            255,
+            False,
+        )
+        draw_text_at(
+            self.hud_font,
+            center_x,
+            STATE_PANEL_TITLE_Y,
+            "STATE - {}".format(weapon_display_name(gun_id)),
+            (255, 220, 100),
+        )
+        for row_index, (label, value) in enumerate(self._state_panel_rows()):
+            draw_text_at(
+                self.hud_font,
+                center_x,
+                STATE_PANEL_ROW_TOP - row_index * STATE_PANEL_ROW_GAP,
+                "{} {}".format(label, value),
+            )
+
     def _execute_action(self):
         if self.state is None or self.action_index == NO_ACTION:
             return
@@ -312,6 +388,7 @@ class ShopScene:
             self.last_result = upgrade_gun(self.state, gun_id)
         else:
             return
+        self._hide_state_panel()
         self._select_first_available_action()
 
     def key_down(self, key):
@@ -327,6 +404,10 @@ class ShopScene:
 
     def _target_at(self, screen_x, screen_y):
         canvas_y = SCREEN_HEIGHT - screen_y
+        if self.state_panel_gun_id is not None and contains(
+            state_panel_rect(), screen_x, canvas_y
+        ):
+            return ("state_panel",)
         if contains(SHOP_EXIT_BUTTON, screen_x, canvas_y):
             return ("exit",)
         for index in range(len(GUN_SHOP_ORDER)):
@@ -348,7 +429,9 @@ class ShopScene:
         if button != "left" or screen_x is None or screen_y is None:
             return
         target = self._target_at(screen_x, screen_y)
-        if target is None:
+        if self.state_panel_gun_id is not None and target != ("state_panel",):
+            self._hide_state_panel()
+        if target is None or target[0] == "state_panel":
             return
         if target[0] == "exit":
             self.pending_action = "return_to_lobby"
@@ -359,6 +442,7 @@ class ShopScene:
             self.gun_index = target[1]
             self.action_index = target[2]
             if target[2] == STATE_ACTION:
+                self.state_panel_gun_id = GUN_SHOP_ORDER[target[1]]
                 return
             self._execute_action()
 

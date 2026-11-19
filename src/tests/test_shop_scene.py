@@ -25,6 +25,7 @@ from shop_scene import (
     card_rect,
     ShopScene,
 )
+from weapon import weapon_stats_at_level
 
 
 def draw_and_collect_text(scene):
@@ -112,6 +113,7 @@ class ShopSceneTests(unittest.TestCase):
 
     def test_shop_scene_starts_without_a_pending_action(self):
         self.assertIsNone(self.scene.pending_action)
+        self.assertIsNone(self.scene.state_panel_gun_id)
         self.assertFalse(self.scene.exit_requested)
 
     def test_update_and_draw_run_without_error(self):
@@ -167,6 +169,7 @@ class ShopSceneTests(unittest.TestCase):
         )
         scene = ShopScene(state=state, hud_font=object())
         click_rect(scene, button_rect(1, BUY_ACTION))
+        click_rect(scene, button_rect(1, STATE_ACTION))
 
         texts = draw_and_collect_text(scene)
 
@@ -259,7 +262,7 @@ class ShopSceneTests(unittest.TestCase):
         self.assertEqual(state.upgrade_level("pistol"), 1)
         self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
 
-    def test_state_button_selects_without_running_a_function(self):
+    def test_state_button_shows_the_gun_state_without_running_a_function(self):
         state = GameState(owned_guns=["pistol"], coins=100000)
         scene = ShopScene(state=state, hud_font=object())
 
@@ -267,11 +270,115 @@ class ShopSceneTests(unittest.TestCase):
 
         self.assertEqual(scene.gun_index, 1)
         self.assertEqual(scene.action_index, STATE_ACTION)
+        self.assertEqual(scene.state_panel_gun_id, "rifle")
         self.assertEqual(state.coins, 100000)
         self.assertNotIn("rifle", state.owned_guns)
         self.assertEqual(state.upgrade_level("rifle"), 0)
         self.assertIsNone(scene.last_result)
         self.assertIsNone(scene.pending_action)
+
+        spec = weapon_stats_at_level("rifle", 0)
+        texts = draw_and_collect_text(scene)
+        for expected in (
+            "STATE - RIFLE",
+            "NAME RIFLE",
+            "LEVEL 0",
+            "DAMAGE {}".format(spec.damage),
+            "FIRE INTERVAL {:.3f}s".format(spec.fire_interval_seconds),
+            "RELOAD TIME {:.1f}s".format(spec.reload_seconds),
+            "MAX TEMP {:.1f}".format(spec.temperature_limit),
+            "MAGAZINE SIZE {}".format(spec.magazine_size),
+            "STARTING AMMO {}".format(spec.starting_ammo),
+        ):
+            self.assertIn(expected, texts)
+
+        for removed in (
+            "GUN ID rifle",
+            "PRICE {}".format(gun_price("rifle")),
+            "OWNED NO",
+        ):
+            self.assertNotIn(removed, texts)
+
+    def test_state_panel_uses_the_current_upgrade_level(self):
+        state = GameState(
+            owned_guns=["pistol", "rifle"],
+            upgrade_levels={"rifle": 2},
+            coins=100000,
+        )
+        scene = ShopScene(state=state, hud_font=object())
+
+        click_rect(scene, button_rect(1, STATE_ACTION))
+
+        spec = weapon_stats_at_level("rifle", 2)
+        texts = draw_and_collect_text(scene)
+        for expected in (
+            "LEVEL 2",
+            "DAMAGE {}".format(spec.damage),
+            "MAGAZINE SIZE {}".format(spec.magazine_size),
+            "RELOAD TIME {:.1f}s".format(spec.reload_seconds),
+        ):
+            self.assertIn(expected, texts)
+
+    def test_state_panel_closes_after_clicking_outside(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(1, STATE_ACTION))
+        self.assertEqual(scene.state_panel_gun_id, "rifle")
+
+        scene.mouse_down("left", 10, SCREEN_HEIGHT - 10)
+
+        self.assertIsNone(scene.state_panel_gun_id)
+
+    def test_click_inside_state_panel_keeps_it_open_and_blocks_buttons(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(1, STATE_ACTION))
+
+        click_rect(scene, button_rect(1, BUY_ACTION))
+
+        self.assertEqual(scene.state_panel_gun_id, "rifle")
+        self.assertEqual(state.coins, 100000)
+        self.assertNotIn("rifle", state.owned_guns)
+        self.assertIsNone(scene.last_result)
+
+    def test_clicking_another_state_button_switches_the_panel(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(1, STATE_ACTION))
+
+        click_rect(scene, button_rect(0, STATE_ACTION))
+
+        self.assertEqual(scene.state_panel_gun_id, "pistol")
+        self.assertEqual(scene.gun_index, 0)
+
+    def test_state_panel_has_no_unused_space(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(1, STATE_ACTION))
+
+        rows = scene._state_panel_rows()
+        last_y = (
+            shop_scene.STATE_PANEL_ROW_TOP
+            - (len(rows) - 1) * shop_scene.STATE_PANEL_ROW_GAP
+        )
+        gap = last_y - shop_scene.STATE_PANEL_BOTTOM
+
+        self.assertEqual(len(rows), 8)
+        self.assertGreaterEqual(gap, 0)
+        self.assertLessEqual(gap, HUD_FONT_SIZE)
+
+    def test_state_panel_is_drawn_in_the_middle_of_the_shop(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(1, STATE_ACTION))
+        rects = []
+        expected = shop_scene.state_panel_rect()
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at"):
+                scene.draw(lambda *args: rects.append(args))
+
+        self.assertIn(expected, [args[:4] for args in rects])
 
     def test_state_button_hover_target_on_an_unowned_gun(self):
         state = GameState(owned_guns=["pistol"], coins=100000)
