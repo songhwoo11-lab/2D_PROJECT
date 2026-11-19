@@ -88,7 +88,11 @@ def purchase_available(state, gun_id):
 
 
 def upgrade_available(state, gun_id):
-    return state is None or state.upgrade_level(gun_id) < MAX_UPGRADE_LEVEL
+    return (
+        state is not None
+        and state.owns_gun(gun_id)
+        and state.upgrade_level(gun_id) < MAX_UPGRADE_LEVEL
+    )
 
 
 class ShopScene:

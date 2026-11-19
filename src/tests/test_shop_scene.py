@@ -314,6 +314,51 @@ class DisabledShopActionTests(unittest.TestCase):
         ]
         self.assertEqual(button_colors, [(35, 40, 50)])
 
+    def test_unowned_gun_starts_on_the_purchase_action(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state)
+
+        click_rect(scene, card_rect(1))
+
+        self.assertEqual(scene.gun_index, 1)
+        self.assertEqual(scene.action_index, BUY_ACTION)
+
+    def test_disabled_upgrade_button_is_not_clicked_when_not_owned(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+
+        click_rect(scene, button_rect(1, UPGRADE_ACTION))
+
+        self.assertEqual(state.coins, 100000)
+        self.assertEqual(state.upgrade_level("rifle"), 0)
+        self.assertIsNone(scene.last_result)
+        self.assertEqual(scene.action_index, BUY_ACTION)
+
+    def test_disabled_upgrade_button_is_not_a_hover_target_when_not_owned(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state)
+        rect = button_rect(1, UPGRADE_ACTION)
+        center_x = (rect[0] + rect[2]) / 2
+        canvas_y = (rect[1] + rect[3]) / 2
+
+        scene.mouse_move(center_x, SCREEN_HEIGHT - canvas_y)
+
+        self.assertEqual(scene.hover_target, ("card", 1))
+
+    def test_disabled_upgrade_button_is_dimmed_when_not_owned(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+        rects = []
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at"):
+                scene.draw(lambda *args: rects.append(args))
+
+        button_colors = [
+            args[4:7] for args in rects if args[:4] == button_rect(1, UPGRADE_ACTION)
+        ]
+        self.assertEqual(button_colors, [(35, 40, 50)])
+
     def test_maxed_gun_has_no_selectable_action(self):
         state = GameState(
             owned_guns=["pistol"],
