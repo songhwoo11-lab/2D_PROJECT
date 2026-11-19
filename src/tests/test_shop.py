@@ -111,6 +111,23 @@ class UpgradeEngineTests(unittest.TestCase):
         self.assertEqual(outcome.level_after, 1)
         self.assertEqual(state.upgrade_level("pistol"), 1)
 
+    def test_destroyed_upgrade_resets_the_level_and_refunds_everything(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            coins=2000,
+            upgrade_levels={"pistol": 5},
+        )
+
+        outcome = upgrade_gun(state, "pistol", roll=100)
+
+        self.assertEqual(outcome.result, UpgradeResult.DESTROY)
+        self.assertEqual(outcome.level_before, 5)
+        self.assertEqual(outcome.level_after, 0)
+        self.assertEqual(outcome.cost, 1000)
+        self.assertEqual(outcome.refund, 1000)
+        self.assertEqual(state.coins, 2000)
+        self.assertEqual(state.upgrade_level("pistol"), 0)
+
     def test_downgraded_upgrade_loses_a_level_and_refunds_seventy_percent(self):
         state = GameState(
             owned_guns=["pistol"],
