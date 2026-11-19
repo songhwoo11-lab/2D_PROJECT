@@ -965,6 +965,18 @@ class BattleSceneGunTintTests(unittest.TestCase):
             self._draw_scene()
         return calls
 
+    def test_draw_uses_the_image_for_the_current_gun_id(self):
+        pistol_image = FakeGunImage(texture=None)
+        rifle_image = FakeGunImage(texture=None)
+        self.scene.gun_image = pistol_image
+        self.scene.gun_images = {"rifle": rifle_image}
+        self.scene.gun = Gun.from_gun_id("rifle", 0)
+
+        self.scene._draw_gun()
+
+        self.assertEqual(len(rifle_image.composite_draws), 1)
+        self.assertEqual(pistol_image.composite_draws, [])
+
     def test_overheated_gun_is_rendered_blue(self):
         self.scene.gun.overheated = True
         self.scene.gun.temperature = self.scene.gun.temperature_limit

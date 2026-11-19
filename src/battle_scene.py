@@ -133,12 +133,14 @@ class BattleScene:
         random_source=None,
         total_waves=None,
         wave_spawn_rate=None,
+        gun_images=None,
     ):
         self.player = player
         self.gun = gun
         self.background = background
         self.camera = camera or Camera()
         self.gun_image = gun_image
+        self.gun_images = dict(gun_images or {})
         self.bullet_image = bullet_image
         self.hud_font = hud_font
         self.hit_feedback_font = (
@@ -770,7 +772,7 @@ class BattleScene:
             or self.show_assassin_reveal_range
         ):
             self._draw_enemy_debug_circles()
-        if self.gun_image is not None:
+        if self._selected_gun_image() is not None:
             self._draw_gun()
         if self.hud_font is None:
             raise RuntimeError("BattleScene.draw requires a loaded HUD font")
@@ -792,8 +794,13 @@ class BattleScene:
         if self.finished:
             self._draw_result_screen(draw_rectangle)
 
+    def _selected_gun_image(self):
+        gun_id = getattr(self.gun, "gun_id", None)
+        return self.gun_images.get(gun_id, self.gun_image)
+
     def _draw_gun(self):
         """Draw the gun with its recoil offset and temperature tint."""
+        image = self._selected_gun_image()
         gun_offset = PLAYER_RADIUS * 0.6
         recoil_offset = self._gun_recoil_offset()
         gun_x = (
@@ -815,11 +822,11 @@ class BattleScene:
             gun_angle += math.pi
             flip = "h"
 
-        texture = getattr(self.gun_image, "texture", None)
+        texture = getattr(image, "texture", None)
         if texture is not None:
             pico2d.SDL_SetTextureColorMod(texture, *self._gun_tint_color())
         try:
-            self.gun_image.composite_draw(
+            image.composite_draw(
                 gun_angle,
                 flip,
                 gun_x,

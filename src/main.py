@@ -120,6 +120,11 @@ class GameApp:
             WORLD_HEIGHT / 2,
             image=self.assets["player_image"],
         )
+        gun_images = self.assets.get("shop_gun_images", {})
+        gun_image = gun_images.get(
+            self.state.selected_gun,
+            self.assets["gun_image"],
+        )
         return BattleScene(
             player,
             Gun.from_gun_id(
@@ -127,7 +132,8 @@ class GameApp:
                 self.state.upgrade_level(self.state.selected_gun),
             ),
             self.assets["battle_background"],
-            gun_image=self.assets["gun_image"],
+            gun_image=gun_image,
+            gun_images=gun_images,
             bullet_image=self.assets["bullet_image"],
             hud_font=self.assets["hud_font"],
             hit_feedback_font=self.assets["hit_feedback_font"],

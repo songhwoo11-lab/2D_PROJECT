@@ -164,6 +164,21 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertIs(self.app.scene.gun.spec, RIFLE)
 
+    def test_battle_scene_uses_the_selected_gun_image(self):
+        pistol_image = object()
+        rifle_image = object()
+        self.app.assets["shop_gun_images"] = {
+            "pistol": pistol_image,
+            "rifle": rifle_image,
+            "machine_gun": object(),
+        }
+        self.app.state.owned_guns = ["pistol", "rifle"]
+        self.app.state.select_gun("rifle")
+
+        self.app.switch_scene("battle")
+
+        self.assertIs(self.app.scene.gun_image, rifle_image)
+
     def test_battle_scene_uses_the_upgraded_gun_stats(self):
         self.app.state.set_upgrade_level("pistol", 1)
 
