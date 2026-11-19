@@ -135,6 +135,14 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertIs(self.app.scene.gun.spec, RIFLE)
 
+    def test_battle_scene_uses_the_upgraded_gun_stats(self):
+        self.app.state.set_upgrade_level("pistol", 1)
+
+        self.app.switch_scene("battle")
+
+        self.assertEqual(self.app.scene.gun.effective_damage, 6)
+        self.assertEqual(self.app.scene.gun.magazine_size, 10)
+
     def test_no_action_keeps_the_current_scene(self):
         self.assertFalse(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")

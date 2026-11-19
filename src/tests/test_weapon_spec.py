@@ -215,6 +215,14 @@ class WeaponSpecModelTests(unittest.TestCase):
             1.0,
         )
 
+    def test_gun_can_be_created_at_an_upgrade_level(self):
+        gun = Gun.from_gun_id(RIFLE_GUN_ID, 1)
+
+        self.assertEqual(gun.gun_id, RIFLE_GUN_ID)
+        self.assertEqual(gun.effective_damage, 25)
+        self.assertEqual(gun.magazine_size, 30)
+        self.assertIsNot(gun.spec, RIFLE)
+
     def test_upgrade_levels_outside_the_allowed_range_are_rejected(self):
         with self.assertRaises(ValueError):
             weapon_stats_at_level(DEFAULT_GUN_ID, -1)

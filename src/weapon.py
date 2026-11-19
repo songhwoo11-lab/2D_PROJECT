@@ -177,19 +177,23 @@ class FireMode(Enum):
 
 
 class Gun:
-    def __init__(self, spec=PISTOL):
+    def __init__(self, spec=PISTOL, gun_id=None):
         if spec.magazine_size <= 0 or spec.starting_ammo < 0:
             raise ValueError("weapon ammunition values are invalid")
         self.spec = spec
+        self._gun_id = gun_id
         self.infinite_ammo = False
         self.reset()
 
     @classmethod
-    def from_gun_id(cls, gun_id):
-        return cls(weapon_spec_or_default(gun_id))
+    def from_gun_id(cls, gun_id, level=0):
+        spec = weapon_stats_at_level(gun_id, level)
+        return cls(spec, gun_id=gun_id)
 
     @property
     def gun_id(self):
+        if self._gun_id is not None:
+            return self._gun_id
         return gun_id_for_spec(self.spec)
 
     def reset(self):

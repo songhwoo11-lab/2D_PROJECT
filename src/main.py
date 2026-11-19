@@ -117,7 +117,10 @@ class GameApp:
         )
         return BattleScene(
             player,
-            Gun.from_gun_id(self.state.selected_gun),
+            Gun.from_gun_id(
+                self.state.selected_gun,
+                self.state.upgrade_level(self.state.selected_gun),
+            ),
             self.assets["battle_background"],
             gun_image=self.assets["gun_image"],
             bullet_image=self.assets["bullet_image"],
@@ -168,7 +171,10 @@ class GameApp:
         )
         return TrainingScene(
             player=player,
-            gun=Gun.from_gun_id(self.state.selected_gun),
+            gun=Gun.from_gun_id(
+                self.state.selected_gun,
+                self.state.upgrade_level(self.state.selected_gun),
+            ),
             background=self.assets.get("training_background"),
             hud_font=self.assets["hud_font"],
             state=self.state,
