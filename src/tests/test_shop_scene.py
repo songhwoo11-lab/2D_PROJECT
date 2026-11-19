@@ -159,14 +159,29 @@ class ShopSceneTests(unittest.TestCase):
 
         self.assertEqual(texts.count("State"), 3)
 
+    def test_shop_draws_only_english_text(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            upgrade_levels={"pistol": 10},
+            coins=100000,
+        )
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(1, BUY_ACTION))
+
+        texts = draw_and_collect_text(scene)
+
+        for text in texts:
+            with self.subTest(text=text):
+                self.assertFalse(any("\uac00" <= char <= "\ud7a3" for char in text))
+
     def test_purchase_button_shows_owned_when_already_owned(self):
         state = GameState(owned_guns=["pistol", "rifle"])
         scene = ShopScene(state=state, hud_font=object())
 
         texts = draw_and_collect_text(scene)
 
-        self.assertEqual(texts.count("소지중"), 2)
-        self.assertIn("구매", texts)
+        self.assertEqual(texts.count("OWNED"), 2)
+        self.assertIn("BUY", texts)
 
     def test_upgrade_button_shows_done_at_max_level(self):
         state = GameState(upgrade_levels={"pistol": 10})
@@ -174,8 +189,8 @@ class ShopSceneTests(unittest.TestCase):
 
         texts = draw_and_collect_text(scene)
 
-        self.assertIn("강화완료", texts)
-        self.assertEqual(texts.count("강화"), 2)
+        self.assertIn("MAXED", texts)
+        self.assertEqual(texts.count("UPGRADE"), 2)
         self.assertIn("LV 10", texts)
 
     def test_shop_draws_gun_images_above_the_level_labels(self):
