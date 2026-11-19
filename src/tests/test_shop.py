@@ -8,9 +8,12 @@ from shop import (
     UPGRADE_PROBABILITIES,
     UpgradeResult,
     gun_price,
+    purchase_gun,
+    purchase_result_message,
     upgrade_chances,
     upgrade_cost,
     upgrade_gun,
+    upgrade_result_message,
 )
 from weapon import UPGRADE_EFFECTS, weapon_stats_at_level
 
@@ -212,6 +215,29 @@ class UpgradeEngineTests(unittest.TestCase):
         self.assertEqual(state.upgrade_level("pistol"), 0)
         self.assertEqual(state.upgrade_level("rifle"), 0)
         self.assertEqual(state.upgrade_level("machine_gun"), 0)
+
+
+class ResultMessageTests(unittest.TestCase):
+    def test_purchase_messages_describe_the_result(self):
+        state = GameState(owned_guns=["pistol"], coins=150000)
+        purchased = purchase_gun(state, "rifle")
+        duplicate = purchase_gun(state, "rifle")
+        state.coins = 0
+        blocked = purchase_gun(state, "machine_gun")
+
+        self.assertIn("PURCHASED RIFLE", purchase_result_message(purchased))
+        self.assertIn("ALREADY OWNED", purchase_result_message(duplicate))
+        self.assertIn("NOT ENOUGH COINS", purchase_result_message(blocked))
+
+    def test_upgrade_messages_describe_the_result(self):
+        state = GameState(owned_guns=["pistol"], coins=200, upgrade_levels={"pistol": 1})
+        failed = upgrade_gun(state, "pistol", roll=91)
+        downgraded = upgrade_gun(state, "pistol", roll=100)
+
+        self.assertIn("UPGRADE FAILED", upgrade_result_message(failed))
+        self.assertIn("50% REFUNDED", upgrade_result_message(failed))
+        self.assertIn("UPGRADE DOWN", upgrade_result_message(downgraded))
+        self.assertIn("70", upgrade_result_message(downgraded))
 
 
 if __name__ == "__main__":

@@ -49,9 +49,15 @@ class ShopSceneTests(unittest.TestCase):
             scene.draw(lambda *args: None)
 
         texts = [call.args[2] for call in draw.call_args_list]
-        self.assertIn("PISTOL | PRICE 0 | OWNED", texts)
-        self.assertIn("RIFLE | PRICE 100000 | OWNED", texts)
-        self.assertIn("MACHINE GUN | PRICE 1000000 | NOT OWNED", texts)
+        self.assertIn("PISTOL | LV 0 | PRICE 0 | UPGRADE 10 | OWNED", texts)
+        self.assertIn(
+            "RIFLE | LV 0 | PRICE 100000 | UPGRADE 100 | OWNED",
+            texts,
+        )
+        self.assertIn(
+            "MACHINE GUN | LV 0 | PRICE 1000000 | UPGRADE 1000 | NOT OWNED",
+            texts,
+        )
 
     def test_shop_draws_the_current_coin_balance(self):
         scene = ShopScene(state=GameState(coins=77), hud_font=object())
@@ -61,6 +67,18 @@ class ShopSceneTests(unittest.TestCase):
 
         texts = [call.args[2] for call in draw.call_args_list]
         self.assertIn("COINS 77", texts)
+
+    def test_shop_draws_the_last_purchase_result(self):
+        state = GameState(owned_guns=["pistol"], coins=150000)
+        scene = ShopScene(state=state, hud_font=object())
+        scene.key_down("s")
+        scene.key_down("space")
+
+        with mock.patch.object(shop_scene, "draw_centered_text") as draw:
+            scene.draw(lambda *args: None)
+
+        texts = [call.args[2] for call in draw.call_args_list]
+        self.assertTrue(any("PURCHASED RIFLE" in text for text in texts))
 
     def test_q_key_asks_for_the_lobby_return(self):
         self.scene.key_down("q")

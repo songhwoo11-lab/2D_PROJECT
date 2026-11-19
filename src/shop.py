@@ -2,7 +2,12 @@ import random
 from dataclasses import dataclass
 from enum import Enum
 
-from weapon import DEFAULT_GUN_ID, MACHINE_GUN_GUN_ID, RIFLE_GUN_ID
+from weapon import (
+    DEFAULT_GUN_ID,
+    MACHINE_GUN_GUN_ID,
+    RIFLE_GUN_ID,
+    weapon_display_name,
+)
 
 
 GUN_PRICES = {
@@ -216,3 +221,44 @@ def upgrade_gun(state, gun_id, roll=None):
         state.coins,
         roll,
     )
+
+
+def purchase_result_message(outcome):
+    name = weapon_display_name(outcome.gun_id)
+    if outcome.result is PurchaseResult.PURCHASED:
+        return "PURCHASED {} (-{})".format(name, outcome.cost)
+    if outcome.result is PurchaseResult.ALREADY_OWNED:
+        return "{} IS ALREADY OWNED".format(name)
+    return "NOT ENOUGH COINS FOR {}".format(name)
+
+
+def upgrade_result_message(outcome):
+    name = weapon_display_name(outcome.gun_id)
+    if outcome.result is UpgradeResult.SUCCESS:
+        return "UPGRADE SUCCESS: {} LV {} -> {}".format(
+            name,
+            outcome.level_before,
+            outcome.level_after,
+        )
+    if outcome.result is UpgradeResult.FAILURE:
+        return "UPGRADE FAILED: {}% REFUNDED ({} COINS)".format(
+            outcome.refund * 100 // outcome.cost,
+            outcome.refund,
+        )
+    if outcome.result is UpgradeResult.DOWNGRADE:
+        return "UPGRADE DOWN: {} LV {} -> {} ({} REFUNDED)".format(
+            name,
+            outcome.level_before,
+            outcome.level_after,
+            outcome.refund,
+        )
+    if outcome.result is UpgradeResult.DESTROY:
+        return "{} DESTROYED: LV RESET ({} REFUNDED)".format(
+            name,
+            outcome.refund,
+        )
+    if outcome.result is UpgradeResult.NOT_OWNED:
+        return "BUY {} BEFORE UPGRADING".format(name)
+    if outcome.result is UpgradeResult.MAX_LEVEL:
+        return "{} IS ALREADY MAX LEVEL".format(name)
+    return "NOT ENOUGH COINS TO UPGRADE {}".format(name)

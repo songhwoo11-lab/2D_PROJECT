@@ -2,7 +2,16 @@
 
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import draw_centered_text
-from shop import GUN_SHOP_ORDER, gun_price, purchase_gun, upgrade_gun
+from shop import (
+    GUN_SHOP_ORDER,
+    MAX_UPGRADE_LEVEL,
+    gun_price,
+    purchase_gun,
+    purchase_result_message,
+    upgrade_cost,
+    upgrade_gun,
+    upgrade_result_message,
+)
 from weapon import weapon_display_name
 
 
@@ -12,6 +21,7 @@ SHOP_HINT = "W/S GUN  A/D ACTION  SPACE EXECUTE  Q BACK"
 SHOP_TITLE_Y = SCREEN_HEIGHT - 200
 SHOP_COINS_Y = SCREEN_HEIGHT - 260
 SHOP_NOTICE_Y = SCREEN_HEIGHT - 300
+SHOP_RESULT_Y = SCREEN_HEIGHT - 360
 SHOP_HINT_Y = 120
 SHOP_ROW_TOP_Y = 800
 SHOP_ROW_SPACING = 60
@@ -56,15 +66,33 @@ class ShopScene:
                 (255, 220, 100),
             )
         draw_centered_text(self.hud_font, SHOP_NOTICE_Y, SHOP_NOTICE)
+        self._draw_result()
         self._draw_gun_rows()
         draw_centered_text(self.hud_font, SHOP_HINT_Y, SHOP_HINT, (170, 190, 220))
+
+    def _draw_result(self):
+        if self.last_result is None:
+            return
+        if hasattr(self.last_result, "level_before"):
+            message = upgrade_result_message(self.last_result)
+        else:
+            message = purchase_result_message(self.last_result)
+        draw_centered_text(self.hud_font, SHOP_RESULT_Y, message, (255, 160, 120))
 
     def _draw_gun_rows(self):
         for index, gun_id in enumerate(GUN_SHOP_ORDER):
             owned = self.state is not None and gun_id in self.state.owned_guns
-            label = "{} | PRICE {} | {}".format(
+            level = self.state.upgrade_level(gun_id) if self.state else 0
+            upgrade_label = (
+                "MAX"
+                if level >= MAX_UPGRADE_LEVEL
+                else str(upgrade_cost(gun_id, level))
+            )
+            label = "{} | LV {} | PRICE {} | UPGRADE {} | {}".format(
                 weapon_display_name(gun_id),
+                level,
                 gun_price(gun_id),
+                upgrade_label,
                 "OWNED" if owned else "NOT OWNED",
             )
             draw_centered_text(
