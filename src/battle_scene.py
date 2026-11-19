@@ -61,8 +61,8 @@ SHOT_FEEDBACK_FONT_SIZE = 48
 WAVE_BANNER_SECONDS = 2.5
 WAVE_STRENGTH_BANNER_SECONDS = 3.5
 
-# 총 온도가 한계 온도보다 이 값만큼 낮아지는 시점부터 서서히 붉게 물든다.
-GUN_HEAT_TINT_RANGE = 100.0
+# 총 온도가 한계 온도의 이 비율에 도달하는 시점부터 서서히 붉게 물든다.
+GUN_HEAT_TINT_START_RATIO = 0.5
 # 한계 온도에 가까워질수록 이 색조에 가까워진다.
 GUN_HEAT_TINT_COLOR = (255, 80, 80)
 # 과열 상태(사격 차단 중)에서 적용하는 색조
@@ -842,14 +842,18 @@ class BattleScene:
         """Return the gun tint for the current temperature.
 
         Overheating always uses blue. Otherwise the sprite reddens gradually
-        over the last ``GUN_HEAT_TINT_RANGE`` degrees below the limit.
+        from ``GUN_HEAT_TINT_START_RATIO`` of the temperature limit.
         """
         if self.gun.overheated:
             return GUN_OVERHEAT_TINT
-        degrees_below_limit = self.gun.temperature_limit - self.gun.temperature
-        if degrees_below_limit >= GUN_HEAT_TINT_RANGE:
+        start_temperature = (
+            self.gun.temperature_limit * GUN_HEAT_TINT_START_RATIO
+        )
+        if self.gun.temperature <= start_temperature:
             return GUN_WHITE_TINT
-        progress = (GUN_HEAT_TINT_RANGE - degrees_below_limit) / GUN_HEAT_TINT_RANGE
+        progress = (self.gun.temperature - start_temperature) / (
+            self.gun.temperature_limit - start_temperature
+        )
         progress = min(max(progress, 0.0), 1.0)
         return tuple(
             round(255 + (component - 255) * progress)

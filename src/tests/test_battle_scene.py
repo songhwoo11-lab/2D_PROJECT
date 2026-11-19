@@ -19,7 +19,7 @@ import game_world
 import hud
 from player import Player
 from pickup import CoolingPickup, HealthPickup, MagazinePickup
-from weapon import Gun
+from weapon import Gun, MACHINE_GUN_GUN_ID
 from waves import WaveDirector
 
 
@@ -1018,7 +1018,9 @@ class BattleSceneGunTintTests(unittest.TestCase):
     def test_gun_below_the_heat_range_is_rendered_white(self):
         self.scene.gun.overheated = False
         self.scene.gun.temperature = (
-            self.scene.gun.temperature_limit - battle_scene.GUN_HEAT_TINT_RANGE - 10
+            self.scene.gun.temperature_limit
+            * battle_scene.GUN_HEAT_TINT_START_RATIO
+            - 10
         )
 
         calls = self._draw_with_calls()
@@ -1028,7 +1030,8 @@ class BattleSceneGunTintTests(unittest.TestCase):
     def test_gun_is_white_at_the_start_of_the_heat_range(self):
         self.scene.gun.overheated = False
         self.scene.gun.temperature = (
-            self.scene.gun.temperature_limit - battle_scene.GUN_HEAT_TINT_RANGE
+            self.scene.gun.temperature_limit
+            * battle_scene.GUN_HEAT_TINT_START_RATIO
         )
 
         calls = self._draw_with_calls()
@@ -1037,11 +1040,9 @@ class BattleSceneGunTintTests(unittest.TestCase):
 
     def test_gun_reddens_gradually_as_the_temperature_rises(self):
         colors = []
-        for degrees_below_limit in (100, 75, 50, 25, 1):
+        for ratio in (0.5, 0.625, 0.75, 0.875, 0.99):
             self.scene.gun.overheated = False
-            self.scene.gun.temperature = (
-                self.scene.gun.temperature_limit - degrees_below_limit
-            )
+            self.scene.gun.temperature = self.scene.gun.temperature_limit * ratio
             colors.append(self.scene._gun_tint_color())
 
         self.assertEqual(colors[0], (255, 255, 255))
@@ -1053,6 +1054,33 @@ class BattleSceneGunTintTests(unittest.TestCase):
         self.assertEqual(blues, sorted(blues, reverse=True))
         self.assertGreater(greens[0], greens[-1])
         self.assertLess(greens[-1], 100)
+
+    def test_gun_at_the_limit_uses_the_full_red_tint(self):
+        self.scene.gun.overheated = False
+        self.scene.gun.temperature = self.scene.gun.temperature_limit
+
+        self.assertEqual(
+            self.scene._gun_tint_color(),
+            battle_scene.GUN_HEAT_TINT_COLOR,
+        )
+
+    def test_heat_tint_starts_at_half_of_each_gun_limit(self):
+        gun = Gun.from_gun_id(MACHINE_GUN_GUN_ID)
+        self.scene.gun = gun
+        half_limit = gun.temperature_limit / 2
+
+        gun.overheated = False
+        gun.temperature = half_limit - 1
+        self.assertEqual(self.scene._gun_tint_color(), battle_scene.GUN_WHITE_TINT)
+
+        gun.temperature = half_limit
+        self.assertEqual(self.scene._gun_tint_color(), battle_scene.GUN_WHITE_TINT)
+
+        gun.temperature = half_limit + 1
+        self.assertNotEqual(
+            self.scene._gun_tint_color(),
+            battle_scene.GUN_WHITE_TINT,
+        )
 
     def test_overheat_switches_the_tint_to_blue(self):
         self.scene.gun.overheated = False
