@@ -8,6 +8,7 @@ from weapon import WEAPON_SPECS
 WAVES_ENV = "CHALLENGING_GUNNER_WAVES"
 SPAWN_RATE_ENV = "CHALLENGING_GUNNER_SPAWN_RATE"
 GUN_ENV = "CHALLENGING_GUNNER_GUN"
+COINS_ENV = "CHALLENGING_GUNNER_COINS"
 
 
 def _read_environment(name, environ):
@@ -46,3 +47,14 @@ def development_gun(environ=None):
         return None
     value = value.lower()
     return value if value in WEAPON_SPECS else None
+
+
+def development_coins(environ=None):
+    value = _read_environment(COINS_ENV, environ)
+    if value is None:
+        return None
+    try:
+        coins = int(value)
+    except ValueError:
+        return None
+    return coins if coins >= 0 else None

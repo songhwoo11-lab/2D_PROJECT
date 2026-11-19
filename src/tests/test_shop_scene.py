@@ -1,5 +1,8 @@
 import unittest
+from unittest import mock
 
+from game_state import GameState
+import shop_scene
 from shop_scene import ShopScene
 
 
@@ -17,6 +20,15 @@ class ShopSceneTests(unittest.TestCase):
     def test_update_and_draw_run_without_error(self):
         self.scene.update(1.0 / 60)
         self.scene.draw(lambda *args: None)
+
+    def test_shop_draws_the_current_coin_balance(self):
+        scene = ShopScene(state=GameState(coins=77), hud_font=object())
+
+        with mock.patch.object(shop_scene, "draw_centered_text") as draw:
+            scene.draw(lambda *args: None)
+
+        texts = [call.args[2] for call in draw.call_args_list]
+        self.assertIn("COINS 77", texts)
 
     def test_enter_key_asks_for_the_lobby_return(self):
         self.scene.key_down("space")

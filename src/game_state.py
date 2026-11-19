@@ -1,7 +1,7 @@
 """Progress that is kept for the whole game session."""
 
 from battle_record import BattleRecord
-from dev_settings import development_gun
+from dev_settings import development_coins, development_gun
 
 
 DEFAULT_OWNED_GUNS = ("pistol",)
@@ -13,12 +13,13 @@ class GameState:
     def __init__(
         self,
         owned_guns=DEFAULT_OWNED_GUNS,
-        coins=0,
+        coins=None,
         records=None,
         dev_gun=None,
     ):
         self.owned_guns = list(owned_guns)
-        self.coins = coins
+        coin_override = development_coins() if coins is None else coins
+        self.coins = 0 if coin_override is None else coin_override
         self.records = list(records or [])
         self.dev_gun = dev_gun if dev_gun is not None else development_gun()
         self.selected_gun = self.dev_gun or (

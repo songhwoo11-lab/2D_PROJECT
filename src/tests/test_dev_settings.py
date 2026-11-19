@@ -1,9 +1,11 @@
 import unittest
 
 from dev_settings import (
+    COINS_ENV,
     GUN_ENV,
     SPAWN_RATE_ENV,
     WAVES_ENV,
+    development_coins,
     development_gun,
     development_spawn_rate,
     development_total_waves,
@@ -60,6 +62,19 @@ class DevelopmentGunTests(unittest.TestCase):
     def test_unknown_gun_ids_are_ignored(self):
         for value in ("", "  ", "unknown", "shotgun"):
             self.assertIsNone(development_gun({GUN_ENV: value}), msg=repr(value))
+
+
+class DevelopmentCoinsTests(unittest.TestCase):
+    def test_missing_setting_uses_the_default(self):
+        self.assertIsNone(development_coins({}))
+
+    def test_non_negative_integer_is_accepted(self):
+        self.assertEqual(development_coins({COINS_ENV: "2500"}), 2500)
+        self.assertEqual(development_coins({COINS_ENV: "0"}), 0)
+
+    def test_invalid_values_are_ignored(self):
+        for value in ("", "  ", "abc", "-1", "2.5"):
+            self.assertIsNone(development_coins({COINS_ENV: value}), msg=repr(value))
 
 
 if __name__ == "__main__":

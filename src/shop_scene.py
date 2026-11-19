@@ -8,6 +8,7 @@ SHOP_TITLE = "SHOP"
 SHOP_NOTICE = "SHOP OPENING SOON"
 SHOP_HINT = "PRESS SPACE : BACK TO LOBBY"
 SHOP_TITLE_Y = SCREEN_HEIGHT - 200
+SHOP_COINS_Y = SCREEN_HEIGHT - 260
 SHOP_NOTICE_Y = SCREEN_HEIGHT - 300
 SHOP_HINT_Y = 120
 
@@ -40,6 +41,13 @@ class ShopScene:
         if self.hud_font is None:
             return
         draw_centered_text(self.hud_font, SHOP_TITLE_Y, SHOP_TITLE, (255, 220, 100))
+        if self.state is not None:
+            draw_centered_text(
+                self.hud_font,
+                SHOP_COINS_Y,
+                "COINS {}".format(self.state.coins),
+                (255, 220, 100),
+            )
         draw_centered_text(self.hud_font, SHOP_NOTICE_Y, SHOP_NOTICE)
         draw_centered_text(self.hud_font, SHOP_HINT_Y, SHOP_HINT, (170, 190, 220))
 
