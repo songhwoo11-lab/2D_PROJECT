@@ -21,8 +21,16 @@ from shop_scene import (
     SHOP_TITLE_Y,
     STATE_ACTION,
     UPGRADE_ACTION,
+    UPGRADE_CHANGED_COLOR,
+    UPGRADE_MODAL_BUTTON_GAP,
+    UPGRADE_MODAL_BUTTON_WIDTH,
+    UPGRADE_MODAL_LEFT_RECT,
+    UPGRADE_MODAL_RIGHT_RECT,
     button_rect,
     card_rect,
+    upgrade_cancel_rect,
+    upgrade_confirm_rect,
+    upgrade_modal_rect,
     ShopScene,
 )
 from weapon import weapon_stats_at_level
@@ -94,6 +102,14 @@ class ShopLayoutTests(unittest.TestCase):
             "W/S GUN  A/D ACTION  SPACE EXECUTE  Q BACK",
         ):
             self.assertNotIn(hint, texts)
+
+    def test_upgrade_modal_buttons_have_equal_width_and_gap(self):
+        confirm = upgrade_confirm_rect()
+        cancel = upgrade_cancel_rect()
+
+        self.assertEqual(cancel[2] - cancel[0], UPGRADE_MODAL_BUTTON_WIDTH)
+        self.assertEqual(confirm[2] - confirm[0], UPGRADE_MODAL_BUTTON_WIDTH)
+        self.assertEqual(cancel[0] - confirm[2], UPGRADE_MODAL_BUTTON_GAP)
 
     def test_exit_button_is_at_the_bottom_right(self):
         left, bottom, right, top = SHOP_EXIT_BUTTON
@@ -252,15 +268,62 @@ class ShopSceneTests(unittest.TestCase):
         self.assertIn("rifle", state.owned_guns)
         self.assertEqual(state.coins, 50000)
 
-    def test_upgrade_button_click_upgrades_that_gun(self):
+    def test_upgrade_button_click_opens_modal_without_upgrading(self):
         state = GameState(owned_guns=["pistol"], coins=100)
         scene = ShopScene(state=state, hud_font=object())
 
         click_rect(scene, button_rect(0, UPGRADE_ACTION))
 
         self.assertEqual(scene.action_index, UPGRADE_ACTION)
+        self.assertEqual(scene.upgrade_modal_gun_id, "pistol")
+        self.assertEqual(state.upgrade_level("pistol"), 0)
+        self.assertEqual(state.coins, 100)
+        self.assertIsNone(scene.last_result)
+
+    def test_upgrade_modal_confirm_applies_the_upgrade(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        click_rect(scene, upgrade_confirm_rect())
+
         self.assertEqual(state.upgrade_level("pistol"), 1)
+        self.assertEqual(state.coins, 90)
         self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
+        self.assertIsNone(scene.upgrade_modal_gun_id)
+
+    def test_upgrade_modal_cancel_does_not_upgrade(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        click_rect(scene, upgrade_cancel_rect())
+
+        self.assertIsNone(scene.upgrade_modal_gun_id)
+        self.assertEqual(state.upgrade_level("pistol"), 0)
+        self.assertEqual(state.coins, 100)
+        self.assertIsNone(scene.last_result)
+
+    def test_clicking_outside_upgrade_modal_closes_it(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        scene.mouse_down("left", 10, SCREEN_HEIGHT - 10)
+
+        self.assertIsNone(scene.upgrade_modal_gun_id)
+        self.assertEqual(state.upgrade_level("pistol"), 0)
+        self.assertEqual(state.coins, 100)
+
+    def test_escape_key_cancels_upgrade_modal_instead_of_leaving(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state)
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        scene.key_down("escape")
+
+        self.assertIsNone(scene.upgrade_modal_gun_id)
+        self.assertIsNone(scene.pending_action)
 
     def test_state_button_shows_the_gun_state_without_running_a_function(self):
         state = GameState(owned_guns=["pistol"], coins=100000)
@@ -410,6 +473,69 @@ class ShopSceneTests(unittest.TestCase):
 
         self.assertEqual(self.scene.pending_action, "return_to_lobby")
 
+    def test_upgrade_modal_shows_before_after_stats_and_probability(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            upgrade_levels={"pistol": 5},
+            coins=100000,
+        )
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        texts = draw_and_collect_text(scene)
+
+        for expected in (
+            "Upgrade?",
+            "CURRENT",
+            "AFTER",
+            "->",
+            "UPGRADE CHANCE 50%",
+            "SUCCESS 50%  FAIL 44%  DOWN 5%  DESTROY 1%",
+            "NAME PISTOL",
+            "LEVEL 5",
+            "LEVEL 6",
+            "UPGRADE",
+            "CANCEL",
+        ):
+            self.assertIn(expected, texts)
+
+    def test_upgrade_modal_draws_both_stat_panels_and_buttons(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+        rects = []
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at"):
+                scene.draw(lambda *args: rects.append(args))
+
+        drawn_rects = [args[:4] for args in rects if args[8] is True]
+        self.assertIn(upgrade_modal_rect(), drawn_rects)
+        self.assertIn(UPGRADE_MODAL_LEFT_RECT, drawn_rects)
+        self.assertIn(UPGRADE_MODAL_RIGHT_RECT, drawn_rects)
+        self.assertIn(upgrade_confirm_rect(), drawn_rects)
+        self.assertIn(upgrade_cancel_rect(), drawn_rects)
+
+    def test_upgrade_modal_marks_changed_after_stats_in_green(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+        spec = weapon_stats_at_level("pistol", 1)
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at") as positioned:
+                scene.draw(lambda *args: None)
+
+        green_texts = [
+            call.args[3]
+            for call in positioned.call_args_list
+            if len(call.args) > 4 and call.args[4] == UPGRADE_CHANGED_COLOR
+        ]
+        self.assertIn("LEVEL 1", green_texts)
+        self.assertIn("DAMAGE {}".format(spec.damage), green_texts)
+        self.assertNotIn("LEVEL 0", green_texts)
+        self.assertNotIn("NAME PISTOL", green_texts)
+
     def test_escape_key_is_not_triggered_twice_while_held(self):
         self.scene.key_down("escape")
         self.scene.pending_action = None
@@ -513,6 +639,7 @@ class DisabledShopActionTests(unittest.TestCase):
         self.assertEqual(state.coins, 100000)
         self.assertEqual(state.upgrade_level("rifle"), 0)
         self.assertIsNone(scene.last_result)
+        self.assertIsNone(scene.upgrade_modal_gun_id)
         self.assertEqual(scene.action_index, BUY_ACTION)
 
     def test_disabled_upgrade_button_is_not_a_hover_target_when_not_owned(self):
@@ -565,6 +692,7 @@ class DisabledShopActionTests(unittest.TestCase):
         self.assertEqual(state.coins, 1000)
         self.assertEqual(state.upgrade_level("pistol"), MAX_UPGRADE_LEVEL)
         self.assertIsNone(scene.last_result)
+        self.assertIsNone(scene.upgrade_modal_gun_id)
         self.assertEqual(scene.action_index, STATE_ACTION)
 
     def test_purchase_switches_to_the_upgrade_action(self):
@@ -584,11 +712,13 @@ class DisabledShopActionTests(unittest.TestCase):
         )
         scene = ShopScene(state=state, hud_font=object())
 
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
         with mock.patch("shop.random.randint", return_value=1):
-            click_rect(scene, button_rect(0, UPGRADE_ACTION))
+            click_rect(scene, upgrade_confirm_rect())
 
         self.assertEqual(state.upgrade_level("pistol"), MAX_UPGRADE_LEVEL)
         self.assertEqual(scene.action_index, STATE_ACTION)
+        self.assertIsNone(scene.upgrade_modal_gun_id)
 
 
 class GunPurchaseTests(unittest.TestCase):
@@ -650,6 +780,11 @@ class GunPurchaseTests(unittest.TestCase):
         click_rect(scene, button_rect(0, UPGRADE_ACTION))
 
         self.assertEqual(scene.action_index, UPGRADE_ACTION)
+        self.assertEqual(state.upgrade_level("pistol"), 0)
+        self.assertIsNone(scene.last_result)
+
+        click_rect(scene, upgrade_confirm_rect())
+
         self.assertEqual(state.upgrade_level("pistol"), 1)
         self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
 

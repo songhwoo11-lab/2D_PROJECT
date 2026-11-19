@@ -7,7 +7,12 @@ from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY
 from main import GameApp
 from shop import GUN_SHOP_ORDER
-from shop_scene import BUY_ACTION, UPGRADE_ACTION, button_rect
+from shop_scene import (
+    BUY_ACTION,
+    UPGRADE_ACTION,
+    button_rect,
+    upgrade_confirm_rect,
+)
 from weapon import PISTOL, RIFLE
 
 
@@ -34,6 +39,13 @@ def make_app():
 
 def click_shop_button(scene, gun_id, action):
     rect = button_rect(GUN_SHOP_ORDER.index(gun_id), action)
+    center_x = (rect[0] + rect[2]) / 2
+    canvas_y = (rect[1] + rect[3]) / 2
+    scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
+
+
+def click_upgrade_confirm(scene):
+    rect = upgrade_confirm_rect()
     center_x = (rect[0] + rect[2]) / 2
     canvas_y = (rect[1] + rect[3]) / 2
     scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
@@ -319,6 +331,7 @@ class ShopEconomyIntegrationTests(unittest.TestCase):
         shop = self.app.scene
         click_shop_button(shop, "rifle", BUY_ACTION)
         click_shop_button(shop, "rifle", UPGRADE_ACTION)
+        click_upgrade_confirm(shop)
         shop.pending_action = "return_to_lobby"
         self.app.handle_scene_action()
 

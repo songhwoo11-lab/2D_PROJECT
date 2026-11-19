@@ -11,6 +11,7 @@ from shop import (
     upgrade_cost,
     upgrade_gun,
     upgrade_result_message,
+    upgrade_chances,
 )
 from weapon import weapon_display_name, weapon_stats_at_level
 
@@ -65,6 +66,25 @@ STATE_PANEL_TITLE_Y = 850
 STATE_PANEL_ROW_TOP = 790
 STATE_PANEL_ROW_GAP = 45
 
+UPGRADE_MODAL_RECT = (180, 100, 1620, 1100)
+UPGRADE_MODAL_TITLE_Y = 1040
+UPGRADE_MODAL_SIDE_BOTTOM = 440
+UPGRADE_MODAL_SIDE_TOP = 970
+UPGRADE_MODAL_LEFT_RECT = (220, 440, 850, 970)
+UPGRADE_MODAL_RIGHT_RECT = (950, 440, 1580, 970)
+UPGRADE_MODAL_SIDE_TITLE_Y = 920
+UPGRADE_MODAL_ROW_TOP = 860
+UPGRADE_MODAL_ROW_GAP = 50
+UPGRADE_MODAL_ARROW_Y = 705
+UPGRADE_MODAL_CHANCE_Y = 370
+UPGRADE_MODAL_CHANCE_DETAIL_Y = 310
+UPGRADE_MODAL_BUTTON_BOTTOM = 150
+UPGRADE_MODAL_BUTTON_TOP = 250
+UPGRADE_MODAL_BUTTON_TEXT_Y = 200
+UPGRADE_MODAL_BUTTON_WIDTH = 260
+UPGRADE_MODAL_BUTTON_GAP = 80
+UPGRADE_CHANGED_COLOR = (80, 255, 80)
+
 GUN_IMAGE_SIZES = {
     "pistol": (220, 125),
     "rifle": (280, 112),
@@ -103,6 +123,33 @@ def state_panel_rect():
     return left, STATE_PANEL_BOTTOM, left + STATE_PANEL_WIDTH, STATE_PANEL_TOP
 
 
+def upgrade_modal_rect():
+    return UPGRADE_MODAL_RECT
+
+
+def upgrade_confirm_rect():
+    total_width = UPGRADE_MODAL_BUTTON_WIDTH * 2 + UPGRADE_MODAL_BUTTON_GAP
+    left = (SCREEN_WIDTH - total_width) // 2
+    return (
+        left,
+        UPGRADE_MODAL_BUTTON_BOTTOM,
+        left + UPGRADE_MODAL_BUTTON_WIDTH,
+        UPGRADE_MODAL_BUTTON_TOP,
+    )
+
+
+def upgrade_cancel_rect():
+    confirm = upgrade_confirm_rect()
+    gap = UPGRADE_MODAL_BUTTON_GAP
+    left = confirm[0] + UPGRADE_MODAL_BUTTON_WIDTH + gap
+    return (
+        left,
+        confirm[1],
+        left + UPGRADE_MODAL_BUTTON_WIDTH,
+        confirm[3],
+    )
+
+
 def contains(rect, x, y):
     if x is None or y is None:
         return False
@@ -126,6 +173,20 @@ def state_available(state, gun_id):
     return True
 
 
+def stat_rows(gun_id, level):
+    spec = weapon_stats_at_level(gun_id, level)
+    return (
+        ("NAME", spec.name.upper()),
+        ("LEVEL", str(level)),
+        ("DAMAGE", str(spec.damage)),
+        ("FIRE INTERVAL", "{:.3f}s".format(spec.fire_interval_seconds)),
+        ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
+        ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
+        ("MAGAZINE SIZE", str(spec.magazine_size)),
+        ("STARTING AMMO", str(spec.starting_ammo)),
+    )
+
+
 class ShopScene:
     """Shop card layout that keeps key and mouse controls in sync."""
 
@@ -142,6 +203,7 @@ class ShopScene:
         self.mouse_y = SCREEN_HEIGHT / 2
         self.hover_target = None
         self.state_panel_gun_id = None
+        self.upgrade_modal_gun_id = None
         self.exit_requested = False
         self.pending_action = None
 
@@ -172,6 +234,9 @@ class ShopScene:
     def _hide_state_panel(self):
         self.state_panel_gun_id = None
 
+    def _hide_upgrade_modal(self):
+        self.upgrade_modal_gun_id = None
+
     def update(self, delta_time):
         return None
 
@@ -201,6 +266,7 @@ class ShopScene:
         self._draw_cards(draw_rectangle)
         self._draw_state_panel(draw_rectangle)
         self._draw_exit_button(draw_rectangle)
+        self._draw_upgrade_modal(draw_rectangle)
 
     def _draw_result(self):
         if self.last_result is None:
@@ -319,17 +385,7 @@ class ShopScene:
     def _state_panel_rows(self):
         gun_id = self.state_panel_gun_id
         level = self.state.upgrade_level(gun_id) if self.state is not None else 0
-        spec = weapon_stats_at_level(gun_id, level)
-        return (
-            ("NAME", spec.name.upper()),
-            ("LEVEL", str(level)),
-            ("DAMAGE", str(spec.damage)),
-            ("FIRE INTERVAL", "{:.3f}s".format(spec.fire_interval_seconds)),
-            ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
-            ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
-            ("MAGAZINE SIZE", str(spec.magazine_size)),
-            ("STARTING AMMO", str(spec.starting_ammo)),
-        )
+        return stat_rows(gun_id, level)
 
     def _draw_state_panel(self, draw_rectangle):
         if self.state_panel_gun_id is None:
@@ -375,6 +431,103 @@ class ShopScene:
                 "{} {}".format(label, value),
             )
 
+    def _draw_upgrade_side(self, draw_rectangle, rect, title, rows, changed_indices):
+        left, bottom, right, top = rect
+        center_x = (left + right) / 2
+        draw_rectangle(left, bottom, right, top, 30, 35, 50, 255, True)
+        draw_rectangle(left, bottom, right, top, 90, 110, 140, 255, False)
+        draw_text_at(self.hud_font, center_x, UPGRADE_MODAL_SIDE_TITLE_Y, title, (255, 220, 100))
+        for row_index, (label, value) in enumerate(rows):
+            color = UPGRADE_CHANGED_COLOR if row_index in changed_indices else (255, 255, 255)
+            draw_text_at(
+                self.hud_font,
+                center_x,
+                UPGRADE_MODAL_ROW_TOP - row_index * UPGRADE_MODAL_ROW_GAP,
+                "{} {}".format(label, value),
+                color,
+            )
+
+    def _draw_upgrade_modal(self, draw_rectangle):
+        if self.upgrade_modal_gun_id is None:
+            return
+        gun_id = self.upgrade_modal_gun_id
+        level = self.state.upgrade_level(gun_id) if self.state is not None else 0
+        after_level = min(level + 1, MAX_UPGRADE_LEVEL)
+        chances = upgrade_chances(level)
+        before_rows = stat_rows(gun_id, level)
+        after_rows = stat_rows(gun_id, after_level)
+        changed_indices = {
+            index
+            for index, (before, after) in enumerate(zip(before_rows, after_rows))
+            if before != after
+        }
+
+        left, bottom, right, top = upgrade_modal_rect()
+        draw_rectangle(left, bottom, right, top, 18, 22, 32, 255, True)
+        draw_rectangle(left, bottom, right, top, 255, 220, 100, 255, False)
+        draw_centered_text(self.hud_font, UPGRADE_MODAL_TITLE_Y, "Upgrade?", (255, 220, 100))
+
+        self._draw_upgrade_side(
+            draw_rectangle,
+            UPGRADE_MODAL_LEFT_RECT,
+            "CURRENT",
+            before_rows,
+            set(),
+        )
+        self._draw_upgrade_side(
+            draw_rectangle,
+            UPGRADE_MODAL_RIGHT_RECT,
+            "AFTER",
+            after_rows,
+            changed_indices,
+        )
+        draw_text_at(
+            self.hud_font,
+            SCREEN_WIDTH / 2,
+            UPGRADE_MODAL_ARROW_Y,
+            "->",
+            (255, 220, 100),
+        )
+        draw_text_at(
+            self.hud_font,
+            SCREEN_WIDTH / 2,
+            UPGRADE_MODAL_CHANCE_Y,
+            "UPGRADE CHANCE {}%".format(chances.success),
+            (255, 220, 100),
+        )
+        draw_text_at(
+            self.hud_font,
+            SCREEN_WIDTH / 2,
+            UPGRADE_MODAL_CHANCE_DETAIL_Y,
+            "SUCCESS {}%  FAIL {}%  DOWN {}%  DESTROY {}%".format(
+                chances.success,
+                chances.failure,
+                chances.downgrade,
+                chances.destroy,
+            ),
+        )
+
+        for rect, label, hover_target, color in (
+            (upgrade_confirm_rect(), "UPGRADE", ("upgrade_confirm",), (190, 140, 50)),
+            (upgrade_cancel_rect(), "CANCEL", ("upgrade_cancel",), (120, 60, 55)),
+        ):
+            button_color = color if self.hover_target != hover_target else (220, 170, 60)
+            draw_rectangle(
+                rect[0],
+                rect[1],
+                rect[2],
+                rect[3],
+                *button_color,
+                255,
+                True,
+            )
+            draw_text_at(
+                self.hud_font,
+                (rect[0] + rect[2]) / 2,
+                UPGRADE_MODAL_BUTTON_TEXT_Y,
+                label,
+            )
+
     def _execute_action(self):
         if self.state is None or self.action_index == NO_ACTION:
             return
@@ -384,11 +537,27 @@ class ShopScene:
         gun_id = GUN_SHOP_ORDER[self.gun_index]
         if self.action_index == BUY_ACTION:
             self.last_result = purchase_gun(self.state, gun_id)
+            self._hide_state_panel()
+            self._select_first_available_action()
         elif self.action_index == UPGRADE_ACTION:
-            self.last_result = upgrade_gun(self.state, gun_id)
+            self._hide_state_panel()
+            self.upgrade_modal_gun_id = gun_id
         else:
             return
-        self._hide_state_panel()
+
+    def _confirm_upgrade(self):
+        gun_id = self.upgrade_modal_gun_id
+        if gun_id is None or self.state is None:
+            return
+        index = GUN_SHOP_ORDER.index(gun_id)
+        if not self._action_available(index, UPGRADE_ACTION):
+            self._hide_upgrade_modal()
+            self._normalize_action()
+            return
+        self.gun_index = index
+        self.action_index = UPGRADE_ACTION
+        self.last_result = upgrade_gun(self.state, gun_id)
+        self._hide_upgrade_modal()
         self._select_first_available_action()
 
     def key_down(self, key):
@@ -397,13 +566,24 @@ class ShopScene:
             return
         self.keys.add(key)
         if key == "escape":
-            self.pending_action = "return_to_lobby"
+            if self.upgrade_modal_gun_id is not None:
+                self._hide_upgrade_modal()
+            else:
+                self.pending_action = "return_to_lobby"
 
     def key_up(self, key):
         self.keys.discard(key.lower())
 
     def _target_at(self, screen_x, screen_y):
         canvas_y = SCREEN_HEIGHT - screen_y
+        if self.upgrade_modal_gun_id is not None:
+            if contains(upgrade_confirm_rect(), screen_x, canvas_y):
+                return ("upgrade_confirm",)
+            if contains(upgrade_cancel_rect(), screen_x, canvas_y):
+                return ("upgrade_cancel",)
+            if contains(upgrade_modal_rect(), screen_x, canvas_y):
+                return ("upgrade_modal",)
+            return None
         if self.state_panel_gun_id is not None and contains(
             state_panel_rect(), screen_x, canvas_y
         ):
@@ -429,6 +609,14 @@ class ShopScene:
         if button != "left" or screen_x is None or screen_y is None:
             return
         target = self._target_at(screen_x, screen_y)
+        if self.upgrade_modal_gun_id is not None:
+            if target == ("upgrade_confirm",):
+                self._confirm_upgrade()
+            elif target == ("upgrade_cancel",):
+                self._hide_upgrade_modal()
+            else:
+                self._hide_upgrade_modal()
+            return
         if self.state_panel_gun_id is not None and target != ("state_panel",):
             self._hide_state_panel()
         if target is None or target[0] == "state_panel":
