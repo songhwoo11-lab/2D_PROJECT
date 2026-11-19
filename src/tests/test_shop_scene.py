@@ -86,6 +86,26 @@ class GunPurchaseTests(unittest.TestCase):
         self.assertEqual(state.coins, 50000)
         self.assertIn("rifle", state.owned_guns)
 
+    def test_purchase_is_blocked_when_coins_are_insufficient(self):
+        state = GameState(owned_guns=["pistol"], coins=99999)
+
+        outcome = purchase_gun(state, "rifle")
+
+        self.assertEqual(outcome.result, PurchaseResult.INSUFFICIENT_COINS)
+        self.assertEqual(outcome.cost, 100000)
+        self.assertEqual(state.coins, 99999)
+        self.assertNotIn("rifle", state.owned_guns)
+
+    def test_duplicate_purchase_is_blocked(self):
+        state = GameState(owned_guns=["pistol", "rifle"], coins=500000)
+
+        outcome = purchase_gun(state, "rifle")
+
+        self.assertEqual(outcome.result, PurchaseResult.ALREADY_OWNED)
+        self.assertEqual(outcome.cost, 0)
+        self.assertEqual(state.coins, 500000)
+        self.assertEqual(state.owned_guns.count("rifle"), 1)
+
     def test_space_buys_the_selected_gun(self):
         state = GameState(owned_guns=["pistol"], coins=150000)
         scene = ShopScene(state=state)
