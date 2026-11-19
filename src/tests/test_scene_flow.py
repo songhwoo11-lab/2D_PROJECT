@@ -2,10 +2,12 @@ import unittest
 from unittest.mock import patch
 
 from battle_scene import BattleResult
-from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
+from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y, SCREEN_HEIGHT
 from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY
 from main import GameApp
+from shop import GUN_SHOP_ORDER
+from shop_scene import BUY_ACTION, UPGRADE_ACTION, button_rect
 from weapon import PISTOL, RIFLE
 
 
@@ -28,6 +30,13 @@ def make_app():
         "draw_circle": None,
     }
     return app
+
+
+def click_shop_button(scene, gun_id, action):
+    rect = button_rect(GUN_SHOP_ORDER.index(gun_id), action)
+    center_x = (rect[0] + rect[2]) / 2
+    canvas_y = (rect[1] + rect[3]) / 2
+    scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
 
 
 class SceneSwitchTests(unittest.TestCase):
@@ -97,6 +106,14 @@ class SceneSwitchTests(unittest.TestCase):
         self.app.switch_scene("shop")
 
         self.app.scene.pending_action = "return_to_lobby"
+
+        self.assertTrue(self.app.handle_scene_action())
+        self.assertEqual(self.app.scene_kind, "lobby")
+
+    def test_escape_key_returns_from_shop_to_lobby(self):
+        self.app.switch_scene("shop")
+
+        self.app.handle_escape_key()
 
         self.assertTrue(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
@@ -300,12 +317,8 @@ class ShopEconomyIntegrationTests(unittest.TestCase):
     def _buy_and_upgrade_rifle(self):
         self.app.switch_scene("shop")
         shop = self.app.scene
-        shop.key_down("s")
-        shop.key_down("space")
-        shop.key_up("s")
-        shop.key_up("space")
-        shop.key_down("d")
-        shop.key_down("space")
+        click_shop_button(shop, "rifle", BUY_ACTION)
+        click_shop_button(shop, "rifle", UPGRADE_ACTION)
         shop.pending_action = "return_to_lobby"
         self.app.handle_scene_action()
 

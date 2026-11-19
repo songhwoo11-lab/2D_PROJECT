@@ -6,6 +6,7 @@ from game_state import GameState
 import shop_scene
 from shop import (
     GUN_PRICES,
+    MAX_UPGRADE_LEVEL,
     PurchaseResult,
     UpgradeResult,
     gun_price,
@@ -13,10 +14,10 @@ from shop import (
 )
 from shop_scene import (
     BUY_ACTION,
+    NO_ACTION,
     SHOP_COINS_Y,
     SHOP_EXIT_BUTTON,
     SHOP_LEVEL_Y,
-    SHOP_NOTICE_Y,
     SHOP_RESULT_Y,
     SHOP_TITLE_Y,
     UPGRADE_ACTION,
@@ -62,7 +63,6 @@ class ShopLayoutTests(unittest.TestCase):
         rows = [
             SHOP_TITLE_Y,
             SHOP_COINS_Y,
-            SHOP_NOTICE_Y,
             SHOP_RESULT_Y,
             SHOP_LEVEL_Y,
         ]
@@ -70,6 +70,17 @@ class ShopLayoutTests(unittest.TestCase):
         for upper, lower in zip(rows, rows[1:]):
             with self.subTest(upper=upper, lower=lower):
                 self.assertGreaterEqual(upper - lower, HUD_FONT_SIZE + 10)
+
+    def test_shop_does_not_show_keyboard_hints(self):
+        scene = ShopScene(state=GameState(owned_guns=["pistol"]), hud_font=object())
+
+        texts = draw_and_collect_text(scene)
+
+        for hint in (
+            "CLICK BUTTONS OR USE KEYS",
+            "W/S GUN  A/D ACTION  SPACE EXECUTE  Q BACK",
+        ):
+            self.assertNotIn(hint, texts)
 
     def test_exit_button_is_at_the_bottom_right(self):
         left, bottom, right, top = SHOP_EXIT_BUTTON
@@ -180,8 +191,7 @@ class ShopSceneTests(unittest.TestCase):
     def test_shop_draws_the_last_purchase_result(self):
         state = GameState(owned_guns=["pistol"], coins=150000)
         scene = ShopScene(state=state, hud_font=object())
-        scene.key_down("s")
-        scene.key_down("space")
+        click_rect(scene, button_rect(1, BUY_ACTION))
 
         texts = draw_and_collect_text(scene)
 
@@ -214,23 +224,145 @@ class ShopSceneTests(unittest.TestCase):
         self.assertEqual(state.upgrade_level("pistol"), 1)
         self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
 
-    def test_q_key_asks_for_the_lobby_return(self):
-        self.scene.key_down("q")
+    def test_escape_key_asks_for_the_lobby_return(self):
+        self.scene.key_down("escape")
 
         self.assertEqual(self.scene.pending_action, "return_to_lobby")
 
-    def test_return_key_asks_for_the_lobby_return(self):
-        self.scene.key_down("return")
-
-        self.assertEqual(self.scene.pending_action, "return_to_lobby")
-
-    def test_return_key_is_not_triggered_twice(self):
-        self.scene.key_down("q")
+    def test_escape_key_is_not_triggered_twice_while_held(self):
+        self.scene.key_down("escape")
         self.scene.pending_action = None
 
-        self.scene.key_down("q")
+        self.scene.key_down("escape")
 
         self.assertIsNone(self.scene.pending_action)
+
+    def test_escape_key_works_again_after_release(self):
+        self.scene.key_down("escape")
+        self.scene.pending_action = None
+        self.scene.key_up("escape")
+
+        self.scene.key_down("escape")
+
+        self.assertEqual(self.scene.pending_action, "return_to_lobby")
+
+    def test_removed_keys_do_not_control_the_shop(self):
+        state = GameState(owned_guns=["pistol"], coins=150000)
+        scene = ShopScene(state=state)
+        for key in (
+            "w",
+            "a",
+            "s",
+            "d",
+            "space",
+            "q",
+            "return",
+            "up",
+            "down",
+            "left",
+            "right",
+        ):
+            with self.subTest(key=key):
+                scene.key_down(key)
+
+                self.assertIsNone(scene.pending_action)
+                self.assertEqual(scene.gun_index, 0)
+                self.assertEqual(scene.action_index, UPGRADE_ACTION)
+                self.assertIsNone(scene.last_result)
+                self.assertEqual(state.coins, 150000)
+
+
+class DisabledShopActionTests(unittest.TestCase):
+    def test_owned_gun_starts_on_the_upgrade_action(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state)
+
+        self.assertEqual(scene.action_index, UPGRADE_ACTION)
+
+    def test_disabled_purchase_button_is_not_clicked(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state)
+
+        click_rect(scene, button_rect(0, BUY_ACTION))
+
+        self.assertEqual(state.coins, 100)
+        self.assertIsNone(scene.last_result)
+        self.assertNotEqual(scene.action_index, BUY_ACTION)
+
+    def test_disabled_purchase_button_is_not_a_hover_target(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state)
+        rect = button_rect(0, BUY_ACTION)
+        center_x = (rect[0] + rect[2]) / 2
+        canvas_y = (rect[1] + rect[3]) / 2
+
+        scene.mouse_move(center_x, SCREEN_HEIGHT - canvas_y)
+
+        self.assertEqual(scene.hover_target, ("card", 0))
+
+    def test_disabled_purchase_button_is_dimmed(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state, hud_font=object())
+        rects = []
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at"):
+                scene.draw(lambda *args: rects.append(args))
+
+        button_colors = [
+            args[4:7] for args in rects if args[:4] == button_rect(0, BUY_ACTION)
+        ]
+        self.assertEqual(button_colors, [(35, 40, 50)])
+
+    def test_maxed_gun_has_no_selectable_action(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            upgrade_levels={"pistol": MAX_UPGRADE_LEVEL},
+            coins=1000,
+        )
+        scene = ShopScene(state=state)
+
+        self.assertEqual(scene.action_index, NO_ACTION)
+        self.assertEqual(state.coins, 1000)
+        self.assertIsNone(scene.last_result)
+
+    def test_disabled_upgrade_button_is_not_clicked(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            upgrade_levels={"pistol": MAX_UPGRADE_LEVEL},
+            coins=1000,
+        )
+        scene = ShopScene(state=state, hud_font=object())
+
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        self.assertEqual(state.coins, 1000)
+        self.assertEqual(state.upgrade_level("pistol"), MAX_UPGRADE_LEVEL)
+        self.assertIsNone(scene.last_result)
+        self.assertEqual(scene.action_index, NO_ACTION)
+
+    def test_purchase_switches_to_the_upgrade_action(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+
+        click_rect(scene, button_rect(1, BUY_ACTION))
+
+        self.assertIn("rifle", state.owned_guns)
+        self.assertEqual(scene.action_index, UPGRADE_ACTION)
+
+    def test_reaching_max_level_clears_the_selected_action(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            upgrade_levels={"pistol": MAX_UPGRADE_LEVEL - 1},
+            coins=100000,
+        )
+        scene = ShopScene(state=state, hud_font=object())
+
+        with mock.patch("shop.random.randint", return_value=1):
+            click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        self.assertEqual(state.upgrade_level("pistol"), MAX_UPGRADE_LEVEL)
+        self.assertEqual(scene.action_index, NO_ACTION)
 
 
 class GunPurchaseTests(unittest.TestCase):
@@ -264,25 +396,34 @@ class GunPurchaseTests(unittest.TestCase):
         self.assertEqual(state.coins, 500000)
         self.assertEqual(state.owned_guns.count("rifle"), 1)
 
-    def test_space_buys_the_selected_gun(self):
+    def test_keys_do_not_buy_but_the_button_still_does(self):
         state = GameState(owned_guns=["pistol"], coins=150000)
         scene = ShopScene(state=state)
         scene.key_down("s")
-
         scene.key_down("space")
+
+        self.assertEqual(scene.gun_index, 0)
+        self.assertNotIn("rifle", state.owned_guns)
+        self.assertIsNone(scene.last_result)
+
+        click_rect(scene, button_rect(1, BUY_ACTION))
 
         self.assertEqual(scene.gun_index, 1)
         self.assertIn("rifle", state.owned_guns)
         self.assertEqual(scene.last_result.result, PurchaseResult.PURCHASED)
 
-    def test_d_selects_upgrade_action_and_space_upgrades(self):
+    def test_keys_do_not_upgrade_but_the_button_still_does(self):
         state = GameState(owned_guns=["pistol"], coins=100)
         scene = ShopScene(state=state)
         scene.key_down("d")
-
         scene.key_down("space")
 
-        self.assertEqual(scene.action_index, 1)
+        self.assertEqual(state.upgrade_level("pistol"), 0)
+        self.assertIsNone(scene.last_result)
+
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        self.assertEqual(scene.action_index, UPGRADE_ACTION)
         self.assertEqual(state.upgrade_level("pistol"), 1)
         self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
 

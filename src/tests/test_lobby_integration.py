@@ -52,7 +52,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "shop")
 
-        press(self.app, "q")
+        press(self.app, "escape")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "lobby")
 

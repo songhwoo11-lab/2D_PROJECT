@@ -15,12 +15,11 @@ from shop import (
 from weapon import weapon_display_name
 
 
+NO_ACTION = -1
 BUY_ACTION = 0
 UPGRADE_ACTION = 1
 
 SHOP_TITLE = "SHOP"
-SHOP_NOTICE = "CLICK BUTTONS OR USE KEYS"
-SHOP_HINT = "W/S GUN  A/D ACTION  SPACE EXECUTE  Q BACK"
 BUY_LABEL = "구매"
 OWNED_LABEL = "소지중"
 UPGRADE_LABEL = "강화"
@@ -29,9 +28,7 @@ EXIT_LABEL = "나가기"
 
 SHOP_TITLE_Y = SCREEN_HEIGHT - 120
 SHOP_COINS_Y = SCREEN_HEIGHT - 180
-SHOP_NOTICE_Y = SCREEN_HEIGHT - 230
 SHOP_RESULT_Y = SCREEN_HEIGHT - 280
-SHOP_HINT_Y = 120
 
 SHOP_CARD_WIDTH = 480
 SHOP_CARD_GAP = 60
@@ -86,6 +83,14 @@ def contains(rect, x, y):
     return left <= x <= right and bottom <= y <= top
 
 
+def purchase_available(state, gun_id):
+    return state is None or not state.owns_gun(gun_id)
+
+
+def upgrade_available(state, gun_id):
+    return state is None or state.upgrade_level(gun_id) < MAX_UPGRADE_LEVEL
+
+
 class ShopScene:
     """Shop card layout that keeps key and mouse controls in sync."""
 
@@ -96,12 +101,35 @@ class ShopScene:
         self.keys = set()
         self.gun_index = 0
         self.action_index = BUY_ACTION
+        self._select_first_available_action()
         self.last_result = None
         self.mouse_x = SCREEN_WIDTH / 2
         self.mouse_y = SCREEN_HEIGHT / 2
         self.hover_target = None
         self.exit_requested = False
         self.pending_action = None
+
+    def _action_available(self, index, action):
+        gun_id = GUN_SHOP_ORDER[index]
+        if action == BUY_ACTION:
+            return purchase_available(self.state, gun_id)
+        return upgrade_available(self.state, gun_id)
+
+    def _available_actions(self):
+        return tuple(
+            action
+            for action in (BUY_ACTION, UPGRADE_ACTION)
+            if self._action_available(self.gun_index, action)
+        )
+
+    def _normalize_action(self):
+        available = self._available_actions()
+        if self.action_index not in available:
+            self.action_index = available[0] if available else NO_ACTION
+
+    def _select_first_available_action(self):
+        available = self._available_actions()
+        self.action_index = available[0] if available else NO_ACTION
 
     def update(self, delta_time):
         return None
@@ -128,10 +156,8 @@ class ShopScene:
                 "COINS {}".format(self.state.coins),
                 (255, 220, 100),
             )
-        draw_centered_text(self.hud_font, SHOP_NOTICE_Y, SHOP_NOTICE)
         self._draw_result()
         self._draw_cards(draw_rectangle)
-        draw_centered_text(self.hud_font, SHOP_HINT_Y, SHOP_HINT, (170, 190, 220))
         self._draw_exit_button(draw_rectangle)
 
     def _draw_result(self):
@@ -177,22 +203,25 @@ class ShopScene:
                 UPGRADE_DONE_LABEL if level >= MAX_UPGRADE_LEVEL else UPGRADE_LABEL,
             )
             for action in (BUY_ACTION, UPGRADE_ACTION):
-                self._draw_button(draw_rectangle, index, action)
+                available = self._action_available(index, action)
+                self._draw_button(draw_rectangle, index, action, available)
                 button_left = button_rect(index, action)[0]
                 button_center_x = button_left + SHOP_BUTTON_WIDTH / 2
+                cost_color = (255, 220, 100) if available else (110, 110, 110)
+                label_color = (255, 255, 255) if available else (110, 110, 110)
                 draw_text_at(
                     self.hud_font,
                     button_center_x,
                     SHOP_COST_Y,
                     costs[action],
-                    (255, 220, 100),
+                    cost_color,
                 )
                 draw_text_at(
                     self.hud_font,
                     button_center_x,
                     SHOP_BUTTON_TEXT_Y,
                     labels[action],
-                    (255, 255, 255),
+                    label_color,
                 )
 
     def _draw_gun_image(self, gun_id, center_x):
@@ -209,11 +238,13 @@ class ShopScene:
         width, height = GUN_IMAGE_SIZES[gun_id]
         image.draw(center_x, SHOP_IMAGE_Y, width, height)
 
-    def _draw_button(self, draw_rectangle, index, action):
+    def _draw_button(self, draw_rectangle, index, action, available):
         left, bottom, right, top = button_rect(index, action)
-        selected = index == self.gun_index and action == self.action_index
-        hovered = self.hover_target == ("button", index, action)
-        if selected:
+        selected = available and index == self.gun_index and action == self.action_index
+        hovered = available and self.hover_target == ("button", index, action)
+        if not available:
+            color = (35, 40, 50)
+        elif selected:
             color = (220, 170, 60)
         elif hovered:
             color = (90, 120, 150)
@@ -235,30 +266,24 @@ class ShopScene:
         )
 
     def _execute_action(self):
-        if self.state is None:
+        if self.state is None or self.action_index == NO_ACTION:
+            return
+        if not self._action_available(self.gun_index, self.action_index):
+            self._normalize_action()
             return
         gun_id = GUN_SHOP_ORDER[self.gun_index]
         if self.action_index == BUY_ACTION:
             self.last_result = purchase_gun(self.state, gun_id)
         else:
             self.last_result = upgrade_gun(self.state, gun_id)
+        self._select_first_available_action()
 
     def key_down(self, key):
         key = key.lower()
         if key in self.keys:
             return
         self.keys.add(key)
-        if key in ("w", "up"):
-            self.gun_index = (self.gun_index - 1) % len(GUN_SHOP_ORDER)
-        elif key in ("s", "down"):
-            self.gun_index = (self.gun_index + 1) % len(GUN_SHOP_ORDER)
-        elif key in ("a", "left"):
-            self.action_index = BUY_ACTION
-        elif key in ("d", "right"):
-            self.action_index = UPGRADE_ACTION
-        elif key == "space":
-            self._execute_action()
-        elif key in ("q", "return"):
+        if key == "escape":
             self.pending_action = "return_to_lobby"
 
     def key_up(self, key):
@@ -270,6 +295,8 @@ class ShopScene:
             return ("exit",)
         for index in range(len(GUN_SHOP_ORDER)):
             for action in (BUY_ACTION, UPGRADE_ACTION):
+                if not self._action_available(index, action):
+                    continue
                 if contains(button_rect(index, action), screen_x, canvas_y):
                     return ("button", index, action)
             if contains(card_rect(index), screen_x, canvas_y):
@@ -291,6 +318,7 @@ class ShopScene:
             self.pending_action = "return_to_lobby"
         elif target[0] == "card":
             self.gun_index = target[1]
+            self._select_first_available_action()
         elif target[0] == "button":
             self.gun_index = target[1]
             self.action_index = target[2]
