@@ -7,11 +7,11 @@ from game_state import GameState
 
 
 class GameStateDevGunTests(unittest.TestCase):
-    def test_default_gun_is_the_first_owned_gun(self):
+    def test_default_gun_is_the_first_owned_gun_and_still_needs_selection(self):
         state = GameState()
 
         self.assertEqual(state.selected_gun, "pistol")
-        self.assertFalse(state.needs_gun_selection())
+        self.assertTrue(state.needs_gun_selection())
 
     def test_dev_gun_can_be_selected_without_ownership(self):
         state = GameState(dev_gun="machine_gun")

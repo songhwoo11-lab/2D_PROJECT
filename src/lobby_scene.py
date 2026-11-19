@@ -18,7 +18,94 @@ from lobby_map import (
     LOBBY_NODE_BY_KEY,
     LOBBY_START_KEY,
 )
-from weapon import weapon_display_name
+from shop import GUN_SHOP_ORDER
+from weapon import weapon_display_name, weapon_stats_at_level
+
+
+GUN_SELECT_TITLE_Y = SCREEN_HEIGHT - 120
+GUN_SELECT_CARD_WIDTH = 480
+GUN_SELECT_CARD_GAP = 60
+GUN_SELECT_CARD_LEFT = (
+    SCREEN_WIDTH
+    - (len(GUN_SHOP_ORDER) * GUN_SELECT_CARD_WIDTH + (len(GUN_SHOP_ORDER) - 1) * GUN_SELECT_CARD_GAP)
+) // 2
+GUN_SELECT_CARD_BOTTOM = 320
+GUN_SELECT_CARD_TOP = 850
+GUN_SELECT_NAME_Y = 800
+GUN_SELECT_IMAGE_Y = 710
+GUN_SELECT_STATE_BUTTON_WIDTH = 420
+GUN_SELECT_STATE_BUTTON_BOTTOM = 340
+GUN_SELECT_STATE_BUTTON_TOP = 430
+GUN_SELECT_STATE_BUTTON_TEXT_Y = 385
+GUN_SELECT_STATE_DISABLED_COLOR = (35, 40, 50)
+GUN_SELECT_STATE_DISABLED_TEXT_COLOR = (110, 110, 110)
+GUN_SELECT_HINT_Y = 140
+GUN_SELECT_LOCKED_OPACITY = 0.5
+GUN_SELECT_LOCK_COLOR = (85, 85, 90, 255)
+GUN_SELECT_LOCK_KEYHOLE_COLOR = (40, 40, 45, 255)
+GUN_SELECT_HOVER_OUTLINE_COLOR = (120, 170, 230, 255)
+
+GUN_SELECT_IMAGE_SIZES = {
+    "pistol": (220, 125),
+    "rifle": (280, 112),
+    "machine_gun": (320, 78),
+}
+
+GUN_SELECT_STATE_PANEL_WIDTH = 760
+GUN_SELECT_STATE_PANEL_BOTTOM = 450
+GUN_SELECT_STATE_PANEL_TOP = 900
+GUN_SELECT_STATE_PANEL_TITLE_Y = 850
+GUN_SELECT_STATE_PANEL_ROW_TOP = 790
+GUN_SELECT_STATE_PANEL_ROW_GAP = 45
+
+
+def gun_select_card_rect(index):
+    left = GUN_SELECT_CARD_LEFT + index * (
+        GUN_SELECT_CARD_WIDTH + GUN_SELECT_CARD_GAP
+    )
+    return left, GUN_SELECT_CARD_BOTTOM, left + GUN_SELECT_CARD_WIDTH, GUN_SELECT_CARD_TOP
+
+
+def gun_select_state_button_rect(index):
+    card_left = gun_select_card_rect(index)[0]
+    left = card_left + (GUN_SELECT_CARD_WIDTH - GUN_SELECT_STATE_BUTTON_WIDTH) // 2
+    return (
+        left,
+        GUN_SELECT_STATE_BUTTON_BOTTOM,
+        left + GUN_SELECT_STATE_BUTTON_WIDTH,
+        GUN_SELECT_STATE_BUTTON_TOP,
+    )
+
+
+def gun_select_state_panel_rect():
+    left = (SCREEN_WIDTH - GUN_SELECT_STATE_PANEL_WIDTH) // 2
+    return (
+        left,
+        GUN_SELECT_STATE_PANEL_BOTTOM,
+        left + GUN_SELECT_STATE_PANEL_WIDTH,
+        GUN_SELECT_STATE_PANEL_TOP,
+    )
+
+
+def rect_contains(rect, x, y):
+    if x is None or y is None:
+        return False
+    left, bottom, right, top = rect
+    return left <= x <= right and bottom <= y <= top
+
+
+def gun_select_stat_rows(gun_id, level):
+    spec = weapon_stats_at_level(gun_id, level)
+    return (
+        ("NAME", spec.name.upper()),
+        ("LEVEL", str(level)),
+        ("DAMAGE", str(spec.damage)),
+        ("FIRE INTERVAL", "{:.3f}s".format(spec.fire_interval_seconds)),
+        ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
+        ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
+        ("MAGAZINE SIZE", str(spec.magazine_size)),
+        ("STARTING AMMO", str(spec.starting_ammo)),
+    )
 
 
 class LobbyScene:
@@ -31,11 +118,13 @@ class LobbyScene:
         hud_font=None,
         state=None,
         node_key=None,
+        gun_images=None,
     ):
         self.player = player
         self.background = background
         self.hud_font = hud_font
         self.state = state
+        self.gun_images = gun_images or {}
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -48,6 +137,9 @@ class LobbyScene:
         self.nearby_location = None
         self.panel = None
         self.gun_selection_index = 0
+        self.gun_state_panel_gun_id = None
+        self.gun_select_hover_target = None
+        self.gun_select_hover_index = None
         self._place_player_at_current_node()
 
     def reset_player_position(self):
@@ -116,7 +208,7 @@ class LobbyScene:
             self._draw_gun_selection_panel(draw_rectangle)
 
     def _draw_gun_selection_panel(self, draw_rectangle):
-        """Draw the gun list that is shown before the battle starts."""
+        """Draw the three gun cards that are shown before the battle starts."""
         draw_rectangle(
             0,
             0,
@@ -132,29 +224,166 @@ class LobbyScene:
             return
         draw_centered_text(
             self.hud_font,
-            SCREEN_HEIGHT - 180,
+            GUN_SELECT_TITLE_Y,
             "SELECT GUN",
             (255, 220, 100),
         )
-        owned_guns = self.state.owned_guns if self.state is not None else []
-        for index, gun_id in enumerate(owned_guns):
-            color = (
-                (255, 220, 100)
-                if index == self.gun_selection_index
-                else (255, 255, 255)
-            )
-            draw_centered_text(
-                self.hud_font,
-                SCREEN_HEIGHT - 280 - index * 60,
-                weapon_display_name(gun_id),
-                color,
+        selected_gun_id = self._selected_gun_id()
+        for index, gun_id in enumerate(GUN_SHOP_ORDER):
+            self._draw_gun_select_card(
+                draw_rectangle, index, gun_id, selected_gun_id
             )
         draw_centered_text(
             self.hud_font,
-            120,
-            "W/S : SELECT    SPACE : CONFIRM    Q : CANCEL",
+            GUN_SELECT_HINT_Y,
+            "CLICK GUN : START    STATE : DETAILS    W/S + SPACE : SELECT    Q : CANCEL",
             (170, 190, 220),
         )
+        self._draw_gun_state_panel(draw_rectangle)
+
+    def _selected_gun_id(self):
+        if self.state is None:
+            return None
+        owned_guns = self.state.owned_guns
+        if not 0 <= self.gun_selection_index < len(owned_guns):
+            return None
+        return owned_guns[self.gun_selection_index]
+
+    def _draw_gun_select_card(self, draw_rectangle, index, gun_id, selected_gun_id):
+        left, bottom, right, top = gun_select_card_rect(index)
+        center_x = (left + right) / 2
+        owned = self.state is not None and self.state.owns_gun(gun_id)
+        selected = owned and gun_id == selected_gun_id
+
+        draw_rectangle(left, bottom, right, top, 38, 40, 52, 255, True)
+        if selected:
+            draw_rectangle(left, bottom, right, top, 255, 220, 100, 255, False)
+        if index == self.gun_select_hover_index:
+            draw_rectangle(
+                left,
+                bottom,
+                right,
+                top,
+                *GUN_SELECT_HOVER_OUTLINE_COLOR,
+                False,
+            )
+
+        name_color = (255, 220, 100) if owned else (150, 155, 170)
+        draw_text_at_center(
+            self.hud_font, center_x, GUN_SELECT_NAME_Y, weapon_display_name(gun_id), name_color
+        )
+        self._draw_gun_select_image(draw_rectangle, gun_id, center_x, owned)
+        self._draw_gun_select_state_button(draw_rectangle, index, owned)
+
+    def _draw_gun_select_image(self, draw_rectangle, gun_id, center_x, owned):
+        image = self.gun_images.get(gun_id)
+        if image is None:
+            draw_text_at_center(
+                self.hud_font,
+                center_x,
+                GUN_SELECT_IMAGE_Y,
+                "[{}]".format(weapon_display_name(gun_id)),
+                (170, 190, 220),
+            )
+        else:
+            width, height = GUN_SELECT_IMAGE_SIZES[gun_id]
+            opacify = getattr(image, "opacify", None)
+            if owned or opacify is None:
+                image.draw(center_x, GUN_SELECT_IMAGE_Y, width, height)
+            else:
+                opacify(GUN_SELECT_LOCKED_OPACITY)
+                try:
+                    image.draw(center_x, GUN_SELECT_IMAGE_Y, width, height)
+                finally:
+                    opacify(1.0)
+        if not owned:
+            self._draw_gun_select_lock(draw_rectangle, center_x)
+
+    def _draw_gun_select_lock(self, draw_rectangle, center_x):
+        center_y = GUN_SELECT_IMAGE_Y
+        draw_rectangle(
+            center_x - 28,
+            center_y + 10,
+            center_x + 28,
+            center_y + 24,
+            *GUN_SELECT_LOCK_COLOR,
+            True,
+        )
+        draw_rectangle(
+            center_x - 28,
+            center_y - 12,
+            center_x - 16,
+            center_y + 18,
+            *GUN_SELECT_LOCK_COLOR,
+            True,
+        )
+        draw_rectangle(
+            center_x + 16,
+            center_y - 12,
+            center_x + 28,
+            center_y + 18,
+            *GUN_SELECT_LOCK_COLOR,
+            True,
+        )
+        draw_rectangle(
+            center_x - 44,
+            center_y - 58,
+            center_x + 44,
+            center_y + 12,
+            *GUN_SELECT_LOCK_COLOR,
+            True,
+        )
+        draw_rectangle(
+            center_x - 8,
+            center_y - 42,
+            center_x + 8,
+            center_y - 12,
+            *GUN_SELECT_LOCK_KEYHOLE_COLOR,
+            True,
+        )
+
+    def _draw_gun_select_state_button(self, draw_rectangle, index, available):
+        left, bottom, right, top = gun_select_state_button_rect(index)
+        if not available:
+            color = GUN_SELECT_STATE_DISABLED_COLOR
+            text_color = GUN_SELECT_STATE_DISABLED_TEXT_COLOR
+        else:
+            hovered = self.gun_select_hover_target == ("state", index)
+            color = (90, 120, 150) if hovered else (62, 74, 96)
+            text_color = (255, 255, 255)
+        draw_rectangle(left, bottom, right, top, *color, 255, True)
+        draw_text_at_center(
+            self.hud_font,
+            (left + right) / 2,
+            GUN_SELECT_STATE_BUTTON_TEXT_Y,
+            "State",
+            text_color,
+        )
+
+    def _draw_gun_state_panel(self, draw_rectangle):
+        gun_id = self.gun_state_panel_gun_id
+        if gun_id is None:
+            return
+        left, bottom, right, top = gun_select_state_panel_rect()
+        center_x = (left + right) / 2
+
+        draw_rectangle(left, bottom, right, top, 20, 24, 34, 245, True)
+        draw_rectangle(left, bottom, right, top, 255, 220, 100, 255, False)
+        draw_text_at_center(
+            self.hud_font,
+            center_x,
+            GUN_SELECT_STATE_PANEL_TITLE_Y,
+            "STATE - {}".format(weapon_display_name(gun_id)),
+            (255, 220, 100),
+        )
+        level = self.state.upgrade_level(gun_id) if self.state is not None else 0
+        for row_index, (label, value) in enumerate(gun_select_stat_rows(gun_id, level)):
+            draw_text_at_center(
+                self.hud_font,
+                center_x,
+                GUN_SELECT_STATE_PANEL_ROW_TOP - row_index * GUN_SELECT_STATE_PANEL_ROW_GAP,
+                "{} {}".format(label, value),
+            )
 
     def _draw_direction_arrows(self):
         """Show the movement directions available from the current node."""
@@ -352,6 +581,9 @@ class LobbyScene:
         """Show the gun selection screen before the battle starts."""
         self.panel = "gun_select"
         self.gun_selection_index = 0
+        self.gun_state_panel_gun_id = None
+        self.gun_select_hover_target = None
+        self.gun_select_hover_index = None
         if self.state is None:
             return
         if self.state.selected_gun in self.state.owned_guns:
@@ -373,12 +605,15 @@ class LobbyScene:
         elif key == "q":
             self.close_panel()
 
-    def _confirm_gun_selection(self):
+    def _confirm_gun_selection(self, gun_id=None):
         """Store the chosen gun and ask the app to start the battle."""
         if self.state is None:
             self.close_panel()
             return
-        gun_id = self.state.owned_guns[self.gun_selection_index]
+        if gun_id is None:
+            gun_id = self.state.owned_guns[self.gun_selection_index]
+        if not self.state.owns_gun(gun_id):
+            return
         self.state.select_gun(gun_id)
         self.close_panel()
         self.pending_action = "start_battle"
@@ -390,15 +625,64 @@ class LobbyScene:
     def close_panel(self):
         """Close the panel that is currently open."""
         self.panel = None
+        self.gun_state_panel_gun_id = None
+        self.gun_select_hover_target = None
+        self.gun_select_hover_index = None
 
     def key_up(self, key):
         self.keys.discard(key.lower())
 
+    def _gun_select_target_at(self, screen_x, screen_y):
+        canvas_y = SCREEN_HEIGHT - screen_y
+        if self.gun_state_panel_gun_id is not None and rect_contains(
+            gun_select_state_panel_rect(), screen_x, canvas_y
+        ):
+            return ("state_panel", None)
+        for index, gun_id in enumerate(GUN_SHOP_ORDER):
+            if self.state is None or not self.state.owns_gun(gun_id):
+                continue
+            if rect_contains(gun_select_state_button_rect(index), screen_x, canvas_y):
+                return ("state", index)
+        for index in range(len(GUN_SHOP_ORDER)):
+            if rect_contains(gun_select_card_rect(index), screen_x, canvas_y):
+                return ("gun", index)
+        return None
+
     def mouse_move(self, screen_x, screen_y):
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
+        if self.panel != "gun_select":
+            self.gun_select_hover_target = None
+            self.gun_select_hover_index = None
+            return
+        target = self._gun_select_target_at(screen_x, screen_y)
+        self.gun_select_hover_target = target
+        self.gun_select_hover_index = (
+            target[1] if target is not None and target[0] in ("gun", "state") else None
+        )
+        if self.state is None or self.gun_select_hover_index is None:
+            return
+        gun_id = GUN_SHOP_ORDER[self.gun_select_hover_index]
+        if self.state.owns_gun(gun_id):
+            self.gun_selection_index = self.state.owned_guns.index(gun_id)
 
     def mouse_down(self, button, screen_x=None, screen_y=None):
+        if button != "left" or screen_x is None or screen_y is None:
+            return None
+        if self.panel != "gun_select":
+            return None
+        target = self._gun_select_target_at(screen_x, screen_y)
+        if self.gun_state_panel_gun_id is not None:
+            self.gun_state_panel_gun_id = None
+            if target is None or target[0] == "state_panel":
+                return None
+        if target is None or target[0] == "state_panel":
+            return None
+        if target[0] == "state":
+            self.gun_state_panel_gun_id = GUN_SHOP_ORDER[target[1]]
+            return None
+        if target[0] == "gun":
+            self._confirm_gun_selection(GUN_SHOP_ORDER[target[1]])
         return None
 
     def mouse_up(self, button):

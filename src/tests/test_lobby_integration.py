@@ -71,6 +71,10 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         press(self.app, "a")
         press(self.app, "w")
         press(self.app, "space")
+        self.assertEqual(self.app.scene.panel, "gun_select")
+        self.assertIsNone(self.app.scene.pending_action)
+
+        press(self.app, "space")
         self.assertEqual(self.app.scene.pending_action, "start_battle")
         self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "battle")
@@ -109,6 +113,9 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         )
 
         press(self.app, "w")
+        press(self.app, "space")
+        self.assertEqual(self.app.scene.panel, "gun_select")
+
         press(self.app, "space")
         self.app.handle_scene_action()
 

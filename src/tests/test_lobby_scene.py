@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from battle_record import BattleRecord
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
@@ -9,8 +9,21 @@ from lobby_map import (
     LOBBY_NODE_BY_KEY,
     LOBBY_START_KEY,
 )
-from lobby_scene import LobbyScene
+from lobby_scene import (
+    GUN_SELECT_HOVER_OUTLINE_COLOR,
+    GUN_SELECT_IMAGE_SIZES,
+    GUN_SELECT_IMAGE_Y,
+    GUN_SELECT_LOCKED_OPACITY,
+    GUN_SELECT_LOCK_COLOR,
+    GUN_SELECT_LOCK_KEYHOLE_COLOR,
+    GUN_SELECT_STATE_DISABLED_COLOR,
+    GUN_SELECT_STATE_DISABLED_TEXT_COLOR,
+    LobbyScene,
+    gun_select_card_rect,
+    gun_select_state_button_rect,
+)
 from player import Player
+from shop import GUN_SHOP_ORDER
 
 
 def make_scene():
@@ -217,8 +230,13 @@ class LobbyLocationTests(unittest.TestCase):
 
         self.assertEqual(self.scene.pending_action, "enter_training")
 
-    def test_enter_at_the_portal_starts_the_battle(self):
+    def test_enter_at_the_portal_opens_the_gun_selection_before_the_battle(self):
         press(self.scene, "w")
+
+        press(self.scene, "space")
+
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertIsNone(self.scene.pending_action)
 
         press(self.scene, "space")
 
@@ -320,8 +338,8 @@ class LobbyPortalEntryTests(unittest.TestCase):
     def tearDown(self):
         self.scene.close()
 
-    def test_one_owned_gun_does_not_need_a_selection_screen(self):
-        self.assertFalse(self.state.needs_gun_selection())
+    def test_one_owned_gun_needs_a_selection_screen(self):
+        self.assertTrue(self.state.needs_gun_selection())
 
     def test_two_owned_guns_need_a_selection_screen(self):
         self.state.owned_guns = ["pistol", "rifle"]
@@ -330,6 +348,14 @@ class LobbyPortalEntryTests(unittest.TestCase):
 
     def test_two_owned_guns_request_the_selection_screen(self):
         self.state.owned_guns = ["pistol", "rifle"]
+        press(self.scene, "w")
+
+        press(self.scene, "space")
+
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertIsNone(self.scene.pending_action)
+
+    def test_one_owned_gun_requests_the_selection_screen(self):
         press(self.scene, "w")
 
         press(self.scene, "space")
@@ -374,6 +400,187 @@ class LobbyPortalEntryTests(unittest.TestCase):
         self.assertEqual(self.state.selected_gun, "pistol")
         self.assertIsNone(self.scene.panel)
         self.assertIsNone(self.scene.pending_action)
+
+
+class LobbyGunSelectCardTests(unittest.TestCase):
+    def setUp(self):
+        self.state = GameState(owned_guns=["pistol", "rifle"])
+        self.scene = make_scene()
+        self.scene.state = self.state
+        self.scene.hud_font = MagicMock()
+        self.scene.open_gun_selection()
+
+    def tearDown(self):
+        self.scene.close()
+
+    def hover_rect(self, rect):
+        left, bottom, right, top = rect
+        self.scene.mouse_move(
+            (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2
+        )
+
+    def click_rect(self, rect):
+        self.hover_rect(rect)
+        left, bottom, right, top = rect
+        self.scene.mouse_down("left", (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2)
+
+    def test_draw_shows_three_cards_with_state_buttons(self):
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        labels = [call.args[3] for call in text_draw.call_args_list]
+        self.assertEqual(labels.count("State"), 3)
+        card_rects = [tuple(gun_select_card_rect(index)) for index in range(3)]
+        drawn_rects = {tuple(args[:4]) for args in rectangles}
+        for card in card_rects:
+            self.assertIn(card, drawn_rects)
+
+    def test_lock_color_is_dark_gray(self):
+        self.assertEqual(GUN_SELECT_LOCK_COLOR, (85, 85, 90, 255))
+
+    def test_hover_activates_the_owned_card_under_the_cursor(self):
+        index = GUN_SHOP_ORDER.index("rifle")
+        card = gun_select_card_rect(index)
+        self.hover_rect(card)
+
+        self.assertEqual(self.scene.gun_select_hover_index, index)
+        self.assertEqual(
+            self.scene.gun_selection_index, self.state.owned_guns.index("rifle")
+        )
+
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        outline = tuple(card) + GUN_SELECT_HOVER_OUTLINE_COLOR + (False,)
+        self.assertIn(outline, [tuple(args) for args in rectangles])
+
+    def test_hover_activates_a_locked_card_without_changing_the_selection(self):
+        index = GUN_SHOP_ORDER.index("machine_gun")
+        card = gun_select_card_rect(index)
+        self.hover_rect(card)
+
+        self.assertEqual(self.scene.gun_select_hover_index, index)
+        self.assertEqual(self.scene.gun_selection_index, 0)
+
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        outline = tuple(card) + GUN_SELECT_HOVER_OUTLINE_COLOR + (False,)
+        self.assertIn(outline, [tuple(args) for args in rectangles])
+
+    def test_clicking_an_owned_gun_starts_the_battle_immediately(self):
+        self.click_rect(gun_select_card_rect(GUN_SHOP_ORDER.index("rifle")))
+
+        self.assertEqual(self.state.selected_gun, "rifle")
+        self.assertIsNone(self.scene.panel)
+        self.assertEqual(self.scene.pending_action, "start_battle")
+
+    def test_clicking_a_locked_gun_does_not_change_the_selection(self):
+        self.click_rect(gun_select_card_rect(GUN_SHOP_ORDER.index("machine_gun")))
+
+        self.assertEqual(self.state.selected_gun, "pistol")
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertIsNone(self.scene.pending_action)
+
+    def test_state_button_opens_the_state_panel_without_starting_the_battle(self):
+        self.click_rect(gun_select_state_button_rect(GUN_SHOP_ORDER.index("pistol")))
+
+        self.assertEqual(self.scene.gun_state_panel_gun_id, "pistol")
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertIsNone(self.scene.pending_action)
+
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: None)
+
+        labels = [call.args[3] for call in text_draw.call_args_list]
+        self.assertIn("STATE - PISTOL", labels)
+
+    def test_locked_gun_state_button_does_not_open_the_state_panel(self):
+        self.click_rect(gun_select_state_button_rect(GUN_SHOP_ORDER.index("machine_gun")))
+
+        self.assertIsNone(self.scene.gun_state_panel_gun_id)
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertIsNone(self.scene.pending_action)
+
+    def test_locked_gun_state_button_is_drawn_as_disabled(self):
+        index = GUN_SHOP_ORDER.index("machine_gun")
+        button_rect = tuple(gun_select_state_button_rect(index))
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        disabled_button = button_rect + GUN_SELECT_STATE_DISABLED_COLOR + (255, True)
+        self.assertIn(disabled_button, [tuple(args) for args in rectangles])
+
+        center_x = (button_rect[0] + button_rect[2]) / 2
+        state_labels = [
+            call
+            for call in text_draw.call_args_list
+            if call.args[3] == "State" and call.args[1] == center_x
+        ]
+        self.assertEqual(len(state_labels), 1)
+        self.assertEqual(
+            state_labels[0].args[4], GUN_SELECT_STATE_DISABLED_TEXT_COLOR
+        )
+
+    def test_locked_gun_image_is_translucent(self):
+        image = MagicMock()
+        self.scene.gun_images = {"machine_gun": image}
+        width, height = GUN_SELECT_IMAGE_SIZES["machine_gun"]
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: None)
+
+        image.draw.assert_called_once_with(
+            self._machine_gun_center_x(),
+            GUN_SELECT_IMAGE_Y,
+            width,
+            height,
+        )
+        self.assertEqual(
+            image.opacify.call_args_list,
+            [call(GUN_SELECT_LOCKED_OPACITY), call(1.0)],
+        )
+
+    def test_locked_gun_draws_a_lock_shape_over_the_image(self):
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        lock_rectangles = [
+            args
+            for args in rectangles
+            if tuple(args[4:8]) == GUN_SELECT_LOCK_COLOR and args[8] is True
+        ]
+        keyhole_rectangles = [
+            args
+            for args in rectangles
+            if tuple(args[4:8]) == GUN_SELECT_LOCK_KEYHOLE_COLOR and args[8] is True
+        ]
+        self.assertEqual(len(lock_rectangles), 4)
+        self.assertEqual(len(keyhole_rectangles), 1)
+
+    def _machine_gun_center_x(self):
+        left, bottom, right, top = gun_select_card_rect(
+            GUN_SHOP_ORDER.index("machine_gun")
+        )
+        return (left + right) / 2
 
 
 class LobbyStairsExitTests(unittest.TestCase):

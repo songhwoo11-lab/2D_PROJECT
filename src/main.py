@@ -112,6 +112,7 @@ class GameApp:
             hud_font=self.assets["hud_font"],
             state=self.state,
             node_key=self.lobby_node_key,
+            gun_images=self.assets.get("shop_gun_images"),
         )
 
     def create_battle_scene(self):
