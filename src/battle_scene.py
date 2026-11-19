@@ -52,7 +52,12 @@ from waves import (
     random_spawn_position,
     wave_stat_multiplier,
 )
-from weapon import Gun
+from weapon import (
+    DEFAULT_GUN_ID,
+    Gun,
+    MACHINE_GUN_GUN_ID,
+    RIFLE_GUN_ID,
+)
 
 
 SHOT_FEEDBACK_DURATION = 0.8
@@ -73,6 +78,16 @@ GUN_WHITE_TINT = (255, 255, 255)
 # 발사 반동 애니메이션: 발사 순간 총구 반대 방향으로 밀렸다가 복귀한다.
 GUN_RECOIL_DISTANCE = 18.0
 GUN_RECOIL_RECOVERY_SECONDS = 0.18
+GUN_PIVOT_Y_OFFSETS = {
+    DEFAULT_GUN_ID: 0.0,
+    RIFLE_GUN_ID: 10.0,
+    MACHINE_GUN_GUN_ID: 20.0,
+}
+GUN_PIVOT_LEFT_OFFSETS = {
+    DEFAULT_GUN_ID: 0.0,
+    RIFLE_GUN_ID: 0.0,
+    MACHINE_GUN_GUN_ID: 0.0,
+}
 
 PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
 RESULT_TITLES = {
@@ -798,6 +813,14 @@ class BattleScene:
         gun_id = getattr(self.gun, "gun_id", None)
         return self.gun_images.get(gun_id, self.gun_image)
 
+    def _gun_pivot_left_offset(self):
+        gun_id = getattr(self.gun, "gun_id", None)
+        return GUN_PIVOT_LEFT_OFFSETS.get(gun_id, 0.0)
+
+    def _gun_pivot_y_offset(self):
+        gun_id = getattr(self.gun, "gun_id", None)
+        return GUN_PIVOT_Y_OFFSETS.get(gun_id, 0.0)
+
     def _draw_gun(self):
         """Draw the gun with its recoil offset and temperature tint."""
         image = self._selected_gun_image()
@@ -807,11 +830,13 @@ class BattleScene:
             self.player.screen_position[0]
             + math.cos(self.player.aim_angle) * gun_offset
             - math.cos(self.player.aim_angle) * recoil_offset
+            - self._gun_pivot_left_offset()
         )
         gun_y = (
             self.player.screen_position[1]
             + math.sin(self.player.aim_angle) * gun_offset
             - math.sin(self.player.aim_angle) * recoil_offset
+            - self._gun_pivot_y_offset()
         )
         gun_angle = self.player.aim_angle
         flip = ""

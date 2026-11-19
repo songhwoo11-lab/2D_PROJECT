@@ -19,7 +19,12 @@ import game_world
 import hud
 from player import Player
 from pickup import CoolingPickup, HealthPickup, MagazinePickup
-from weapon import Gun, MACHINE_GUN_GUN_ID
+from weapon import (
+    DEFAULT_GUN_ID,
+    Gun,
+    MACHINE_GUN_GUN_ID,
+    RIFLE_GUN_ID,
+)
 from waves import WaveDirector
 
 
@@ -988,6 +993,15 @@ class BattleSceneGunTintTests(unittest.TestCase):
             self._draw_scene()
         return calls
 
+    def _drawn_gun_position(self, gun_id):
+        image = FakeGunImage(texture=None)
+        self.scene.gun_image = image
+        self.scene.player.set_screen_position(500, 500)
+        self.scene.player.aim_angle = 0.0
+        self.scene.gun = Gun.from_gun_id(gun_id)
+        self.scene._draw_gun()
+        return image.composite_draws[-1][2:4]
+
     def test_draw_uses_the_image_for_the_current_gun_id(self):
         pistol_image = FakeGunImage(texture=None)
         rifle_image = FakeGunImage(texture=None)
@@ -999,6 +1013,38 @@ class BattleSceneGunTintTests(unittest.TestCase):
 
         self.assertEqual(len(rifle_image.composite_draws), 1)
         self.assertEqual(pistol_image.composite_draws, [])
+
+    def test_pistol_pivot_is_unchanged(self):
+        self.assertEqual(
+            battle_scene.GUN_PIVOT_Y_OFFSETS[DEFAULT_GUN_ID],
+            0.0,
+        )
+        self.assertEqual(
+            battle_scene.GUN_PIVOT_LEFT_OFFSETS[DEFAULT_GUN_ID],
+            0.0,
+        )
+
+    def test_rifle_is_ten_pixels_lower_than_the_pistol(self):
+        pistol_x, pistol_y = self._drawn_gun_position(DEFAULT_GUN_ID)
+        rifle_x, rifle_y = self._drawn_gun_position(RIFLE_GUN_ID)
+
+        self.assertAlmostEqual(pistol_x, rifle_x)
+        self.assertAlmostEqual(pistol_y - rifle_y, 10.0)
+
+    def test_machine_gun_pivot_is_lower_than_the_pistol(self):
+        _, pistol_y = self._drawn_gun_position(DEFAULT_GUN_ID)
+        _, machine_gun_y = self._drawn_gun_position(MACHINE_GUN_GUN_ID)
+
+        self.assertAlmostEqual(
+            pistol_y - machine_gun_y,
+            battle_scene.GUN_PIVOT_Y_OFFSETS[MACHINE_GUN_GUN_ID],
+        )
+
+    def test_machine_gun_horizontal_pivot_is_unchanged(self):
+        pistol_x, _ = self._drawn_gun_position(DEFAULT_GUN_ID)
+        machine_gun_x, _ = self._drawn_gun_position(MACHINE_GUN_GUN_ID)
+
+        self.assertAlmostEqual(pistol_x, machine_gun_x)
 
     def test_overheated_gun_is_rendered_blue(self):
         self.scene.gun.overheated = True
