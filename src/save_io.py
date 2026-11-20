@@ -4,7 +4,7 @@ import math
 import re
 
 from game_config import TOTAL_WAVES
-from save_data import BestLog, SaveData, default_save_data
+from save_data import BestLog, SaveData, SaveLoadResult, default_save_data
 from save_paths import (
     BEST_LOG_PATH,
     COINS_PATH,
@@ -382,12 +382,10 @@ def write_save_data(data, root=None):
     write_training_records(data.training_records, paths["training_records"])
 
 
-def load_save_data(root=None):
-    """Load all game files, creating PRD defaults for any missing file."""
-    paths = gamefile_paths(root)
-    ensure_gamefile_directories(root)
+def _new_default_data():
+    """Return an independent copy of the first-run save state."""
     defaults = default_save_data()
-    data = SaveData(
+    return SaveData(
         acquired_guns=list(defaults.acquired_guns),
         upgrade_levels=list(defaults.upgrade_levels),
         coins=defaults.coins,
@@ -395,11 +393,67 @@ def load_save_data(root=None):
         recent_logs=list(defaults.recent_logs),
         training_records=list(defaults.training_records),
     )
-    missing = [path for path in paths.values() if not path.exists()]
+
+
+def _write_missing_files(data, paths, missing_paths):
+    """Create only the files that were absent before loading."""
+    writers = {
+        "guns": lambda path: write_guns(data.acquired_guns, path),
+        "upgrades": lambda path: write_upgrade_levels(data.upgrade_levels, path),
+        "coins": lambda path: write_coins(data.coins, path),
+        "best_log": lambda path: write_best_log(data.best_log, path),
+        "recent_logs": lambda path: write_recent_logs(data.recent_logs, path),
+        "training_records": lambda path: write_training_records(
+            data.training_records, path
+        ),
+    }
+    for key in paths:
+        if paths[key] in missing_paths:
+            writers[key](paths[key])
+
+
+def load_save_data_with_report(root=None):
+    """Load save data and report missing files, damage, and recovery."""
+    paths = gamefile_paths(root)
+    ensure_gamefile_directories(root)
+    data = _new_default_data()
+    messages = []
+    recovered = False
+    missing = []
     for key, field_name, reader in _SAVE_FIELDS:
-        if paths[key].exists():
-            setattr(data, field_name, reader(paths[key]))
-    validate_save_data(data)
+        path = paths[key]
+        if not path.exists():
+            missing.append(path)
+            continue
+        try:
+            setattr(data, field_name, reader(path))
+        except (SaveDataError, OSError, ValueError) as error:
+            messages.append(
+                "저장 파일을 읽을 수 없어 기본값으로 복구했습니다: {} ({})".format(
+                    path.name, error
+                )
+            )
+            recovered = True
     if missing:
-        write_save_data(data, root)
-    return data
+        _write_missing_files(data, paths, missing)
+        messages.append(
+            "저장 파일이 없어 기본값을 생성했습니다: {}".format(
+                ", ".join(path.name for path in missing)
+            )
+        )
+    try:
+        validate_save_data(data)
+    except SaveDataError as error:
+        messages.append(
+            "저장 데이터가 유효하지 않아 전체 기본값으로 복구했습니다: {}".format(
+                error
+            )
+        )
+        data = _new_default_data()
+        recovered = True
+    return SaveLoadResult(data=data, messages=messages, recovered=recovered)
+
+
+def load_save_data(root=None):
+    """Load all game files, creating PRD defaults for any missing file."""
+    return load_save_data_with_report(root).data

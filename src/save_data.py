@@ -26,6 +26,19 @@ class SaveData:
     training_records: List[int] = field(default_factory=list)
 
 
+@dataclass
+class SaveLoadResult:
+    """Loaded data together with guidance about missing or damaged files."""
+
+    data: SaveData
+    messages: List[str] = field(default_factory=list)
+    recovered: bool = False
+
+    def guidance_text(self):
+        """Return the messages joined for display to the player."""
+        return " ".join(self.messages)
+
+
 def default_save_data():
     """Build the state used on a first run of the game."""
     return SaveData(

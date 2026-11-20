@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from save_data import BestLog, SaveData, default_save_data
 from save_io import (
@@ -12,6 +13,7 @@ from save_io import (
     read_training_records,
     read_upgrade_levels,
     load_save_data,
+    load_save_data_with_report,
     write_best_log,
     write_coins,
     write_guns,
@@ -306,7 +308,51 @@ class SaveDataValidationTests(unittest.TestCase):
             )
 
             with self.assertRaises(SaveDataError):
-                load_save_data(temp_dir)
+                read_guns(gamefile_paths(temp_dir)["guns"])
+
+
+class SaveLoadRecoveryTests(unittest.TestCase):
+    def test_missing_files_create_defaults_without_damage_recovery(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = load_save_data_with_report(temp_dir)
+
+            self.assertFalse(result.recovered)
+            self.assertEqual(result.data, default_save_data())
+            self.assertTrue(result.messages)
+            self.assertIn("기본값을 생성", result.guidance_text())
+            self.assertTrue(result.guidance_text())
+
+    def test_damaged_file_uses_default_and_keeps_the_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(default_save_data(), temp_dir)
+            coins_path = gamefile_paths(temp_dir)["coins"]
+            coins_path.write_text("coins = broken\n", encoding="utf-8")
+
+            result = load_save_data_with_report(temp_dir)
+
+            self.assertTrue(result.recovered)
+            self.assertEqual(result.data.coins, 0)
+            self.assertIn("coins.txt", result.guidance_text())
+            self.assertEqual(
+                coins_path.read_text(encoding="utf-8"), "coins = broken\n"
+            )
+
+    def test_invalid_combined_data_falls_back_to_all_defaults(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(default_save_data(), temp_dir)
+            with patch(
+                "save_io.validate_save_data",
+                side_effect=SaveDataError("broken save"),
+            ):
+                result = load_save_data_with_report(temp_dir)
+
+            self.assertTrue(result.recovered)
+            self.assertEqual(result.data, default_save_data())
+            self.assertIn("전체 기본값으로 복구", result.guidance_text())
+
+    def test_load_save_data_still_returns_only_the_data(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.assertEqual(load_save_data(temp_dir), default_save_data())
 
 
 class GameFileStoreTests(unittest.TestCase):
