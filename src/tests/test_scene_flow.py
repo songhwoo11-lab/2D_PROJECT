@@ -240,6 +240,15 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertFalse(self.app.running)
 
+    def test_escape_closes_gun_selection_instead_of_exiting_the_game(self):
+        self.app.scene.open_gun_selection()
+
+        self.app.handle_escape_key()
+
+        self.assertTrue(self.app.running)
+        self.assertIsNone(self.app.scene.panel)
+        self.assertIsNone(self.app.scene.pending_action)
+
     def test_escape_pauses_the_battle_without_stopping_the_game(self):
         self.app.switch_scene("battle")
 

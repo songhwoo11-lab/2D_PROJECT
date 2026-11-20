@@ -23,6 +23,7 @@ from lobby_scene import (
     RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y,
     RECORDS_BOOK_PAPER_TOP_IMAGE_Y,
     gun_select_card_rect,
+    gun_select_exit_button_rect,
     gun_select_state_button_rect,
 )
 from player import Player
@@ -393,16 +394,26 @@ class LobbyPortalEntryTests(unittest.TestCase):
         self.assertIsNone(self.scene.panel)
         self.assertEqual(self.scene.pending_action, "start_battle")
 
-    def test_cancelling_the_gun_selection_keeps_the_previous_gun(self):
+    def test_escape_cancels_the_gun_selection_and_keeps_the_previous_gun(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+        press(self.scene, "s")
+
+        press(self.scene, "escape")
+
+        self.assertEqual(self.state.selected_gun, "pistol")
+        self.assertIsNone(self.scene.panel)
+        self.assertIsNone(self.scene.pending_action)
+
+    def test_q_no_longer_cancels_the_gun_selection(self):
         self.state.owned_guns = ["pistol", "rifle"]
         self.scene.open_gun_selection()
         press(self.scene, "s")
 
         press(self.scene, "q")
 
-        self.assertEqual(self.state.selected_gun, "pistol")
-        self.assertIsNone(self.scene.panel)
-        self.assertIsNone(self.scene.pending_action)
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertEqual(self.scene.gun_selection_index, 1)
 
 
 class LobbyGunSelectCardTests(unittest.TestCase):
@@ -440,6 +451,57 @@ class LobbyGunSelectCardTests(unittest.TestCase):
         drawn_rects = {tuple(args[:4]) for args in rectangles}
         for card in card_rects:
             self.assertIn(card, drawn_rects)
+
+    def test_gun_selection_does_not_show_bottom_key_hints(self):
+        with patch("lobby_scene.draw_centered_text") as centered_text, patch(
+            "lobby_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: None)
+
+        labels = [call.args[2] for call in centered_text.call_args_list]
+        self.assertFalse(
+            any(
+                "CLICK GUN" in label
+                or "W/S + SPACE" in label
+                or "Q : CANCEL" in label
+                for label in labels
+            )
+        )
+
+    def test_exit_button_is_in_the_bottom_right(self):
+        left, bottom, right, top = gun_select_exit_button_rect()
+
+        self.assertGreater(left, SCREEN_WIDTH / 2)
+        self.assertLess(top, SCREEN_HEIGHT / 4)
+        self.assertEqual(right, SCREEN_WIDTH - 60)
+        self.assertGreater(bottom, 0)
+
+    def test_exit_button_is_drawn_with_its_label(self):
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        labels = [call.args[3] for call in text_draw.call_args_list]
+        drawn_rects = {tuple(args[:4]) for args in rectangles}
+        self.assertIn("EXIT", labels)
+        self.assertIn(tuple(gun_select_exit_button_rect()), drawn_rects)
+
+    def test_hovering_exit_button_sets_the_exit_target(self):
+        self.hover_rect(gun_select_exit_button_rect())
+
+        self.assertEqual(self.scene.gun_select_hover_target, ("exit", None))
+
+    def test_clicking_exit_button_returns_to_the_lobby(self):
+        self.scene.gun_state_panel_gun_id = "pistol"
+
+        self.click_rect(gun_select_exit_button_rect())
+
+        self.assertIsNone(self.scene.panel)
+        self.assertIsNone(self.scene.gun_state_panel_gun_id)
+        self.assertIsNone(self.scene.pending_action)
+        self.assertEqual(self.state.selected_gun, "pistol")
 
     def test_lock_color_is_dark_gray(self):
         self.assertEqual(GUN_SELECT_LOCK_COLOR, (85, 85, 90, 255))

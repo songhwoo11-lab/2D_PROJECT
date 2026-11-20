@@ -39,10 +39,15 @@ GUN_SELECT_STATE_BUTTON_TOP = 430
 GUN_SELECT_STATE_BUTTON_TEXT_Y = 385
 GUN_SELECT_STATE_DISABLED_COLOR = (35, 40, 50)
 GUN_SELECT_STATE_DISABLED_TEXT_COLOR = (110, 110, 110)
-GUN_SELECT_HINT_Y = 140
 GUN_SELECT_LOCKED_OPACITY = 0.5
 GUN_SELECT_LOCK_COLOR = (85, 85, 90, 255)
 GUN_SELECT_LOCK_KEYHOLE_COLOR = (40, 40, 45, 255)
+GUN_SELECT_EXIT_BUTTON_WIDTH = 220
+GUN_SELECT_EXIT_BUTTON_HEIGHT = 100
+GUN_SELECT_EXIT_BUTTON_RIGHT = SCREEN_WIDTH - 60
+GUN_SELECT_EXIT_BUTTON_BOTTOM = 60
+GUN_SELECT_EXIT_BUTTON_COLOR = (130, 60, 55)
+GUN_SELECT_EXIT_BUTTON_HOVER_COLOR = (190, 80, 70)
 
 # 기록 확인 화면: table 배경 위에 book 이미지를 출력한다.
 RECORDS_BOOK_WIDTH = 1402
@@ -96,6 +101,15 @@ def gun_select_state_panel_rect():
         GUN_SELECT_STATE_PANEL_BOTTOM,
         left + GUN_SELECT_STATE_PANEL_WIDTH,
         GUN_SELECT_STATE_PANEL_TOP,
+    )
+
+
+def gun_select_exit_button_rect():
+    return (
+        GUN_SELECT_EXIT_BUTTON_RIGHT - GUN_SELECT_EXIT_BUTTON_WIDTH,
+        GUN_SELECT_EXIT_BUTTON_BOTTOM,
+        GUN_SELECT_EXIT_BUTTON_RIGHT,
+        GUN_SELECT_EXIT_BUTTON_BOTTOM + GUN_SELECT_EXIT_BUTTON_HEIGHT,
     )
 
 
@@ -260,13 +274,8 @@ class LobbyScene:
             self._draw_gun_select_card(
                 draw_rectangle, index, gun_id, selected_gun_id
             )
-        draw_centered_text(
-            self.hud_font,
-            GUN_SELECT_HINT_Y,
-            "CLICK GUN : SELECT / CONFIRM    STATE : DETAILS    W/S + SPACE : SELECT    Q : CANCEL",
-            (170, 190, 220),
-        )
         self._draw_gun_state_panel(draw_rectangle)
+        self._draw_gun_select_exit_button(draw_rectangle)
 
     def _selected_gun_id(self):
         if self.gun_select_pending_gun_id is not None:
@@ -413,6 +422,23 @@ class LobbyScene:
                 GUN_SELECT_STATE_PANEL_ROW_TOP - row_index * GUN_SELECT_STATE_PANEL_ROW_GAP,
                 "{} {}".format(label, value),
             )
+
+    def _draw_gun_select_exit_button(self, draw_rectangle):
+        left, bottom, right, top = gun_select_exit_button_rect()
+        hovered = self.gun_select_hover_target == ("exit", None)
+        color = (
+            GUN_SELECT_EXIT_BUTTON_HOVER_COLOR
+            if hovered
+            else GUN_SELECT_EXIT_BUTTON_COLOR
+        )
+        draw_rectangle(left, bottom, right, top, *color, 255, True)
+        draw_text_at_center(
+            self.hud_font,
+            (left + right) / 2,
+            (bottom + top) / 2,
+            "EXIT",
+            (255, 255, 255),
+        )
 
     def _draw_direction_arrows(self):
         """Show the movement directions available from the current node."""
@@ -700,6 +726,9 @@ class LobbyScene:
 
     def _handle_gun_selection_key(self, key):
         """Move the selection and confirm or cancel the chosen gun."""
+        if key == "escape":
+            self.close_panel()
+            return
         owned_guns = self.state.owned_guns if self.state is not None else []
         if not owned_guns:
             return
@@ -709,8 +738,6 @@ class LobbyScene:
             self.gun_selection_index = (self.gun_selection_index + 1) % len(owned_guns)
         elif key == "space":
             self._confirm_gun_selection()
-        elif key == "q":
-            self.close_panel()
 
     def _confirm_gun_selection(self, gun_id=None):
         """Store the chosen gun and ask the app to start the battle."""
@@ -742,6 +769,8 @@ class LobbyScene:
 
     def _gun_select_target_at(self, screen_x, screen_y):
         canvas_y = SCREEN_HEIGHT - screen_y
+        if rect_contains(gun_select_exit_button_rect(), screen_x, canvas_y):
+            return ("exit", None)
         if self.gun_state_panel_gun_id is not None and rect_contains(
             gun_select_state_panel_rect(), screen_x, canvas_y
         ):
@@ -780,6 +809,9 @@ class LobbyScene:
         if self.panel != "gun_select":
             return None
         target = self._gun_select_target_at(screen_x, screen_y)
+        if target is not None and target[0] == "exit":
+            self.close_panel()
+            return None
         if self.gun_state_panel_gun_id is not None:
             self.gun_state_panel_gun_id = None
             if target is None or target[0] == "state_panel":

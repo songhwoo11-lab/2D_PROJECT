@@ -260,6 +260,9 @@ class GameApp:
 
     def handle_escape_key(self):
         if self.scene_kind == "lobby":
+            if getattr(self.scene, "panel", None) == "gun_select":
+                self.scene.key_down("escape")
+                return
             self.running = False
             return
         self.scene.key_down("escape")
