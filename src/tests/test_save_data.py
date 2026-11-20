@@ -394,6 +394,41 @@ class GameFileStoreTests(unittest.TestCase):
                 self.assertTrue(path.exists(), path)
 
 
+class AtomicWriteTests(unittest.TestCase):
+    def test_writes_through_a_temporary_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "getGuns.txt"
+            original_replace = Path.replace
+            replaced = []
+
+            def spy_replace(self, target):
+                replaced.append((self, target))
+                return original_replace(self, target)
+
+            with patch.object(Path, "replace", spy_replace):
+                write_guns([True, False, False], path)
+
+            self.assertEqual(len(replaced), 1)
+            self.assertTrue(replaced[0][0].name.endswith(".tmp"))
+            self.assertEqual(replaced[0][1], path)
+            self.assertFalse(Path(temp_dir, "getGuns.txt.tmp").exists())
+
+    def test_failed_replace_keeps_the_old_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "getGuns.txt"
+            path.write_text("acquire = [true, true, true]\n", encoding="utf-8")
+
+            with patch.object(Path, "replace", side_effect=OSError("disk full")):
+                with self.assertRaises(SaveDataError):
+                    write_guns([False, False, False], path)
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8"),
+                "acquire = [true, true, true]\n",
+            )
+            self.assertFalse(Path(temp_dir, "getGuns.txt.tmp").exists())
+
+
 class SavePathsTests(unittest.TestCase):
     def test_paths_follow_the_prd_layout(self):
         self.assertEqual(GUNS_PATH, GAMEFILE_DIR / "gun" / "getGuns.txt")

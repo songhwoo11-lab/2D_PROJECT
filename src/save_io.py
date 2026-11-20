@@ -30,9 +30,17 @@ def _read_text(path):
 
 
 def _write_text(path, text):
+    """Write through a temporary file, then replace the target atomically."""
+    temp_path = path.with_name(path.name + ".tmp")
     try:
-        path.write_text(text + "\n", encoding="utf-8")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path.write_text(text + "\n", encoding="utf-8")
+        temp_path.replace(path)
     except OSError as error:
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
         raise SaveDataError("cannot write {}: {}".format(path, error)) from error
 
 
