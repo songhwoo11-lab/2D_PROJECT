@@ -42,6 +42,21 @@ class GameStateDevGunTests(unittest.TestCase):
 
         self.assertTrue(state.needs_gun_selection())
 
+    def test_training_records_start_empty(self):
+        self.assertEqual(GameState().training_records, [])
+
+    def test_newest_training_record_is_added_first(self):
+        from battle_record import TrainingRecord
+
+        state = GameState()
+        state.add_training_record(TrainingRecord(targets_destroyed=3))
+        state.add_training_record(TrainingRecord(targets_destroyed=9))
+
+        self.assertEqual(
+            [record.targets_destroyed for record in state.training_records],
+            [9, 3],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

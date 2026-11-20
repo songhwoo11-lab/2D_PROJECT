@@ -5,6 +5,7 @@ import random
 
 import pico2d
 
+from battle_record import TrainingRecord
 from game_config import (
     AIM_CURSOR_ALPHA,
     AIM_CURSOR_GAP,
@@ -127,6 +128,7 @@ class TrainingScene:
         self.pending_action = None
         self.last_shot_result = None
         self.shot_result_timer = 0.0
+        self._training_record_saved = False
         self.phase = "countdown"
         self.countdown_remaining = 3.0
         self.time_remaining = 60.0
@@ -182,6 +184,16 @@ class TrainingScene:
         if self.time_remaining <= 0.0:
             self.phase = "finished"
             self.finish_timer = 2.0
+            self._store_training_record()
+
+    def _store_training_record(self):
+        """Record the targets destroyed during the time limit."""
+        if self._training_record_saved or self.state is None:
+            return
+        self.state.add_training_record(
+            TrainingRecord(targets_destroyed=self._hits)
+        )
+        self._training_record_saved = True
 
     def draw(self, draw_rectangle):
         if self.background is not None:

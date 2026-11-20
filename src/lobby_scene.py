@@ -2,7 +2,7 @@
 
 import pico2d
 
-from battle_record import result_record_text
+from battle_record import result_record_text, training_record_text
 from game_config import (
     LOBBY_WORLD_HEIGHT,
     LOBBY_WORLD_WIDTH,
@@ -53,6 +53,8 @@ RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y = 950
 RECORDS_TITLE_Y_OFFSET = 60
 RECORDS_FIRST_ROW_Y_OFFSET = 150
 RECORDS_ROW_GAP = 70
+RECORDS_LEFT_PAGE_CENTER_X = 585
+RECORDS_RIGHT_PAGE_CENTER_X = 1215
 GUN_SELECT_HOVER_OUTLINE_COLOR = (120, 170, 230, 255)
 
 GUN_SELECT_IMAGE_SIZES = {
@@ -564,37 +566,71 @@ class LobbyScene:
         )
         title_y = paper_top_y - RECORDS_TITLE_Y_OFFSET
         first_row_y = paper_top_y - RECORDS_FIRST_ROW_Y_OFFSET
-        draw_centered_text(
+        text_color = (40, 30, 20)
+        battle_records = self.state.records if self.state is not None else []
+        training_records = (
+            self.state.training_records if self.state is not None else []
+        )
+        draw_text_at_center(
             self.hud_font,
+            RECORDS_LEFT_PAGE_CENTER_X,
             title_y,
             "BATTLE RECORDS",
-            (40, 30, 20),
+            text_color,
         )
-        records = self.state.records if self.state is not None else []
-        if not records:
-            draw_centered_text(
+        draw_text_at_center(
+            self.hud_font,
+            RECORDS_RIGHT_PAGE_CENTER_X,
+            title_y,
+            "TRAINING RECORDS",
+            text_color,
+        )
+        if battle_records:
+            for index, record in enumerate(battle_records):
+                text = result_record_text(
+                    record.result,
+                    record.reached_wave,
+                    TOTAL_WAVES,
+                    record.elapsed_time,
+                    record.clear_time,
+                )
+                row_y = first_row_y - index * RECORDS_ROW_GAP
+                if row_y < paper_bottom_y:
+                    break
+                draw_text_at_center(
+                    self.hud_font,
+                    RECORDS_LEFT_PAGE_CENTER_X,
+                    row_y,
+                    text,
+                    text_color,
+                )
+        else:
+            draw_text_at_center(
                 self.hud_font,
+                RECORDS_LEFT_PAGE_CENTER_X,
                 first_row_y,
                 "NO RECORDS YET",
-                (40, 30, 20),
+                text_color,
             )
-            return
-        for index, record in enumerate(records):
-            text = result_record_text(
-                record.result,
-                record.reached_wave,
-                TOTAL_WAVES,
-                record.elapsed_time,
-                record.clear_time,
-            )
-            row_y = first_row_y - index * RECORDS_ROW_GAP
-            if row_y < paper_bottom_y:
-                break
-            draw_centered_text(
+        if training_records:
+            for index, record in enumerate(training_records):
+                row_y = first_row_y - index * RECORDS_ROW_GAP
+                if row_y < paper_bottom_y:
+                    break
+                draw_text_at_center(
+                    self.hud_font,
+                    RECORDS_RIGHT_PAGE_CENTER_X,
+                    row_y,
+                    training_record_text(record.targets_destroyed),
+                    text_color,
+                )
+        else:
+            draw_text_at_center(
                 self.hud_font,
-                row_y,
-                text,
-                (40, 30, 20),
+                RECORDS_RIGHT_PAGE_CENTER_X,
+                first_row_y,
+                "NO RECORDS YET",
+                text_color,
             )
 
     def key_down(self, key):

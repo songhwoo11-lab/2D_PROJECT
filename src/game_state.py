@@ -1,6 +1,6 @@
 """Progress that is kept for the whole game session."""
 
-from battle_record import BattleRecord
+from battle_record import BattleRecord, TrainingRecord
 from dev_settings import development_coins, development_gun
 from weapon import WEAPON_SPECS
 
@@ -16,6 +16,7 @@ class GameState:
         owned_guns=DEFAULT_OWNED_GUNS,
         coins=None,
         records=None,
+        training_records=None,
         dev_gun=None,
         upgrade_levels=None,
     ):
@@ -28,6 +29,7 @@ class GameState:
         coin_override = development_coins() if coins is None else coins
         self.coins = 0 if coin_override is None else coin_override
         self.records = list(records or [])
+        self.training_records = list(training_records or [])
         self.dev_gun = dev_gun if dev_gun is not None else development_gun()
         self.selected_gun = self.dev_gun or (
             self.owned_guns[0] if self.owned_guns else None
@@ -36,6 +38,10 @@ class GameState:
     def add_record(self, record):
         """Store the newest battle record in front of the older ones."""
         self.records.insert(0, record)
+
+    def add_training_record(self, record):
+        """Store the newest training record in front of the older ones."""
+        self.training_records.insert(0, record)
 
     def owns_gun(self, gun_id):
         return gun_id in self.owned_guns

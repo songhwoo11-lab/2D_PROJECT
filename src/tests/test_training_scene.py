@@ -1,6 +1,7 @@
 import unittest
 
 from game_config import SCREEN_HEIGHT
+from game_state import GameState
 from training_scene import TRAINING_CURSOR_ALPHA, TRAINING_CURSOR_COLOR, TrainingScene
 
 
@@ -29,6 +30,27 @@ class TrainingSceneTests(unittest.TestCase):
         self.scene.key_down("escape")
 
         self.assertEqual(self.scene.pending_action, "return_to_lobby")
+
+    def test_time_expiry_records_the_destroyed_target_count(self):
+        state = GameState()
+        scene = TrainingScene(state=state)
+        scene.phase = "playing"
+        scene.time_remaining = 0.0
+        scene._hits = 6
+
+        scene.update(0.0)
+
+        self.assertEqual(len(state.training_records), 1)
+        self.assertEqual(state.training_records[0].targets_destroyed, 6)
+
+    def test_leaving_early_does_not_store_a_record(self):
+        state = GameState()
+        scene = TrainingScene(state=state)
+        scene._hits = 6
+
+        scene.key_down("escape")
+
+        self.assertEqual(state.training_records, [])
 
 
 class TrainingCursorTests(unittest.TestCase):

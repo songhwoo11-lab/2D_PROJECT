@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, call, patch
 
-from battle_record import BattleRecord
+from battle_record import BattleRecord, TrainingRecord
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
 from lobby_map import (
@@ -656,9 +656,9 @@ class LobbyRecordsImageTests(unittest.TestCase):
                 elapsed_time=60.0,
             )
         )
-        with patch("lobby_scene.draw_centered_text") as text_draw, patch(
+        with patch("lobby_scene.draw_centered_text"), patch(
             "lobby_scene.draw_text_at_center"
-        ):
+        ) as text_draw:
             self.scene.draw(lambda *args: None)
 
         book_bottom = (SCREEN_HEIGHT - RECORDS_BOOK_HEIGHT) / 2
@@ -668,8 +668,40 @@ class LobbyRecordsImageTests(unittest.TestCase):
         paper_bottom = SCREEN_HEIGHT - (
             book_bottom + RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y
         )
-        ys = [call.args[1] for call in text_draw.call_args_list]
+        calls = text_draw.call_args_list
+        ys = [entry.args[2] for entry in calls]
         self.assertTrue(ys)
         for y in ys:
             self.assertGreaterEqual(y, paper_bottom)
             self.assertLessEqual(y, paper_top)
+
+    def test_battle_and_training_records_use_opposite_pages(self):
+        self.state.add_record(
+            BattleRecord(
+                result="defeat",
+                reached_wave=7,
+                elapsed_time=120.0,
+            )
+        )
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: None)
+
+        labels = {entry.args[3]: entry.args[1] for entry in text_draw.call_args_list}
+        self.assertLess(
+            labels["BATTLE RECORDS"], SCREEN_WIDTH / 2
+        )
+        self.assertGreater(
+            labels["TRAINING RECORDS"], SCREEN_WIDTH / 2
+        )
+
+    def test_training_record_shows_destroyed_targets(self):
+        self.state.add_training_record(TrainingRecord(targets_destroyed=12))
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: None)
+
+        labels = [entry.args[3] for entry in text_draw.call_args_list]
+        self.assertIn("TARGETS 12", labels)

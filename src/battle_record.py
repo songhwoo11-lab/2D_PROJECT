@@ -15,6 +15,17 @@ class BattleRecord:
     clear_time: float = None
 
 
+@dataclass(frozen=True)
+class TrainingRecord:
+    """One finished training run and the targets destroyed in the time limit."""
+
+    targets_destroyed: int
+
+
+def training_record_text(targets_destroyed):
+    return "TARGETS {}".format(targets_destroyed)
+
+
 def format_elapsed_time(seconds):
     if seconds < 0:
         raise ValueError("elapsed time must be non-negative")

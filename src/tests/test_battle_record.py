@@ -1,6 +1,10 @@
 import unittest
 
-from battle_record import format_elapsed_time, result_record_text
+from battle_record import (
+    format_elapsed_time,
+    result_record_text,
+    training_record_text,
+)
 
 
 class FormatElapsedTimeTests(unittest.TestCase):
@@ -19,6 +23,11 @@ class FormatElapsedTimeTests(unittest.TestCase):
     def test_negative_time_is_rejected(self):
         with self.assertRaises(ValueError):
             format_elapsed_time(-1.0)
+
+
+class TrainingRecordTextTests(unittest.TestCase):
+    def test_shows_the_destroyed_target_count(self):
+        self.assertEqual(training_record_text(7), "TARGETS 7")
 
 
 class ResultRecordTextTests(unittest.TestCase):
