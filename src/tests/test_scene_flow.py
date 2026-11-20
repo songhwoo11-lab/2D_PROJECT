@@ -249,6 +249,14 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertIsNone(self.app.scene.panel)
         self.assertIsNone(self.app.scene.pending_action)
 
+    def test_escape_closes_records_panel_instead_of_exiting_the_game(self):
+        self.app.scene.open_records()
+
+        self.app.handle_escape_key()
+
+        self.assertTrue(self.app.running)
+        self.assertIsNone(self.app.scene.panel)
+
     def test_escape_pauses_the_battle_without_stopping_the_game(self):
         self.app.switch_scene("battle")
 

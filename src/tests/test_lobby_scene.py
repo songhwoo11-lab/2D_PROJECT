@@ -25,6 +25,7 @@ from lobby_scene import (
     gun_select_card_rect,
     gun_select_exit_button_rect,
     gun_select_state_button_rect,
+    records_exit_button_rect,
 )
 from player import Player
 from shop import GUN_SHOP_ORDER
@@ -253,12 +254,27 @@ class LobbyLocationTests(unittest.TestCase):
 
         self.assertEqual(self.scene.panel, "records")
 
-    def test_record_panel_can_be_closed(self):
+    def test_record_panel_can_be_closed_with_q(self):
+        self.scene.open_records()
+
+        press(self.scene, "q")
+
+        self.assertIsNone(self.scene.panel)
+
+    def test_space_does_not_close_the_record_panel(self):
         self.scene.open_records()
 
         press(self.scene, "space")
 
+        self.assertEqual(self.scene.panel, "records")
+
+    def test_escape_closes_the_record_panel(self):
+        self.scene.open_records()
+
+        press(self.scene, "escape")
+
         self.assertIsNone(self.scene.panel)
+        self.assertFalse(self.scene.exit_requested)
 
     def test_record_panel_lists_the_stored_records(self):
         self.state.add_record(
@@ -701,6 +717,10 @@ class LobbyRecordsImageTests(unittest.TestCase):
         )
         self.scene.open_records()
 
+    def exit_button_screen_center(self):
+        left, bottom, right, top = records_exit_button_rect()
+        return (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2
+
     def test_draws_table_background_and_book_image(self):
         with patch("lobby_scene.draw_centered_text"), patch(
             "lobby_scene.draw_text_at_center"
@@ -709,6 +729,42 @@ class LobbyRecordsImageTests(unittest.TestCase):
 
         self.table.draw.assert_called_once()
         self.book.draw.assert_called_once()
+
+    def test_records_exit_button_is_in_the_bottom_right(self):
+        left, bottom, right, top = records_exit_button_rect()
+
+        self.assertGreater(left, SCREEN_WIDTH / 2)
+        self.assertLess(top, SCREEN_HEIGHT / 4)
+        self.assertEqual(right, SCREEN_WIDTH - 60)
+        self.assertGreater(bottom, 0)
+
+    def test_records_exit_button_is_drawn_with_its_label(self):
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        labels = [entry.args[3] for entry in text_draw.call_args_list]
+        drawn_rects = {tuple(args[:4]) for args in rectangles}
+        self.assertIn("EXIT", labels)
+        self.assertIn(tuple(records_exit_button_rect()), drawn_rects)
+
+    def test_hovering_records_exit_button_sets_hover_state(self):
+        screen_x, screen_y = self.exit_button_screen_center()
+
+        self.scene.mouse_move(screen_x, screen_y)
+
+        self.assertTrue(self.scene.records_hover_exit)
+
+    def test_clicking_records_exit_button_returns_to_the_lobby(self):
+        screen_x, screen_y = self.exit_button_screen_center()
+
+        self.scene.mouse_down("left", screen_x, screen_y)
+
+        self.assertIsNone(self.scene.panel)
+        self.assertFalse(self.scene.records_hover_exit)
+        self.assertIsNone(self.scene.pending_action)
 
     def test_record_text_stays_inside_the_book_paper_area(self):
         self.state.add_record(
@@ -731,7 +787,11 @@ class LobbyRecordsImageTests(unittest.TestCase):
             book_bottom + RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y
         )
         calls = text_draw.call_args_list
-        ys = [entry.args[2] for entry in calls]
+        ys = [
+            entry.args[2]
+            for entry in calls
+            if entry.args[3] != "EXIT"
+        ]
         self.assertTrue(ys)
         for y in ys:
             self.assertGreaterEqual(y, paper_bottom)

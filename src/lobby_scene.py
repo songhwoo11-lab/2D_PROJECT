@@ -113,6 +113,10 @@ def gun_select_exit_button_rect():
     )
 
 
+def records_exit_button_rect():
+    return gun_select_exit_button_rect()
+
+
 def rect_contains(rect, x, y):
     if x is None or y is None:
         return False
@@ -173,6 +177,7 @@ class LobbyScene:
         self.gun_state_panel_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
+        self.records_hover_exit = False
         self._place_player_at_current_node()
 
     def reset_player_position(self):
@@ -668,6 +673,23 @@ class LobbyScene:
                 "NO RECORDS YET",
                 text_color,
             )
+        self._draw_records_exit_button(draw_rectangle)
+
+    def _draw_records_exit_button(self, draw_rectangle):
+        left, bottom, right, top = records_exit_button_rect()
+        color = (
+            GUN_SELECT_EXIT_BUTTON_HOVER_COLOR
+            if self.records_hover_exit
+            else GUN_SELECT_EXIT_BUTTON_COLOR
+        )
+        draw_rectangle(left, bottom, right, top, *color, 255, True)
+        draw_text_at_center(
+            self.hud_font,
+            (left + right) / 2,
+            (bottom + top) / 2,
+            "EXIT",
+            (255, 255, 255),
+        )
 
     def key_down(self, key):
         key = key.lower()
@@ -677,7 +699,7 @@ class LobbyScene:
         if self.panel is not None:
             if self.panel == "gun_select":
                 self._handle_gun_selection_key(key)
-            elif key in ("space", "q"):
+            elif key in ("q", "escape"):
                 self.close_panel()
             return
         if key in ("w", "a", "s", "d"):
@@ -755,6 +777,7 @@ class LobbyScene:
     def open_records(self):
         """Show the battle record panel."""
         self.panel = "records"
+        self.records_hover_exit = False
 
     def close_panel(self):
         """Close the panel that is currently open."""
@@ -763,6 +786,7 @@ class LobbyScene:
         self.gun_state_panel_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
+        self.records_hover_exit = False
 
     def key_up(self, key):
         self.keys.discard(key.lower())
@@ -788,10 +812,20 @@ class LobbyScene:
     def mouse_move(self, screen_x, screen_y):
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
+        canvas_y = SCREEN_HEIGHT - screen_y
+        if self.panel == "records":
+            self.gun_select_hover_target = None
+            self.gun_select_hover_index = None
+            self.records_hover_exit = rect_contains(
+                records_exit_button_rect(), screen_x, canvas_y
+            )
+            return
         if self.panel != "gun_select":
             self.gun_select_hover_target = None
             self.gun_select_hover_index = None
+            self.records_hover_exit = False
             return
+        self.records_hover_exit = False
         target = self._gun_select_target_at(screen_x, screen_y)
         self.gun_select_hover_target = target
         self.gun_select_hover_index = (
@@ -805,6 +839,11 @@ class LobbyScene:
 
     def mouse_down(self, button, screen_x=None, screen_y=None):
         if button != "left" or screen_x is None or screen_y is None:
+            return None
+        if self.panel == "records":
+            canvas_y = SCREEN_HEIGHT - screen_y
+            if rect_contains(records_exit_button_rect(), screen_x, canvas_y):
+                self.close_panel()
             return None
         if self.panel != "gun_select":
             return None

@@ -96,7 +96,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
 
         self.assertEqual(self.app.scene.panel, "records")
 
-        press(self.app, "space")
+        press(self.app, "escape")
         self.assertIsNone(self.app.scene.panel)
 
     def test_retry_after_a_defeat_keeps_the_lobby_usable(self):
