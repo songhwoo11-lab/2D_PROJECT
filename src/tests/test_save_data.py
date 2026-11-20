@@ -4,9 +4,16 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from battle_record import VICTORY
+from battle_record import BattleRecord, VICTORY
 from game_state import GameState
-from save_data import BestLog, SaveData, default_save_data
+from save_data import (
+    RECENT_LOG_LIMIT,
+    BestLog,
+    SaveData,
+    default_save_data,
+    limit_recent_logs,
+    select_best_log,
+)
 from save_io import (
     SaveDataError,
     read_best_log,
@@ -314,6 +321,44 @@ class SaveDataValidationTests(unittest.TestCase):
                 read_guns(gamefile_paths(temp_dir)["guns"])
 
 
+class RecordRankingTests(unittest.TestCase):
+    def test_higher_wave_wins_even_with_a_longer_time(self):
+        best = select_best_log([(30, 900.0), (29, 100.0)])
+
+        self.assertEqual(best, BestLog(reached_wave=30, elapsed_time=900.0))
+
+    def test_equal_waves_use_the_shorter_time(self):
+        best = select_best_log([(20, 300.0), (20, 250.0), (19, 10.0)])
+
+        self.assertEqual(best, BestLog(reached_wave=20, elapsed_time=250.0))
+
+    def test_best_log_objects_are_accepted(self):
+        best = select_best_log(
+            [BestLog(reached_wave=12, elapsed_time=90.0), (12, 80.0)]
+        )
+
+        self.assertEqual(best, BestLog(reached_wave=12, elapsed_time=80.0))
+
+    def test_no_records_means_no_best_log(self):
+        self.assertIsNone(select_best_log([]))
+
+    def test_recent_logs_are_limited_to_ten(self):
+        logs = [(wave, float(wave)) for wave in range(1, 15)]
+
+        self.assertEqual(limit_recent_logs(logs), logs[:RECENT_LOG_LIMIT])
+
+    def test_written_recent_logs_are_limited(self):
+        data = default_save_data()
+        data.recent_logs = [(wave, float(wave)) for wave in range(1, 15)]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(data, temp_dir)
+
+            self.assertEqual(
+                read_recent_logs(gamefile_paths(temp_dir)["recent_logs"]),
+                data.recent_logs[:RECENT_LOG_LIMIT],
+            )
+
+
 class GameStateSaveConversionTests(unittest.TestCase):
     def test_loaded_data_is_applied_to_live_state(self):
         data = SaveData(
@@ -338,6 +383,22 @@ class GameStateSaveConversionTests(unittest.TestCase):
         self.assertEqual(
             [record.targets_destroyed for record in state.training_records],
             [5, 8],
+        )
+
+    def test_best_record_rules_are_applied_when_saving(self):
+        state = GameState(
+            records=[
+                BattleRecord("defeat", reached_wave=10, elapsed_time=30.0),
+                BattleRecord("defeat", reached_wave=25, elapsed_time=500.0),
+                BattleRecord("defeat", reached_wave=25, elapsed_time=450.0),
+            ],
+            best_log=BestLog(reached_wave=5, elapsed_time=20.0),
+        )
+
+        saved = state.to_save_data()
+
+        self.assertEqual(
+            saved.best_log, BestLog(reached_wave=25, elapsed_time=450.0)
         )
 
     def test_live_state_converts_back_to_save_data(self):

@@ -6,6 +6,9 @@ from typing import List, Optional, Tuple
 from shop import GUN_SHOP_ORDER
 
 
+RECENT_LOG_LIMIT = 10
+
+
 @dataclass(frozen=True)
 class BestLog:
     """Best reached wave and the time taken to reach it."""
@@ -24,6 +27,32 @@ class SaveData:
     best_log: Optional[BestLog] = None
     recent_logs: List[Tuple[int, float]] = field(default_factory=list)
     training_records: List[int] = field(default_factory=list)
+
+
+def _as_log_pair(entry):
+    """Accept either a BestLog or a plain wave/time pair."""
+    if isinstance(entry, BestLog):
+        return entry.reached_wave, entry.elapsed_time
+    wave, elapsed_time = entry
+    return wave, elapsed_time
+
+
+def select_best_log(logs):
+    """Choose the highest wave; break ties with the shortest play time."""
+    candidates = [_as_log_pair(entry) for entry in logs]
+    if not candidates:
+        return None
+    wave, elapsed_time = max(
+        candidates, key=lambda entry: (entry[0], -float(entry[1]))
+    )
+    return BestLog(reached_wave=wave, elapsed_time=elapsed_time)
+
+
+def limit_recent_logs(logs, limit=RECENT_LOG_LIMIT):
+    """Keep only the newest recent records in their existing order."""
+    if limit < 1:
+        raise ValueError("recent log limit must be positive")
+    return [tuple(entry) for entry in list(logs)[:limit]]
 
 
 @dataclass

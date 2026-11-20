@@ -3,7 +3,7 @@
 from battle_record import BattleRecord, TrainingRecord, VICTORY
 from dev_settings import development_coins, development_gun
 from game_config import TOTAL_WAVES
-from save_data import BestLog, SaveData
+from save_data import SaveData, limit_recent_logs, select_best_log
 from shop import GUN_SHOP_ORDER
 from weapon import WEAPON_SPECS
 
@@ -83,13 +83,15 @@ class GameState:
 
     def to_save_data(self):
         """Convert the live state into the data written to game files."""
-        recent_logs = [
+        recent_logs = limit_recent_logs(
             (record.reached_wave, record.elapsed_time) for record in self.records
-        ]
-        best_log = self.best_log
-        if best_log is None and recent_logs:
-            wave, elapsed_time = recent_logs[0]
-            best_log = BestLog(reached_wave=wave, elapsed_time=elapsed_time)
+        )
+        best_candidates = list(recent_logs)
+        if self.best_log is not None:
+            best_candidates.append(
+                (self.best_log.reached_wave, self.best_log.elapsed_time)
+            )
+        best_log = select_best_log(best_candidates)
         return SaveData(
             acquired_guns=[gun_id in self.owned_guns for gun_id in GUN_SHOP_ORDER],
             upgrade_levels=[self.upgrade_level(gun_id) for gun_id in GUN_SHOP_ORDER],

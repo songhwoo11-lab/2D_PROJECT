@@ -4,7 +4,13 @@ import math
 import re
 
 from game_config import TOTAL_WAVES
-from save_data import BestLog, SaveData, SaveLoadResult, default_save_data
+from save_data import (
+    BestLog,
+    SaveData,
+    SaveLoadResult,
+    default_save_data,
+    limit_recent_logs,
+)
 from save_paths import (
     BEST_LOG_PATH,
     COINS_PATH,
@@ -386,7 +392,7 @@ def write_save_data(data, root=None):
     write_upgrade_levels(data.upgrade_levels, paths["upgrades"])
     write_coins(data.coins, paths["coins"])
     write_best_log(data.best_log, paths["best_log"])
-    write_recent_logs(data.recent_logs, paths["recent_logs"])
+    write_recent_logs(limit_recent_logs(data.recent_logs), paths["recent_logs"])
     write_training_records(data.training_records, paths["training_records"])
 
 
