@@ -17,6 +17,7 @@ from save_io import (
     write_guns,
     write_recent_logs,
     write_save_data,
+    validate_save_data,
     write_training_records,
     write_upgrade_levels,
 )
@@ -248,6 +249,64 @@ class TrainingLogFileTests(unittest.TestCase):
 
             with self.assertRaises(SaveDataError):
                 read_training_records(path)
+
+
+class SaveDataValidationTests(unittest.TestCase):
+    def test_default_data_is_valid(self):
+        self.assertTrue(validate_save_data(default_save_data()))
+
+    def test_missing_field_is_detected(self):
+        data = default_save_data()
+        del data.coins
+
+        with self.assertRaises(SaveDataError):
+            validate_save_data(data)
+
+    def test_wrong_list_length_is_detected(self):
+        data = default_save_data()
+        data.acquired_guns = [True]
+
+        with self.assertRaises(SaveDataError):
+            validate_save_data(data)
+
+    def test_wrong_value_types_are_detected(self):
+        data = default_save_data()
+        data.acquired_guns = [1, False, False]
+
+        with self.assertRaises(SaveDataError):
+            validate_save_data(data)
+
+        data = default_save_data()
+        data.coins = True
+
+        with self.assertRaises(SaveDataError):
+            validate_save_data(data)
+
+    def test_out_of_range_best_log_is_detected(self):
+        data = default_save_data()
+        data.best_log = BestLog(reached_wave=99, elapsed_time=10.0)
+
+        with self.assertRaises(SaveDataError):
+            validate_save_data(data)
+
+    def test_invalid_data_is_not_written(self):
+        data = default_save_data()
+        data.coins = -5
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.assertRaises(SaveDataError):
+                write_save_data(data, temp_dir)
+
+            self.assertFalse(gamefile_paths(temp_dir)["coins"].exists())
+
+    def test_damaged_file_is_detected_on_load(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(default_save_data(), temp_dir)
+            gamefile_paths(temp_dir)["guns"].write_text(
+                "acquire = [true, maybe, false]\n", encoding="utf-8"
+            )
+
+            with self.assertRaises(SaveDataError):
+                load_save_data(temp_dir)
 
 
 class GameFileStoreTests(unittest.TestCase):

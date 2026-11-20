@@ -15,7 +15,7 @@ from save_paths import (
     ensure_gamefile_directories,
     gamefile_paths,
 )
-from shop import MAX_UPGRADE_LEVEL
+from shop import GUN_SHOP_ORDER, MAX_UPGRADE_LEVEL
 
 
 class SaveDataError(ValueError):
@@ -276,6 +276,89 @@ def read_training_records(path=None):
     return records
 
 
+def _require_fields(data, field_names):
+    values = getattr(data, "__dict__", None)
+    for name in field_names:
+        if values is None:
+            if not hasattr(data, name):
+                raise SaveDataError("missing save field: {}".format(name))
+        elif name not in values:
+            raise SaveDataError("missing save field: {}".format(name))
+
+
+def _require_list(value, label, length=None):
+    if not isinstance(value, (list, tuple)):
+        raise SaveDataError("{} must be a list".format(label))
+    if length is not None and len(value) != length:
+        raise SaveDataError(
+            "{} must contain {} entries: got {}".format(label, length, len(value))
+        )
+
+
+def _require_int(value, label, minimum=None, maximum=None):
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise SaveDataError("{} must be an integer: {!r}".format(label, value))
+    if minimum is not None and value < minimum:
+        raise SaveDataError("{} must be at least {}".format(label, minimum))
+    if maximum is not None and value > maximum:
+        raise SaveDataError("{} must be at most {}".format(label, maximum))
+    return value
+
+
+def _require_time(value, label):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise SaveDataError("{} must be a number: {!r}".format(label, value))
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        raise SaveDataError("{} must be a finite non-negative number".format(label))
+    return number
+
+
+def validate_save_data(data):
+    """Check every save field for missing values, wrong types, and bad ranges."""
+    field_names = (
+        "acquired_guns",
+        "upgrade_levels",
+        "coins",
+        "best_log",
+        "recent_logs",
+        "training_records",
+    )
+    _require_fields(data, field_names)
+    expected_count = len(GUN_SHOP_ORDER)
+
+    _require_list(data.acquired_guns, "acquired_guns", expected_count)
+    for owned in data.acquired_guns:
+        if not isinstance(owned, bool):
+            raise SaveDataError("gun ownership must be a boolean: {!r}".format(owned))
+
+    _require_list(data.upgrade_levels, "upgrade_levels", expected_count)
+    for level in data.upgrade_levels:
+        _require_int(level, "upgrade level", 0, MAX_UPGRADE_LEVEL)
+
+    _require_int(data.coins, "coins", 0)
+
+    if data.best_log is not None:
+        _require_fields(data.best_log, ("reached_wave", "elapsed_time"))
+        wave = _require_int(
+            data.best_log.reached_wave, "best reached wave", 0, TOTAL_WAVES
+        )
+        elapsed_time = _require_time(data.best_log.elapsed_time, "best play time")
+        if wave == 0 and elapsed_time != 0:
+            raise SaveDataError("empty best log must use wave and time zero")
+
+    _require_list(data.recent_logs, "recent_logs")
+    for index, entry in enumerate(data.recent_logs):
+        raw_wave, raw_time = _as_pair(entry, "recent log")
+        _require_int(raw_wave, "recent log reached wave", 1, TOTAL_WAVES)
+        _require_time(raw_time, "recent log play time")
+
+    _require_list(data.training_records, "training_records")
+    for count in data.training_records:
+        _require_int(count, "destroyed targets", 0)
+    return True
+
+
 _SAVE_FIELDS = (
     ("guns", "acquired_guns", read_guns),
     ("upgrades", "upgrade_levels", read_upgrade_levels),
@@ -288,6 +371,7 @@ _SAVE_FIELDS = (
 
 def write_save_data(data, root=None):
     """Write every game file from a SaveData object."""
+    validate_save_data(data)
     paths = gamefile_paths(root)
     ensure_gamefile_directories(root)
     write_guns(data.acquired_guns, paths["guns"])
@@ -315,6 +399,7 @@ def load_save_data(root=None):
     for key, field_name, reader in _SAVE_FIELDS:
         if paths[key].exists():
             setattr(data, field_name, reader(paths[key]))
+    validate_save_data(data)
     if missing:
         write_save_data(data, root)
     return data
