@@ -5,7 +5,13 @@ import re
 
 from game_config import TOTAL_WAVES
 from save_data import BestLog
-from save_paths import BEST_LOG_PATH, COINS_PATH, GUNS_PATH, UPGRADE_PATH
+from save_paths import (
+    BEST_LOG_PATH,
+    COINS_PATH,
+    GUNS_PATH,
+    RECENT_LOG_PATH,
+    UPGRADE_PATH,
+)
 from shop import MAX_UPGRADE_LEVEL
 
 
@@ -178,3 +184,62 @@ def read_best_log(path=None):
             "reached wave must be between 1 and {}: {}".format(TOTAL_WAVES, wave)
         )
     return BestLog(reached_wave=wave, elapsed_time=elapsed_time)
+
+
+def _validate_recent_entry(wave, elapsed_time):
+    if wave < 1 or wave > TOTAL_WAVES:
+        raise SaveDataError(
+            "reached wave must be between 1 and {}: {}".format(TOTAL_WAVES, wave)
+        )
+    if elapsed_time < 0:
+        raise SaveDataError("play time must be non-negative")
+
+
+def _as_pair(entry, label):
+    try:
+        first, second = entry
+    except (TypeError, ValueError) as error:
+        raise SaveDataError("{} must contain two values".format(label)) from error
+    return first, second
+
+
+def write_recent_logs(recent_logs, path=None):
+    """Write the recent wave/time pairs to latelyLog.txt."""
+    entries = []
+    for index, entry in enumerate(recent_logs):
+        raw_wave, raw_time = _as_pair(entry, "recent log")
+        wave = _parse_int(raw_wave, "reached wave")
+        elapsed_time = _parse_float(raw_time, "play time")
+        _validate_recent_entry(wave, elapsed_time)
+        entries.append("[{}, {}]".format(wave, _format_number(elapsed_time)))
+    _write_text(
+        path or RECENT_LOG_PATH,
+        "log = [{}]".format(", ".join(entries)),
+    )
+
+
+def read_recent_logs(path=None):
+    """Read the recent wave/time pairs from latelyLog.txt."""
+    text = _read_text(path or RECENT_LOG_PATH)
+    match = re.fullmatch(r"\s*log\s*=\s*\[(.*)\]\s*", text, flags=re.DOTALL)
+    if match is None:
+        raise SaveDataError("invalid log format")
+    inner = match.group(1).strip()
+    if not inner:
+        return []
+    entries = re.findall(
+        r"\[\s*([^,\[\]]+?)\s*,\s*([^,\[\]]+?)\s*\]", inner
+    )
+    rebuilt = ", ".join(
+        "[{}, {}]".format(raw_wave.strip(), raw_time.strip())
+        for raw_wave, raw_time in entries
+    )
+    if re.sub(r"\s+", "", rebuilt) != re.sub(r"\s+", "", inner):
+        raise SaveDataError("invalid log entry format")
+    recent_logs = []
+    for raw_wave, raw_time in entries:
+        wave = _parse_int(raw_wave, "reached wave")
+        elapsed_time = _parse_float(raw_time, "play time")
+        _validate_recent_entry(wave, elapsed_time)
+        recent_logs.append((wave, elapsed_time))
+    return recent_logs

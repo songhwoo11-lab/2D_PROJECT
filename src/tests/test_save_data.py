@@ -8,10 +8,12 @@ from save_io import (
     read_best_log,
     read_coins,
     read_guns,
+    read_recent_logs,
     read_upgrade_levels,
     write_best_log,
     write_coins,
     write_guns,
+    write_recent_logs,
     write_upgrade_levels,
 )
 from save_paths import (
@@ -185,6 +187,35 @@ class BestLogFileTests(unittest.TestCase):
 
             with self.assertRaises(SaveDataError):
                 read_best_log(path)
+
+
+class RecentLogFileTests(unittest.TestCase):
+    def test_round_trip(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "latelyLog.txt"
+            write_recent_logs([(10, 60.0), (7, 125.5)], path)
+
+            self.assertEqual(
+                read_recent_logs(path), [(10, 60.0), (7, 125.5)]
+            )
+
+    def test_empty_log_uses_the_prd_format(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "latelyLog.txt"
+            write_recent_logs([], path)
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8").strip(), "log = []"
+            )
+            self.assertEqual(read_recent_logs(path), [])
+
+    def test_malformed_entry_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "latelyLog.txt"
+            path.write_text("log = [[10, 60], [oops]]\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_recent_logs(path)
 
 
 class SavePathsTests(unittest.TestCase):
