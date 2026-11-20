@@ -4,13 +4,16 @@ import math
 import re
 
 from game_config import TOTAL_WAVES
-from save_data import BestLog
+from save_data import BestLog, SaveData, default_save_data
 from save_paths import (
     BEST_LOG_PATH,
     COINS_PATH,
     GUNS_PATH,
     RECENT_LOG_PATH,
+    TRAINING_LOG_PATH,
     UPGRADE_PATH,
+    ensure_gamefile_directories,
+    gamefile_paths,
 )
 from shop import MAX_UPGRADE_LEVEL
 
@@ -243,3 +246,75 @@ def read_recent_logs(path=None):
         _validate_recent_entry(wave, elapsed_time)
         recent_logs.append((wave, elapsed_time))
     return recent_logs
+
+
+def write_training_records(training_records, path=None):
+    """Write destroyed-target counts to trainingLog.txt."""
+    values = []
+    for value in training_records:
+        count = _parse_int(value, "destroyed targets")
+        if count < 0:
+            raise SaveDataError("destroyed targets must be non-negative")
+        values.append(count)
+    _write_text(
+        path or TRAINING_LOG_PATH,
+        "trainingLog = [{}]".format(", ".join(str(value) for value in values)),
+    )
+
+
+def read_training_records(path=None):
+    """Read destroyed-target counts from trainingLog.txt."""
+    values = _parse_list(
+        _read_text(path or TRAINING_LOG_PATH), "trainingLog"
+    )
+    records = []
+    for value in values:
+        count = _parse_int(value, "destroyed targets")
+        if count < 0:
+            raise SaveDataError("destroyed targets must be non-negative")
+        records.append(count)
+    return records
+
+
+_SAVE_FIELDS = (
+    ("guns", "acquired_guns", read_guns),
+    ("upgrades", "upgrade_levels", read_upgrade_levels),
+    ("coins", "coins", read_coins),
+    ("best_log", "best_log", read_best_log),
+    ("recent_logs", "recent_logs", read_recent_logs),
+    ("training_records", "training_records", read_training_records),
+)
+
+
+def write_save_data(data, root=None):
+    """Write every game file from a SaveData object."""
+    paths = gamefile_paths(root)
+    ensure_gamefile_directories(root)
+    write_guns(data.acquired_guns, paths["guns"])
+    write_upgrade_levels(data.upgrade_levels, paths["upgrades"])
+    write_coins(data.coins, paths["coins"])
+    write_best_log(data.best_log, paths["best_log"])
+    write_recent_logs(data.recent_logs, paths["recent_logs"])
+    write_training_records(data.training_records, paths["training_records"])
+
+
+def load_save_data(root=None):
+    """Load all game files, creating PRD defaults for any missing file."""
+    paths = gamefile_paths(root)
+    ensure_gamefile_directories(root)
+    defaults = default_save_data()
+    data = SaveData(
+        acquired_guns=list(defaults.acquired_guns),
+        upgrade_levels=list(defaults.upgrade_levels),
+        coins=defaults.coins,
+        best_log=defaults.best_log,
+        recent_logs=list(defaults.recent_logs),
+        training_records=list(defaults.training_records),
+    )
+    missing = [path for path in paths.values() if not path.exists()]
+    for key, field_name, reader in _SAVE_FIELDS:
+        if paths[key].exists():
+            setattr(data, field_name, reader(paths[key]))
+    if missing:
+        write_save_data(data, root)
+    return data

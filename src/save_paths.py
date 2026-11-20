@@ -22,3 +22,16 @@ def ensure_gamefile_directories(root=None):
     for directory in (base / "gun", base / "coin", base / "playlog"):
         directory.mkdir(parents=True, exist_ok=True)
     return base
+
+
+def gamefile_paths(root=None):
+    """Return all game file paths under the given gamefile root."""
+    base = Path(root) if root is not None else GAMEFILE_DIR
+    return {
+        "guns": base / "gun" / "getGuns.txt",
+        "upgrades": base / "gun" / "LvGuns.txt",
+        "coins": base / "coin" / "coins.txt",
+        "best_log": base / "playlog" / "BestLog.txt",
+        "recent_logs": base / "playlog" / "latelyLog.txt",
+        "training_records": base / "playlog" / "trainingLog.txt",
+    }

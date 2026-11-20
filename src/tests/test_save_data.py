@@ -9,11 +9,15 @@ from save_io import (
     read_coins,
     read_guns,
     read_recent_logs,
+    read_training_records,
     read_upgrade_levels,
+    load_save_data,
     write_best_log,
     write_coins,
     write_guns,
     write_recent_logs,
+    write_save_data,
+    write_training_records,
     write_upgrade_levels,
 )
 from save_paths import (
@@ -25,6 +29,7 @@ from save_paths import (
     TRAINING_LOG_PATH,
     UPGRADE_PATH,
     ensure_gamefile_directories,
+    gamefile_paths,
 )
 from shop import GUN_SHOP_ORDER
 
@@ -218,6 +223,72 @@ class RecentLogFileTests(unittest.TestCase):
                 read_recent_logs(path)
 
 
+class TrainingLogFileTests(unittest.TestCase):
+    def test_round_trip(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "trainingLog.txt"
+            write_training_records([12, 7, 0], path)
+
+            self.assertEqual(read_training_records(path), [12, 7, 0])
+
+    def test_file_uses_the_training_log_format(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "trainingLog.txt"
+            write_training_records([5], path)
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8").strip(),
+                "trainingLog = [5]",
+            )
+
+    def test_negative_count_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "trainingLog.txt"
+            path.write_text("trainingLog = [-1]\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_training_records(path)
+
+
+class GameFileStoreTests(unittest.TestCase):
+    def test_first_run_creates_all_default_files(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data = load_save_data(temp_dir)
+
+            self.assertEqual(data, default_save_data())
+            for path in gamefile_paths(temp_dir).values():
+                self.assertTrue(path.exists(), path)
+
+    def test_round_trip_every_file(self):
+        data = SaveData(
+            acquired_guns=[True, True, False],
+            upgrade_levels=[0, 3, 10],
+            coins=2500,
+            best_log=BestLog(reached_wave=21, elapsed_time=305.25),
+            recent_logs=[(21, 305.25), (12, 110.0)],
+            training_records=[9, 14],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(data, temp_dir)
+
+            self.assertEqual(load_save_data(temp_dir), data)
+
+    def test_missing_files_are_filled_from_defaults(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            coins_path = gamefile_paths(temp_dir)["coins"]
+            coins_path.parent.mkdir(parents=True, exist_ok=True)
+            write_coins(500, coins_path)
+
+            data = load_save_data(temp_dir)
+
+            self.assertEqual(data.coins, 500)
+            self.assertEqual(data.acquired_guns, default_save_data().acquired_guns)
+            self.assertIsNone(data.best_log)
+            self.assertEqual(data.training_records, [])
+            for path in gamefile_paths(temp_dir).values():
+                self.assertTrue(path.exists(), path)
+
+
 class SavePathsTests(unittest.TestCase):
     def test_paths_follow_the_prd_layout(self):
         self.assertEqual(GUNS_PATH, GAMEFILE_DIR / "gun" / "getGuns.txt")
@@ -240,4 +311,23 @@ class SavePathsTests(unittest.TestCase):
             self.assertEqual(root, Path(temp_dir))
             for name in ("gun", "coin", "playlog"):
                 self.assertTrue((Path(temp_dir) / name).is_dir())
+
+    def test_gamefile_paths_accepts_a_custom_root(self):
+        paths = gamefile_paths("custom")
+
+        self.assertEqual(
+            paths["training_records"],
+            Path("custom") / "playlog" / "trainingLog.txt",
+        )
+        self.assertEqual(
+            set(paths),
+            {
+                "guns",
+                "upgrades",
+                "coins",
+                "best_log",
+                "recent_logs",
+                "training_records",
+            },
+        )
 
