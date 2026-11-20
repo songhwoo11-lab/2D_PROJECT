@@ -76,6 +76,12 @@ class GameApp:
         self.assets["training_background"] = pico2d.load_image(
             str(directory / "game_training.png")
         )
+        self.assets["records_background"] = pico2d.load_image(
+            str(directory / "table.png")
+        )
+        self.assets["records_book_image"] = pico2d.load_image(
+            str(directory / "book.png")
+        )
         self.assets["hud_font"] = pico2d.load_font(
             str(directory / "font" / "MulmaruMono.ttf"),
             HUD_FONT_SIZE,
@@ -113,6 +119,8 @@ class GameApp:
             state=self.state,
             node_key=self.lobby_node_key,
             gun_images=self.assets.get("shop_gun_images"),
+            records_background=self.assets.get("records_background"),
+            records_book_image=self.assets.get("records_book_image"),
         )
 
     def create_battle_scene(self):

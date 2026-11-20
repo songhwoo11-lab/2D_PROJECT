@@ -19,6 +19,9 @@ from lobby_scene import (
     GUN_SELECT_STATE_DISABLED_COLOR,
     GUN_SELECT_STATE_DISABLED_TEXT_COLOR,
     LobbyScene,
+    RECORDS_BOOK_HEIGHT,
+    RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y,
+    RECORDS_BOOK_PAPER_TOP_IMAGE_Y,
     gun_select_card_rect,
     gun_select_state_button_rect,
 )
@@ -620,3 +623,53 @@ class LobbyStairsExitTests(unittest.TestCase):
         press(self.scene, "space")
 
         self.assertTrue(self.scene.exit_requested)
+
+
+class LobbyRecordsImageTests(unittest.TestCase):
+    def setUp(self):
+        self.state = GameState(owned_guns=["pistol"])
+        self.table = MagicMock()
+        self.book = MagicMock()
+        self.scene = LobbyScene(
+            Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
+            hud_font=MagicMock(),
+            state=self.state,
+            records_background=self.table,
+            records_book_image=self.book,
+        )
+        self.scene.open_records()
+
+    def test_draws_table_background_and_book_image(self):
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: None)
+
+        self.table.draw.assert_called_once()
+        self.book.draw.assert_called_once()
+
+    def test_record_text_stays_inside_the_book_paper_area(self):
+        self.state.add_record(
+            BattleRecord(
+                result="victory",
+                reached_wave=10,
+                elapsed_time=60.0,
+            )
+        )
+        with patch("lobby_scene.draw_centered_text") as text_draw, patch(
+            "lobby_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: None)
+
+        book_bottom = (SCREEN_HEIGHT - RECORDS_BOOK_HEIGHT) / 2
+        paper_top = SCREEN_HEIGHT - (
+            book_bottom + RECORDS_BOOK_PAPER_TOP_IMAGE_Y
+        )
+        paper_bottom = SCREEN_HEIGHT - (
+            book_bottom + RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y
+        )
+        ys = [call.args[1] for call in text_draw.call_args_list]
+        self.assertTrue(ys)
+        for y in ys:
+            self.assertGreaterEqual(y, paper_bottom)
+            self.assertLessEqual(y, paper_top)

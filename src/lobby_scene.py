@@ -43,6 +43,16 @@ GUN_SELECT_HINT_Y = 140
 GUN_SELECT_LOCKED_OPACITY = 0.5
 GUN_SELECT_LOCK_COLOR = (85, 85, 90, 255)
 GUN_SELECT_LOCK_KEYHOLE_COLOR = (40, 40, 45, 255)
+
+# 기록 확인 화면: table 배경 위에 book 이미지를 출력한다.
+RECORDS_BOOK_WIDTH = 1402
+RECORDS_BOOK_HEIGHT = 1122
+# book.png에서 종이(밝은 페이지) 영역의 이미지 좌표(위쪽 기준).
+RECORDS_BOOK_PAPER_TOP_IMAGE_Y = 31
+RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y = 950
+RECORDS_TITLE_Y_OFFSET = 60
+RECORDS_FIRST_ROW_Y_OFFSET = 150
+RECORDS_ROW_GAP = 70
 GUN_SELECT_HOVER_OUTLINE_COLOR = (120, 170, 230, 255)
 
 GUN_SELECT_IMAGE_SIZES = {
@@ -119,12 +129,16 @@ class LobbyScene:
         state=None,
         node_key=None,
         gun_images=None,
+        records_background=None,
+        records_book_image=None,
     ):
         self.player = player
         self.background = background
         self.hud_font = hud_font
         self.state = state
         self.gun_images = gun_images or {}
+        self.records_background = records_background
+        self.records_book_image = records_book_image
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -498,32 +512,71 @@ class LobbyScene:
         )
 
     def _draw_records_panel(self, draw_rectangle):
-        """Draw the battle record list over the lobby."""
-        draw_rectangle(
-            0,
-            0,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT,
-            10,
-            10,
-            20,
-            210,
-            True,
-        )
+        """Draw the battle records on the paper area of the book image."""
+        if self.records_background is not None:
+            self.records_background.draw(
+                SCREEN_WIDTH / 2,
+                SCREEN_HEIGHT / 2,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+            )
+        else:
+            draw_rectangle(
+                0,
+                0,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+                10,
+                10,
+                20,
+                210,
+                True,
+            )
+
+        book_bottom = (SCREEN_HEIGHT - RECORDS_BOOK_HEIGHT) / 2
+        if self.records_book_image is not None:
+            self.records_book_image.draw(
+                SCREEN_WIDTH / 2,
+                book_bottom + RECORDS_BOOK_HEIGHT / 2,
+                RECORDS_BOOK_WIDTH,
+                RECORDS_BOOK_HEIGHT,
+            )
+        else:
+            draw_rectangle(
+                SCREEN_WIDTH / 2 - RECORDS_BOOK_WIDTH / 2,
+                book_bottom,
+                SCREEN_WIDTH / 2 + RECORDS_BOOK_WIDTH / 2,
+                book_bottom + RECORDS_BOOK_HEIGHT,
+                60,
+                40,
+                25,
+                255,
+                True,
+            )
+
         if self.hud_font is None:
             return
+        paper_top_y = SCREEN_HEIGHT - (
+            book_bottom + RECORDS_BOOK_PAPER_TOP_IMAGE_Y
+        )
+        paper_bottom_y = SCREEN_HEIGHT - (
+            book_bottom + RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y
+        )
+        title_y = paper_top_y - RECORDS_TITLE_Y_OFFSET
+        first_row_y = paper_top_y - RECORDS_FIRST_ROW_Y_OFFSET
         draw_centered_text(
             self.hud_font,
-            SCREEN_HEIGHT - 180,
+            title_y,
             "BATTLE RECORDS",
-            (255, 220, 100),
+            (40, 30, 20),
         )
         records = self.state.records if self.state is not None else []
         if not records:
             draw_centered_text(
                 self.hud_font,
-                SCREEN_HEIGHT - 280,
+                first_row_y,
                 "NO RECORDS YET",
+                (40, 30, 20),
             )
             return
         for index, record in enumerate(records):
@@ -534,10 +587,14 @@ class LobbyScene:
                 record.elapsed_time,
                 record.clear_time,
             )
+            row_y = first_row_y - index * RECORDS_ROW_GAP
+            if row_y < paper_bottom_y:
+                break
             draw_centered_text(
                 self.hud_font,
-                SCREEN_HEIGHT - 280 - index * 60,
+                row_y,
                 text,
+                (40, 30, 20),
             )
 
     def key_down(self, key):
