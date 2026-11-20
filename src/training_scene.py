@@ -28,6 +28,8 @@ TRAINING_TITLE_Y = SCREEN_HEIGHT - 200
 TRAINING_NOTICE_Y = SCREEN_HEIGHT - 300
 TRAINING_HINT_Y = 120
 
+PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
+
 
 class TrainingTarget:
     """A simple circular target used in the training ground."""
@@ -126,6 +128,8 @@ class TrainingScene:
         self._mouse_pressed = False
         self.exit_requested = False
         self.pending_action = None
+        self.paused = False
+        self.pause_menu_index = 0
         self.last_shot_result = None
         self.shot_result_timer = 0.0
         self._training_record_saved = False
@@ -135,6 +139,9 @@ class TrainingScene:
         self.finish_timer = 2.0
 
     def update(self, delta_time):
+        if self.paused:
+            return
+
         canvas_x = self.mouse_screen_x
         canvas_y = SCREEN_HEIGHT - self.mouse_screen_y
         if self.player is not None:
@@ -275,13 +282,16 @@ class TrainingScene:
                 (120, 20, 0),
             )
 
+        if self.paused:
+            self._draw_pause_menu(draw_rectangle)
+
     @property
     def aim_cursor_position(self):
         return self.mouse_screen_x, SCREEN_HEIGHT - self.mouse_screen_y
 
     @property
     def shows_aim_cursor(self):
-        return self.phase == "playing"
+        return self.phase == "playing" and not self.paused
 
     @property
     def shows_system_cursor(self):
@@ -322,17 +332,78 @@ class TrainingScene:
             True,
         )
 
+    def _draw_pause_menu(self, draw_rectangle):
+        left = SCREEN_WIDTH / 2 - 300
+        right = SCREEN_WIDTH / 2 + 300
+        bottom = SCREEN_HEIGHT / 2 - 170
+        top = SCREEN_HEIGHT / 2 + 170
+        draw_rectangle(left, bottom, right, top, 20, 25, 35, 225, True)
+        draw_centered_text(
+            self.hud_font,
+            SCREEN_HEIGHT / 2 + 104,
+            "PAUSED",
+            (255, 220, 80),
+        )
+        for index, label in enumerate(PAUSE_MENU_ITEMS):
+            color = (
+                (255, 220, 80)
+                if index == self.pause_menu_index
+                else (255, 255, 255)
+            )
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT / 2 + 24 - index * 68,
+                label,
+                color,
+            )
+
     def key_down(self, key):
         key = key.lower()
         if key in self.keys:
             return
         self.keys.add(key)
+
+        if self.phase == "countdown":
+            return
+
+        if key == "escape":
+            if self.phase == "playing":
+                self.paused = not self.paused
+                self.pause_menu_index = 0
+                if self.paused:
+                    self.mouse_held = False
+                    self._mouse_pressed = False
+            return
+
+        if self.paused:
+            if key in ("w", "up"):
+                self.pause_menu_index = (
+                    self.pause_menu_index - 1
+                ) % len(PAUSE_MENU_ITEMS)
+            elif key in ("s", "down"):
+                self.pause_menu_index = (
+                    self.pause_menu_index + 1
+                ) % len(PAUSE_MENU_ITEMS)
+            elif key == "space":
+                self._select_pause_menu_item()
+            return
+
+        if self.phase == "finished":
+            return
+
         if key == "e":
             self.gun.toggle_mode()
         elif key == "r":
             self.gun.start_reload()
-        elif key in ("escape", "q"):
+        elif key == "q":
             self.pending_action = "return_to_lobby"
+
+    def _select_pause_menu_item(self):
+        self.paused = False
+        if self.pause_menu_index == 0:
+            return
+        self._training_record_saved = True
+        self.pending_action = "return_to_lobby"
 
     def key_up(self, key):
         self.keys.discard(key.lower())
@@ -340,6 +411,23 @@ class TrainingScene:
     def mouse_move(self, screen_x, screen_y):
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
+        if self.paused and self.phase == "playing":
+            hovered = self._pause_menu_item_at(screen_x, screen_y)
+            if hovered is not None:
+                self.pause_menu_index = hovered
+
+    def _pause_menu_item_at(self, screen_x, screen_y):
+        """Return the pause menu item under the given screen position."""
+        canvas_y = SCREEN_HEIGHT - screen_y
+        center_x = SCREEN_WIDTH / 2
+        for index, _label in enumerate(PAUSE_MENU_ITEMS):
+            item_y = SCREEN_HEIGHT / 2 + 24 - index * 68
+            if (
+                abs(screen_x - center_x) <= 220
+                and abs(canvas_y - item_y) <= 34
+            ):
+                return index
+        return None
 
     def _respawn_target(self):
         margin = 80.0
@@ -389,18 +477,20 @@ class TrainingScene:
         return self.target.contains(aim_x, aim_y)
 
     def mouse_down(self, button, screen_x=None, screen_y=None):
-        return None
-
-    def mouse_up(self, button):
-        return None
-
-    def mouse_down(self, button, screen_x=None, screen_y=None):
-        if button == "left":
-            self.mouse_held = True
-            self._mouse_pressed = True
+        if button != "left":
+            return
+        if self.paused and self.phase == "playing":
             if screen_x is not None and screen_y is not None:
-                self.mouse_screen_x = screen_x
-                self.mouse_screen_y = screen_y
+                hovered = self._pause_menu_item_at(screen_x, screen_y)
+                if hovered is not None:
+                    self.pause_menu_index = hovered
+                    self._select_pause_menu_item()
+            return
+        self.mouse_held = True
+        self._mouse_pressed = True
+        if screen_x is not None and screen_y is not None:
+            self.mouse_screen_x = screen_x
+            self.mouse_screen_y = screen_y
 
     def mouse_up(self, button):
         if button == "left":

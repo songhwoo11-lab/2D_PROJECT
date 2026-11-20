@@ -66,6 +66,13 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
 
         press(self.app, "escape")
         self.app.handle_scene_action()
+        self.assertEqual(self.app.scene_kind, "training")
+
+        self.app.scene.phase = "playing"
+        press(self.app, "escape")
+        press(self.app, "s")
+        press(self.app, "space")
+        self.app.handle_scene_action()
         self.assertEqual(self.app.scene_kind, "lobby")
 
         press(self.app, "a")

@@ -149,6 +149,37 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertTrue(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
 
+    def test_escape_before_training_starts_does_not_leave_the_scene(self):
+        self.app.switch_scene("training")
+
+        self.app.handle_escape_key()
+
+        self.assertEqual(self.app.scene_kind, "training")
+        self.assertFalse(self.app.scene.paused)
+        self.assertIsNone(self.app.scene.pending_action)
+
+    def test_escape_during_training_pauses_through_the_app(self):
+        self.app.switch_scene("training")
+        self.app.scene.phase = "playing"
+
+        self.app.handle_escape_key()
+
+        self.assertEqual(self.app.scene_kind, "training")
+        self.assertTrue(self.app.scene.paused)
+
+    def test_pause_menu_lobby_choice_returns_without_a_training_record(self):
+        self.app.switch_scene("training")
+        self.app.scene.phase = "playing"
+        self.app.scene._hits = 3
+        self.app.handle_escape_key()
+        self.app.scene.key_down("s")
+        self.app.scene.key_down("space")
+
+        self.assertTrue(self.app.handle_scene_action())
+
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertEqual(self.app.state.training_records, [])
+
     def test_portal_starts_the_battle_scene(self):
         self.app.scene.pending_action = "start_battle"
 
