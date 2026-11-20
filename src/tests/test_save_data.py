@@ -5,9 +5,11 @@ from pathlib import Path
 from save_data import BestLog, SaveData, default_save_data
 from save_io import (
     SaveDataError,
+    read_best_log,
     read_coins,
     read_guns,
     read_upgrade_levels,
+    write_best_log,
     write_coins,
     write_guns,
     write_upgrade_levels,
@@ -154,6 +156,35 @@ class CoinFileTests(unittest.TestCase):
 
             with self.assertRaises(SaveDataError):
                 read_coins(path)
+
+
+class BestLogFileTests(unittest.TestCase):
+    def test_round_trip(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "BestLog.txt"
+            write_best_log(BestLog(reached_wave=30, elapsed_time=125.5), path)
+
+            loaded = read_best_log(path)
+            self.assertEqual(loaded.reached_wave, 30)
+            self.assertEqual(loaded.elapsed_time, 125.5)
+
+    def test_missing_record_uses_zero_sentinel(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "BestLog.txt"
+            write_best_log(None, path)
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8").strip(), "BestLog = [0, 0]"
+            )
+            self.assertIsNone(read_best_log(path))
+
+    def test_out_of_range_wave_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "BestLog.txt"
+            path.write_text("BestLog = [31, 10]\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_best_log(path)
 
 
 class SavePathsTests(unittest.TestCase):

@@ -1,8 +1,11 @@
 """Read and write the individual game files in the PRD text formats."""
 
+import math
 import re
 
-from save_paths import COINS_PATH, GUNS_PATH, UPGRADE_PATH
+from game_config import TOTAL_WAVES
+from save_data import BestLog
+from save_paths import BEST_LOG_PATH, COINS_PATH, GUNS_PATH, UPGRADE_PATH
 from shop import MAX_UPGRADE_LEVEL
 
 
@@ -113,3 +116,65 @@ def read_coins(path=None):
     if amount < 0:
         raise SaveDataError("coins must be non-negative: {}".format(amount))
     return amount
+
+
+def _parse_float(value, label):
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as error:
+        raise SaveDataError("invalid {} value: {}".format(label, value)) from error
+    if not math.isfinite(number):
+        raise SaveDataError("{} must be finite: {}".format(label, value))
+    return number
+
+
+def _format_number(value):
+    number = _parse_float(value, "number")
+    return str(int(number)) if number.is_integer() else str(number)
+
+
+def _parse_number_pair(text, key):
+    values = _parse_list(text, key)
+    if len(values) != 2:
+        raise SaveDataError("{} must contain two values".format(key))
+    return values
+
+
+def write_best_log(best_log, path=None):
+    """Write the best wave and time, using [0, 0] when there is no record."""
+    if best_log is None:
+        values = [0, 0]
+    else:
+        wave = _parse_int(best_log.reached_wave, "reached wave")
+        elapsed_time = _parse_float(best_log.elapsed_time, "play time")
+        if wave < 1 or wave > TOTAL_WAVES:
+            raise SaveDataError(
+                "reached wave must be between 1 and {}: {}".format(
+                    TOTAL_WAVES, wave
+                )
+            )
+        if elapsed_time < 0:
+            raise SaveDataError("play time must be non-negative")
+        values = [wave, _format_number(elapsed_time)]
+    _write_text(
+        path or BEST_LOG_PATH,
+        "BestLog = [{}]".format(", ".join(str(value) for value in values)),
+    )
+
+
+def read_best_log(path=None):
+    """Read the best record; the [0, 0] sentinel means no record yet."""
+    values = _parse_number_pair(_read_text(path or BEST_LOG_PATH), "BestLog")
+    wave = _parse_int(values[0], "reached wave")
+    elapsed_time = _parse_float(values[1], "play time")
+    if elapsed_time < 0:
+        raise SaveDataError("play time must be non-negative")
+    if wave == 0:
+        if elapsed_time != 0:
+            raise SaveDataError("empty best log must use [0, 0]")
+        return None
+    if wave < 1 or wave > TOTAL_WAVES:
+        raise SaveDataError(
+            "reached wave must be between 1 and {}: {}".format(TOTAL_WAVES, wave)
+        )
+    return BestLog(reached_wave=wave, elapsed_time=elapsed_time)
