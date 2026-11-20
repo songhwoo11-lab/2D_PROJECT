@@ -5,8 +5,10 @@ from pathlib import Path
 from save_data import BestLog, SaveData, default_save_data
 from save_io import (
     SaveDataError,
+    read_coins,
     read_guns,
     read_upgrade_levels,
+    write_coins,
     write_guns,
     write_upgrade_levels,
 )
@@ -126,6 +128,32 @@ class UpgradeFileTests(unittest.TestCase):
 
             with self.assertRaises(SaveDataError):
                 read_upgrade_levels(path)
+
+
+class CoinFileTests(unittest.TestCase):
+    def test_round_trip(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "coins.txt"
+            write_coins(12345, path)
+
+            self.assertEqual(read_coins(path), 12345)
+
+    def test_file_uses_the_prd_format(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "coins.txt"
+            write_coins(0, path)
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8").strip(), "coins = 0"
+            )
+
+    def test_negative_coins_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "coins.txt"
+            path.write_text("coins = -1\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_coins(path)
 
 
 class SavePathsTests(unittest.TestCase):

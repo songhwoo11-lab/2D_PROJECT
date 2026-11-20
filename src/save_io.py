@@ -2,7 +2,7 @@
 
 import re
 
-from save_paths import GUNS_PATH, UPGRADE_PATH
+from save_paths import COINS_PATH, GUNS_PATH, UPGRADE_PATH
 from shop import MAX_UPGRADE_LEVEL
 
 
@@ -93,3 +93,23 @@ def read_upgrade_levels(path=None):
             )
         upgrade_levels.append(stored_level - 1)
     return upgrade_levels
+
+
+def write_coins(coins, path=None):
+    """Write the coin amount to coins.txt."""
+    amount = _parse_int(coins, "coins")
+    if amount < 0:
+        raise SaveDataError("coins must be non-negative: {}".format(amount))
+    _write_text(path or COINS_PATH, "coins = {}".format(amount))
+
+
+def read_coins(path=None):
+    """Read the coin amount from coins.txt."""
+    text = _read_text(path or COINS_PATH)
+    match = re.fullmatch(r"\s*coins\s*=\s*(-?\d+)\s*", text)
+    if match is None:
+        raise SaveDataError("invalid coins format")
+    amount = _parse_int(match.group(1), "coins")
+    if amount < 0:
+        raise SaveDataError("coins must be non-negative: {}".format(amount))
+    return amount
