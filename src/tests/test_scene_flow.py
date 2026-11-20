@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from battle_record import BattleRecord
 from battle_scene import BattleResult
 from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y, SCREEN_HEIGHT
 from game_state import GameState
@@ -445,7 +446,7 @@ class SaveExitIntegrationTests(unittest.TestCase):
             app.switch_scene("battle")
             battle = app.scene
             battle.coins = 40
-            battle.result = None
+            battle.result = BattleResult.DEFEAT
             battle.reached_wave = 4
             battle.elapsed_time = 33.0
 
@@ -454,7 +455,48 @@ class SaveExitIntegrationTests(unittest.TestCase):
             saved = load_save_data(temp_dir)
             self.assertEqual(saved.coins, 40)
             self.assertEqual(saved.recent_logs, [(4, 33.0)])
-            self.assertEqual(app.state.records[0].result, "quit")
+            self.assertEqual(app.state.records[0].result, "defeat")
+            app.scene.close()
+
+    def test_quit_to_lobby_does_not_store_a_battle_record(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = self.make_loaded_app(temp_dir)
+            app.state.add_record(
+                BattleRecord("defeat", reached_wave=3, elapsed_time=20.0)
+            )
+            app.switch_scene("battle")
+            battle = app.scene
+            battle.coins = 5
+            battle.result = BattleResult.QUIT
+            battle.reached_wave = 9
+            battle.elapsed_time = 60.0
+
+            app.handle_battle_exit()
+
+            self.assertEqual(app.state.coins, 5)
+            self.assertEqual(
+                [(record.reached_wave, record.result) for record in app.state.records],
+                [(3, "defeat")],
+            )
+            saved = load_save_data(temp_dir)
+            self.assertEqual(saved.recent_logs, [(3, 20.0)])
+            app.scene.close()
+
+    def test_aborted_battle_without_result_does_not_store_a_record(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = self.make_loaded_app(temp_dir)
+            app.switch_scene("battle")
+            battle = app.scene
+            battle.coins = 7
+            battle.result = None
+            battle.reached_wave = 6
+            battle.elapsed_time = 45.0
+
+            app.handle_battle_exit()
+
+            self.assertEqual(app.state.records, [])
+            self.assertEqual(load_save_data(temp_dir).recent_logs, [])
+            self.assertEqual(app.state.coins, 7)
             app.scene.close()
 
     def test_save_failure_shows_guidance(self):

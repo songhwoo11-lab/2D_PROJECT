@@ -5,7 +5,12 @@ from pathlib import Path
 import pico2d
 
 from battle_record import BattleRecord
-from battle_scene import DEBUG_FONT_SIZE, SHOT_FEEDBACK_FONT_SIZE, BattleScene
+from battle_scene import (
+    DEBUG_FONT_SIZE,
+    SHOT_FEEDBACK_FONT_SIZE,
+    BattleResult,
+    BattleScene,
+)
 from dev_settings import development_spawn_rate, development_total_waves
 from enemy import EnemyType
 from game_config import (
@@ -270,18 +275,19 @@ class GameApp:
         self.cursor_hidden = should_hide
 
     def handle_battle_exit(self):
-        """Store the finished battle result and go back to the lobby."""
+        """Store a finished battle result, unless the battle was abandoned."""
         battle = self.scene
         self.state.coins += battle.coins
-        result = battle.result.value if battle.result is not None else "quit"
-        self.state.add_record(
-            BattleRecord(
-                result=result,
-                reached_wave=battle.reached_wave,
-                elapsed_time=battle.elapsed_time,
-                clear_time=battle.clear_time,
+        abandoned = battle.result is None or battle.result is BattleResult.QUIT
+        if not abandoned:
+            self.state.add_record(
+                BattleRecord(
+                    result=battle.result.value,
+                    reached_wave=battle.reached_wave,
+                    elapsed_time=battle.elapsed_time,
+                    clear_time=battle.clear_time,
+                )
             )
-        )
         self.save_progress()
         self.switch_scene("lobby")
 
