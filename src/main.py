@@ -22,7 +22,7 @@ from game_state import GameState
 from lobby_map import LOBBY_START_KEY
 from lobby_scene import LobbyScene
 from player import Player
-from save_io import load_save_data_with_report
+from save_io import SaveDataError, load_save_data_with_report, write_save_data
 from shop_scene import ShopScene
 from training_scene import TrainingScene
 from weapon import Gun
@@ -53,6 +53,17 @@ class GameApp:
         if self.save_notice:
             print("저장 데이터 안내: " + self.save_notice)
         return result
+
+    def save_progress(self):
+        """Persist the current state, reporting write failures clearly."""
+        try:
+            write_save_data(self.state.to_save_data(), self.save_root)
+            return True
+        except SaveDataError as error:
+            message = "저장 파일을 갱신할 수 없습니다: {}".format(error)
+            self.save_notice = message
+            print("저장 데이터 안내: " + message)
+            return False
 
     def load_assets(self):
         import pico2d
@@ -262,14 +273,16 @@ class GameApp:
         """Store the finished battle result and go back to the lobby."""
         battle = self.scene
         self.state.coins += battle.coins
+        result = battle.result.value if battle.result is not None else "quit"
         self.state.add_record(
             BattleRecord(
-                result=battle.result.value,
+                result=result,
                 reached_wave=battle.reached_wave,
                 elapsed_time=battle.elapsed_time,
                 clear_time=battle.clear_time,
             )
         )
+        self.save_progress()
         self.switch_scene("lobby")
 
     def run(self):
@@ -332,6 +345,7 @@ class GameApp:
                 pico2d.delay(max(0.0, FRAME_TIME - frame_duration))
                 last_time = frame_start
         finally:
+            self.save_progress()
             if self.scene is not None:
                 self.scene.close()
             if self.cursor_hidden:

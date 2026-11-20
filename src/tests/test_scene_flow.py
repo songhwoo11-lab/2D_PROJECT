@@ -9,7 +9,7 @@ from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY
 from main import GameApp
 from save_data import BestLog, SaveData, default_save_data
-from save_io import write_save_data
+from save_io import SaveDataError, load_save_data, write_save_data
 from shop import GUN_SHOP_ORDER
 from shop_scene import (
     BUY_ACTION,
@@ -429,3 +429,41 @@ class SaveStartupIntegrationTests(unittest.TestCase):
             self.assertIn("coins.txt", app.save_notice)
             self.assertEqual(app.scene.notice, app.save_notice)
             app.scene.close()
+
+
+class SaveExitIntegrationTests(unittest.TestCase):
+    def make_loaded_app(self, temp_dir):
+        write_save_data(default_save_data(), temp_dir)
+        app = make_app(save_root=temp_dir)
+        with patch.dict(os.environ, {}, clear=True):
+            app.load_progress()
+        return app
+
+    def test_battle_exit_updates_coins_and_the_recent_record_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = self.make_loaded_app(temp_dir)
+            app.switch_scene("battle")
+            battle = app.scene
+            battle.coins = 40
+            battle.result = None
+            battle.reached_wave = 4
+            battle.elapsed_time = 33.0
+
+            app.handle_battle_exit()
+
+            saved = load_save_data(temp_dir)
+            self.assertEqual(saved.coins, 40)
+            self.assertEqual(saved.recent_logs, [(4, 33.0)])
+            self.assertEqual(app.state.records[0].result, "quit")
+            app.scene.close()
+
+    def test_save_failure_shows_guidance(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = self.make_loaded_app(temp_dir)
+
+            with patch(
+                "main.write_save_data", side_effect=SaveDataError("disk full")
+            ):
+                self.assertFalse(app.save_progress())
+
+            self.assertIn("disk full", app.save_notice)
