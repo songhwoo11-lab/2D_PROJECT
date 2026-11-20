@@ -1,6 +1,18 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from save_data import BestLog, SaveData, default_save_data
+from save_paths import (
+    BEST_LOG_PATH,
+    COINS_PATH,
+    GAMEFILE_DIR,
+    GUNS_PATH,
+    RECENT_LOG_PATH,
+    TRAINING_LOG_PATH,
+    UPGRADE_PATH,
+    ensure_gamefile_directories,
+)
 from shop import GUN_SHOP_ORDER
 
 
@@ -53,3 +65,28 @@ class DefaultSaveDataTests(unittest.TestCase):
 
         self.assertEqual(data.coins, 100)
         self.assertEqual(data.training_records, [7])
+
+
+class SavePathsTests(unittest.TestCase):
+    def test_paths_follow_the_prd_layout(self):
+        self.assertEqual(GUNS_PATH, GAMEFILE_DIR / "gun" / "getGuns.txt")
+        self.assertEqual(UPGRADE_PATH, GAMEFILE_DIR / "gun" / "LvGuns.txt")
+        self.assertEqual(COINS_PATH, GAMEFILE_DIR / "coin" / "coins.txt")
+        self.assertEqual(
+            BEST_LOG_PATH, GAMEFILE_DIR / "playlog" / "BestLog.txt"
+        )
+        self.assertEqual(
+            RECENT_LOG_PATH, GAMEFILE_DIR / "playlog" / "latelyLog.txt"
+        )
+        self.assertEqual(
+            TRAINING_LOG_PATH, GAMEFILE_DIR / "playlog" / "trainingLog.txt"
+        )
+
+    def test_directories_are_created(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = ensure_gamefile_directories(temp_dir)
+
+            self.assertEqual(root, Path(temp_dir))
+            for name in ("gun", "coin", "playlog"):
+                self.assertTrue((Path(temp_dir) / name).is_dir())
+
