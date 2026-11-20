@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from save_data import BestLog, SaveData, default_save_data
+from save_io import SaveDataError, read_guns, write_guns
 from save_paths import (
     BEST_LOG_PATH,
     COINS_PATH,
@@ -65,6 +66,33 @@ class DefaultSaveDataTests(unittest.TestCase):
 
         self.assertEqual(data.coins, 100)
         self.assertEqual(data.training_records, [7])
+
+
+class GunFileTests(unittest.TestCase):
+    def test_round_trip(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "getGuns.txt"
+            write_guns([True, False, True], path)
+
+            self.assertEqual(read_guns(path), [True, False, True])
+
+    def test_file_uses_the_prd_format(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "getGuns.txt"
+            write_guns([True, False, False], path)
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8").strip(),
+                "acquire = [true, false, false]",
+            )
+
+    def test_invalid_value_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "getGuns.txt"
+            path.write_text("acquire = [yes, false]\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_guns(path)
 
 
 class SavePathsTests(unittest.TestCase):
