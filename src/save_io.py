@@ -2,7 +2,8 @@
 
 import re
 
-from save_paths import GUNS_PATH
+from save_paths import GUNS_PATH, UPGRADE_PATH
+from shop import MAX_UPGRADE_LEVEL
 
 
 class SaveDataError(ValueError):
@@ -54,3 +55,41 @@ def read_guns(path=None):
             raise SaveDataError("invalid gun ownership value: {}".format(value))
         flags.append(lowered == "true")
     return flags
+
+
+def _parse_int(value, label):
+    try:
+        return int(value)
+    except (TypeError, ValueError) as error:
+        raise SaveDataError("invalid {} value: {}".format(label, value)) from error
+
+
+def write_upgrade_levels(upgrade_levels, path=None):
+    """Write internal 0-based levels as the PRD's 1-based gunLevel values."""
+    stored_levels = []
+    for level in upgrade_levels:
+        internal_level = _parse_int(level, "gun level")
+        if internal_level < 0 or internal_level > MAX_UPGRADE_LEVEL:
+            raise SaveDataError(
+                "gun level must be between 0 and {}: {}".format(
+                    MAX_UPGRADE_LEVEL, internal_level
+                )
+            )
+        stored_levels.append(internal_level + 1)
+    _write_text(path or UPGRADE_PATH, _format_list("gunLevel", stored_levels))
+
+
+def read_upgrade_levels(path=None):
+    """Read 1-based gunLevel values and return internal 0-based levels."""
+    values = _parse_list(_read_text(path or UPGRADE_PATH), "gunLevel")
+    upgrade_levels = []
+    for value in values:
+        stored_level = _parse_int(value, "gun level")
+        if stored_level < 1 or stored_level > MAX_UPGRADE_LEVEL + 1:
+            raise SaveDataError(
+                "gunLevel must be between 1 and {}: {}".format(
+                    MAX_UPGRADE_LEVEL + 1, stored_level
+                )
+            )
+        upgrade_levels.append(stored_level - 1)
+    return upgrade_levels

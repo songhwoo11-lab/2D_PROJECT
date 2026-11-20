@@ -3,7 +3,13 @@ import unittest
 from pathlib import Path
 
 from save_data import BestLog, SaveData, default_save_data
-from save_io import SaveDataError, read_guns, write_guns
+from save_io import (
+    SaveDataError,
+    read_guns,
+    read_upgrade_levels,
+    write_guns,
+    write_upgrade_levels,
+)
 from save_paths import (
     BEST_LOG_PATH,
     COINS_PATH,
@@ -93,6 +99,33 @@ class GunFileTests(unittest.TestCase):
 
             with self.assertRaises(SaveDataError):
                 read_guns(path)
+
+
+class UpgradeFileTests(unittest.TestCase):
+    def test_round_trip_keeps_internal_levels(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "LvGuns.txt"
+            write_upgrade_levels([0, 2, 10], path)
+
+            self.assertEqual(read_upgrade_levels(path), [0, 2, 10])
+
+    def test_default_levels_use_the_prd_format(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "LvGuns.txt"
+            write_upgrade_levels([0, 0, 0], path)
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8").strip(),
+                "gunLevel = [1, 1, 1]",
+            )
+
+    def test_stored_levels_outside_the_allowed_range_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "LvGuns.txt"
+            path.write_text("gunLevel = [0, 1, 1]\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_upgrade_levels(path)
 
 
 class SavePathsTests(unittest.TestCase):
