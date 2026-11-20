@@ -137,6 +137,7 @@ class LobbyScene:
         self.nearby_location = None
         self.panel = None
         self.gun_selection_index = 0
+        self.gun_select_pending_gun_id = None
         self.gun_state_panel_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
@@ -236,12 +237,14 @@ class LobbyScene:
         draw_centered_text(
             self.hud_font,
             GUN_SELECT_HINT_Y,
-            "CLICK GUN : START    STATE : DETAILS    W/S + SPACE : SELECT    Q : CANCEL",
+            "CLICK GUN : SELECT / CONFIRM    STATE : DETAILS    W/S + SPACE : SELECT    Q : CANCEL",
             (170, 190, 220),
         )
         self._draw_gun_state_panel(draw_rectangle)
 
     def _selected_gun_id(self):
+        if self.gun_select_pending_gun_id is not None:
+            return self.gun_select_pending_gun_id
         if self.state is None:
             return None
         owned_guns = self.state.owned_guns
@@ -581,6 +584,7 @@ class LobbyScene:
         """Show the gun selection screen before the battle starts."""
         self.panel = "gun_select"
         self.gun_selection_index = 0
+        self.gun_select_pending_gun_id = None
         self.gun_state_panel_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
@@ -625,6 +629,7 @@ class LobbyScene:
     def close_panel(self):
         """Close the panel that is currently open."""
         self.panel = None
+        self.gun_select_pending_gun_id = None
         self.gun_state_panel_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
@@ -682,7 +687,14 @@ class LobbyScene:
             self.gun_state_panel_gun_id = GUN_SHOP_ORDER[target[1]]
             return None
         if target[0] == "gun":
-            self._confirm_gun_selection(GUN_SHOP_ORDER[target[1]])
+            gun_id = GUN_SHOP_ORDER[target[1]]
+            if self.state is None or not self.state.owns_gun(gun_id):
+                return None
+            if self.gun_select_pending_gun_id == gun_id:
+                self._confirm_gun_selection(gun_id)
+            else:
+                self.gun_select_pending_gun_id = gun_id
+                self.gun_selection_index = self.state.owned_guns.index(gun_id)
         return None
 
     def mouse_up(self, button):

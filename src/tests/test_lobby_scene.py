@@ -477,12 +477,30 @@ class LobbyGunSelectCardTests(unittest.TestCase):
         outline = tuple(card) + GUN_SELECT_HOVER_OUTLINE_COLOR + (False,)
         self.assertIn(outline, [tuple(args) for args in rectangles])
 
-    def test_clicking_an_owned_gun_starts_the_battle_immediately(self):
+    def test_clicking_an_owned_gun_only_marks_it_as_selected(self):
         self.click_rect(gun_select_card_rect(GUN_SHOP_ORDER.index("rifle")))
+
+        self.assertEqual(self.scene.gun_select_pending_gun_id, "rifle")
+        self.assertEqual(self.state.selected_gun, "pistol")
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertIsNone(self.scene.pending_action)
+
+    def test_clicking_the_marked_gun_starts_the_battle(self):
+        rect = gun_select_card_rect(GUN_SHOP_ORDER.index("rifle"))
+        self.click_rect(rect)
+        self.click_rect(rect)
 
         self.assertEqual(self.state.selected_gun, "rifle")
         self.assertIsNone(self.scene.panel)
         self.assertEqual(self.scene.pending_action, "start_battle")
+
+    def test_clicking_a_different_gun_moves_the_mark(self):
+        self.click_rect(gun_select_card_rect(GUN_SHOP_ORDER.index("rifle")))
+        self.click_rect(gun_select_card_rect(GUN_SHOP_ORDER.index("pistol")))
+
+        self.assertEqual(self.scene.gun_select_pending_gun_id, "pistol")
+        self.assertEqual(self.state.selected_gun, "pistol")
+        self.assertIsNone(self.scene.pending_action)
 
     def test_clicking_a_locked_gun_does_not_change_the_selection(self):
         self.click_rect(gun_select_card_rect(GUN_SHOP_ORDER.index("machine_gun")))
