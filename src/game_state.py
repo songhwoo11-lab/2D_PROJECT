@@ -83,10 +83,11 @@ class GameState:
 
     def to_save_data(self):
         """Convert the live state into the data written to game files."""
-        recent_logs = limit_recent_logs(
+        all_logs = [
             (record.reached_wave, record.elapsed_time) for record in self.records
-        )
-        best_candidates = list(recent_logs)
+        ]
+        recent_logs = limit_recent_logs(all_logs)
+        best_candidates = list(all_logs)
         if self.best_log is not None:
             best_candidates.append(
                 (self.best_log.reached_wave, self.best_log.elapsed_time)

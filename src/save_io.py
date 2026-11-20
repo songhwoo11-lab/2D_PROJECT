@@ -459,8 +459,9 @@ def load_save_data_with_report(root=None):
         validate_save_data(data)
     except SaveDataError as error:
         messages.append(
-            "저장 데이터가 유효하지 않아 전체 기본값으로 복구했습니다: {}".format(
-                error
+            "저장 데이터가 유효하지 않아 전체 기본값으로 복구했습니다: {} "
+            "(확인할 파일: {})".format(
+                error, ", ".join(path.name for path in paths.values())
             )
         )
         data = _new_default_data()

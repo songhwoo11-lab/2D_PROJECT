@@ -151,3 +151,6 @@ fabric.properties
 # *.ipr
 
 # End of https://www.gitignore.io/api/python,pycharm
+
+# 8단계 저장 파일은 로컬 실행 데이터이므로 Git에서 추적하지 않는다.
+gamefile/
