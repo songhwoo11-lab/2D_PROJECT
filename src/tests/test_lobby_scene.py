@@ -696,6 +696,20 @@ class LobbyRecordsImageTests(unittest.TestCase):
             labels["TRAINING RECORDS"], SCREEN_WIDTH / 2
         )
 
+    def test_save_recovery_notice_is_drawn(self):
+        scene = LobbyScene(
+            Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
+            hud_font=MagicMock(),
+            notice="저장 파일 복구 안내",
+        )
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            scene.draw(lambda *args: None)
+
+        texts = [entry.args[3] for entry in text_draw.call_args_list]
+        self.assertIn("저장 파일 복구 안내", texts)
+
     def test_training_record_shows_destroyed_targets(self):
         self.state.add_training_record(TrainingRecord(targets_destroyed=12))
         with patch("lobby_scene.draw_centered_text"), patch(

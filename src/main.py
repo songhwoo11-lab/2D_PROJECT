@@ -22,6 +22,7 @@ from game_state import GameState
 from lobby_map import LOBBY_START_KEY
 from lobby_scene import LobbyScene
 from player import Player
+from save_io import load_save_data_with_report
 from shop_scene import ShopScene
 from training_scene import TrainingScene
 from weapon import Gun
@@ -33,14 +34,25 @@ ASSET_DIRECTORY = Path(__file__).resolve().parent.parent / "image"
 class GameApp:
     """Loads the shared assets and keeps the currently active scene."""
 
-    def __init__(self):
+    def __init__(self, save_root=None):
         self.assets = {}
         self.state = GameState()
+        self.save_root = save_root
+        self.save_notice = ""
         self.scene = None
         self.scene_kind = None
         self.lobby_node_key = LOBBY_START_KEY
         self.cursor_hidden = False
         self.running = True
+
+    def load_progress(self):
+        """Load saved progress into the state and keep recovery guidance."""
+        result = load_save_data_with_report(self.save_root)
+        self.state = GameState.from_save_data(result.data)
+        self.save_notice = result.guidance_text() if result.recovered else ""
+        if self.save_notice:
+            print("저장 데이터 안내: " + self.save_notice)
+        return result
 
     def load_assets(self):
         import pico2d
@@ -121,6 +133,7 @@ class GameApp:
             gun_images=self.assets.get("shop_gun_images"),
             records_background=self.assets.get("records_background"),
             records_book_image=self.assets.get("records_book_image"),
+            notice=self.save_notice,
         )
 
     def create_battle_scene(self):
@@ -264,6 +277,7 @@ class GameApp:
 
         pico2d.open_canvas(SCREEN_WIDTH, SCREEN_HEIGHT)
         try:
+            self.load_progress()
             self.load_assets()
             self.switch_scene("lobby")
             key_map = {

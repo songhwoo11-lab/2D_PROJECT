@@ -1,11 +1,24 @@
 """Progress that is kept for the whole game session."""
 
-from battle_record import BattleRecord, TrainingRecord
+from battle_record import BattleRecord, TrainingRecord, VICTORY
 from dev_settings import development_coins, development_gun
+from game_config import TOTAL_WAVES
+from save_data import BestLog, SaveData
+from shop import GUN_SHOP_ORDER
 from weapon import WEAPON_SPECS
 
 
 DEFAULT_OWNED_GUNS = ("pistol",)
+
+
+def _record_from_log(wave, elapsed_time):
+    is_victory = wave >= TOTAL_WAVES
+    return BattleRecord(
+        result=VICTORY if is_victory else "defeat",
+        reached_wave=wave,
+        elapsed_time=elapsed_time,
+        clear_time=elapsed_time if is_victory else None,
+    )
 
 
 class GameState:
@@ -17,6 +30,7 @@ class GameState:
         coins=None,
         records=None,
         training_records=None,
+        best_log=None,
         dev_gun=None,
         upgrade_levels=None,
     ):
@@ -30,9 +44,61 @@ class GameState:
         self.coins = 0 if coin_override is None else coin_override
         self.records = list(records or [])
         self.training_records = list(training_records or [])
+        self.best_log = best_log
         self.dev_gun = dev_gun if dev_gun is not None else development_gun()
         self.selected_gun = self.dev_gun or (
             self.owned_guns[0] if self.owned_guns else None
+        )
+
+    @classmethod
+    def from_save_data(cls, data, dev_gun=None, coins=None):
+        """Build the live game state from the loaded save data."""
+        owned_guns = [
+            gun_id
+            for gun_id, owned in zip(GUN_SHOP_ORDER, data.acquired_guns)
+            if owned
+        ]
+        upgrade_levels = {
+            gun_id: level
+            for gun_id, level in zip(GUN_SHOP_ORDER, data.upgrade_levels)
+        }
+        coin_override = development_coins() if coins is None else coins
+        logs = list(data.recent_logs)
+        if not logs and data.best_log is not None:
+            logs.append((data.best_log.reached_wave, data.best_log.elapsed_time))
+        records = [_record_from_log(wave, elapsed) for wave, elapsed in logs]
+        training_records = [
+            TrainingRecord(targets_destroyed=count)
+            for count in data.training_records
+        ]
+        return cls(
+            owned_guns=owned_guns,
+            coins=data.coins if coin_override is None else coin_override,
+            records=records,
+            training_records=training_records,
+            best_log=data.best_log,
+            dev_gun=dev_gun if dev_gun is not None else development_gun(),
+            upgrade_levels=upgrade_levels,
+        )
+
+    def to_save_data(self):
+        """Convert the live state into the data written to game files."""
+        recent_logs = [
+            (record.reached_wave, record.elapsed_time) for record in self.records
+        ]
+        best_log = self.best_log
+        if best_log is None and recent_logs:
+            wave, elapsed_time = recent_logs[0]
+            best_log = BestLog(reached_wave=wave, elapsed_time=elapsed_time)
+        return SaveData(
+            acquired_guns=[gun_id in self.owned_guns for gun_id in GUN_SHOP_ORDER],
+            upgrade_levels=[self.upgrade_level(gun_id) for gun_id in GUN_SHOP_ORDER],
+            coins=self.coins,
+            best_log=best_log,
+            recent_logs=recent_logs,
+            training_records=[
+                record.targets_destroyed for record in self.training_records
+            ],
         )
 
     def add_record(self, record):

@@ -133,6 +133,7 @@ class LobbyScene:
         gun_images=None,
         records_background=None,
         records_book_image=None,
+        notice=None,
     ):
         self.player = player
         self.background = background
@@ -141,6 +142,7 @@ class LobbyScene:
         self.gun_images = gun_images or {}
         self.records_background = records_background
         self.records_book_image = records_book_image
+        self.notice = notice or ""
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -218,6 +220,14 @@ class LobbyScene:
                 "LOBBY",
                 (255, 255, 255),
             )
+            if self.notice:
+                draw_text_at_center(
+                    self.hud_font,
+                    SCREEN_WIDTH / 2,
+                    SCREEN_HEIGHT - 110,
+                    self.notice,
+                    (255, 190, 90),
+                )
         self._draw_location_labels()
         if self.panel == "records":
             self._draw_records_panel(draw_rectangle)

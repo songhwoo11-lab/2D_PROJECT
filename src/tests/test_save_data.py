@@ -1,8 +1,11 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from battle_record import VICTORY
+from game_state import GameState
 from save_data import BestLog, SaveData, default_save_data
 from save_io import (
     SaveDataError,
@@ -309,6 +312,53 @@ class SaveDataValidationTests(unittest.TestCase):
 
             with self.assertRaises(SaveDataError):
                 read_guns(gamefile_paths(temp_dir)["guns"])
+
+
+class GameStateSaveConversionTests(unittest.TestCase):
+    def test_loaded_data_is_applied_to_live_state(self):
+        data = SaveData(
+            acquired_guns=[False, True, True],
+            upgrade_levels=[0, 2, 10],
+            coins=700,
+            best_log=BestLog(reached_wave=30, elapsed_time=900.0),
+            recent_logs=[(30, 900.0), (12, 100.0)],
+            training_records=[5, 8],
+        )
+
+        with patch.dict(os.environ, {}, clear=True):
+            state = GameState.from_save_data(data)
+
+        self.assertEqual(state.owned_guns, ["rifle", "machine_gun"])
+        self.assertEqual(state.upgrade_level("rifle"), 2)
+        self.assertEqual(state.upgrade_level("machine_gun"), 10)
+        self.assertEqual(state.coins, 700)
+        self.assertEqual(state.selected_gun, "rifle")
+        self.assertEqual([record.reached_wave for record in state.records], [30, 12])
+        self.assertEqual(state.records[0].result, VICTORY)
+        self.assertEqual(
+            [record.targets_destroyed for record in state.training_records],
+            [5, 8],
+        )
+
+    def test_live_state_converts_back_to_save_data(self):
+        data = SaveData(
+            acquired_guns=[True, True, False],
+            upgrade_levels=[0, 3, 0],
+            coins=1250,
+            best_log=BestLog(reached_wave=20, elapsed_time=400.0),
+            recent_logs=[(20, 400.0), (9, 90.0)],
+            training_records=[11],
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            state = GameState.from_save_data(data)
+
+        restored = state.to_save_data()
+
+        self.assertEqual(restored.acquired_guns, data.acquired_guns)
+        self.assertEqual(restored.upgrade_levels, data.upgrade_levels)
+        self.assertEqual(restored.coins, data.coins)
+        self.assertEqual(restored.recent_logs, data.recent_logs)
+        self.assertEqual(restored.training_records, data.training_records)
 
 
 class SaveLoadRecoveryTests(unittest.TestCase):

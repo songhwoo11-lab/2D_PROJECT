@@ -1,3 +1,5 @@
+import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -6,6 +8,8 @@ from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y, SCREEN_HEIGH
 from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY
 from main import GameApp
+from save_data import BestLog, SaveData, default_save_data
+from save_io import write_save_data
 from shop import GUN_SHOP_ORDER
 from shop_scene import (
     BUY_ACTION,
@@ -16,8 +20,8 @@ from shop_scene import (
 from weapon import PISTOL, RIFLE
 
 
-def make_app():
-    app = GameApp()
+def make_app(save_root=None):
+    app = GameApp(save_root=save_root)
     app.assets = {
         "lobby_background": None,
         "battle_background": None,
@@ -382,3 +386,46 @@ class ShopEconomyIntegrationTests(unittest.TestCase):
         self.assertEqual(self.app.scene_kind, "lobby")
         self.assertEqual(self.app.state.coins, balance + 123)
         self.assertEqual(self.app.state.records[0].result, "victory")
+
+
+class SaveStartupIntegrationTests(unittest.TestCase):
+    def test_load_progress_applies_saved_state_to_scenes(self):
+        data = SaveData(
+            acquired_guns=[False, True, False],
+            upgrade_levels=[0, 4, 0],
+            coins=321,
+            best_log=BestLog(reached_wave=15, elapsed_time=250.0),
+            recent_logs=[(15, 250.0)],
+            training_records=[6],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(data, temp_dir)
+            app = make_app(save_root=temp_dir)
+            with patch.dict(os.environ, {}, clear=True):
+                app.load_progress()
+            app.switch_scene("lobby")
+
+            self.assertEqual(app.state.owned_guns, ["rifle"])
+            self.assertEqual(app.state.coins, 321)
+            self.assertEqual(app.state.upgrade_level("rifle"), 4)
+            self.assertEqual(app.state.selected_gun, "rifle")
+            self.assertIs(app.scene.state, app.state)
+            self.assertEqual(app.scene.notice, "")
+            app.scene.close()
+
+    def test_recovery_notice_is_kept_for_the_lobby(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(default_save_data(), temp_dir)
+            from save_paths import gamefile_paths
+
+            gamefile_paths(temp_dir)["coins"].write_text(
+                "coins = broken\n", encoding="utf-8"
+            )
+            app = make_app(save_root=temp_dir)
+            with patch.dict(os.environ, {}, clear=True):
+                app.load_progress()
+            app.switch_scene("lobby")
+
+            self.assertIn("coins.txt", app.save_notice)
+            self.assertEqual(app.scene.notice, app.save_notice)
+            app.scene.close()
