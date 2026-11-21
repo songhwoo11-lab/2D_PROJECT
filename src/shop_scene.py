@@ -602,6 +602,8 @@ class ShopScene:
                 self._hide_upgrade_modal()
             else:
                 self.pending_action = "return_to_lobby"
+        elif key == "space" and self.upgrade_modal_gun_id is not None:
+            self._confirm_upgrade()
 
     def key_up(self, key):
         self.keys.discard(key.lower())

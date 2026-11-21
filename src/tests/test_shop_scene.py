@@ -470,6 +470,61 @@ class ShopSceneTests(unittest.TestCase):
         self.assertIsNone(scene.upgrade_modal_gun_id)
         self.assertIsNone(scene.pending_action)
 
+    def test_space_key_confirms_the_upgrade_modal(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state)
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        scene.key_down("space")
+
+        self.assertEqual(state.upgrade_level("pistol"), 1)
+        self.assertEqual(state.coins, 90)
+        self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
+        self.assertIsNone(scene.upgrade_modal_gun_id)
+        self.assertIsNone(scene.pending_action)
+
+    def test_space_key_does_not_confirm_twice_while_held(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state)
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        scene.key_down("space")
+        scene.key_down("space")
+
+        self.assertEqual(state.upgrade_level("pistol"), 1)
+        self.assertEqual(state.coins, 90)
+        self.assertIsNone(scene.upgrade_modal_gun_id)
+
+    def test_space_key_works_again_after_release(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            upgrade_levels={"pistol": 1},
+            coins=100,
+        )
+        scene = ShopScene(state=state)
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        with mock.patch("shop.random.randint", return_value=1):
+            scene.key_down("space")
+            scene.key_up("space")
+            click_rect(scene, button_rect(0, UPGRADE_ACTION))
+            scene.key_down("space")
+
+        self.assertEqual(state.upgrade_level("pistol"), 2)
+        self.assertIsNone(scene.upgrade_modal_gun_id)
+
+    def test_upgrade_modal_does_not_show_a_space_key_hint(self):
+        state = GameState(owned_guns=["pistol"], coins=100)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        texts = draw_and_collect_text(scene)
+
+        for text in texts:
+            with self.subTest(text=text):
+                self.assertNotIn("SPACE", text.upper())
+                self.assertNotIn("PRESS", text.upper())
+
     def test_state_button_shows_the_gun_state_without_running_a_function(self):
         state = GameState(owned_guns=["pistol"], coins=100000)
         scene = ShopScene(state=state, hud_font=object())
