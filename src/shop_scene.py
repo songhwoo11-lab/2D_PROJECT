@@ -33,29 +33,32 @@ SHOP_TITLE_Y = SCREEN_HEIGHT - 120
 SHOP_COINS_Y = SCREEN_HEIGHT - 180
 SHOP_RESULT_Y = SCREEN_HEIGHT - 280
 
-SHOP_CARD_WIDTH = 480
+SHOP_SELECTED_SLOT_SIZE = (472, 508)
+SHOP_UNSELECTED_SLOT_SIZE = (464, 509)
+SHOP_CARD_WIDTH = max(SHOP_SELECTED_SLOT_SIZE[0], SHOP_UNSELECTED_SLOT_SIZE[0])
+SHOP_CARD_HEIGHT = max(SHOP_SELECTED_SLOT_SIZE[1], SHOP_UNSELECTED_SLOT_SIZE[1])
 SHOP_CARD_GAP = 60
 SHOP_CARD_LEFT = (
     SCREEN_WIDTH - (len(GUN_SHOP_ORDER) * SHOP_CARD_WIDTH + (len(GUN_SHOP_ORDER) - 1) * SHOP_CARD_GAP)
 ) // 2
 SHOP_CARD_BOTTOM = 320
-SHOP_CARD_TOP = 850
-SHOP_NAME_Y = 800
-SHOP_IMAGE_Y = 710
-SHOP_LEVEL_Y = 620
-SHOP_COST_Y = 555
+SHOP_CARD_TOP = SHOP_CARD_BOTTOM + SHOP_CARD_HEIGHT
+SHOP_NAME_Y = SHOP_CARD_TOP - 48
+SHOP_IMAGE_Y = SHOP_CARD_TOP - 124
+SHOP_LEVEL_Y = SHOP_CARD_TOP - 194
+SHOP_COST_Y = SHOP_CARD_TOP - 245
 
-SHOP_BUTTON_MARGIN = 30
-SHOP_BUTTON_WIDTH = 190
-SHOP_BUTTON_GAP = 40
-SHOP_BUTTON_BOTTOM = 450
-SHOP_BUTTON_TOP = 540
-SHOP_BUTTON_TEXT_Y = 495
+SHOP_BUTTON_MARGIN = 28
+SHOP_BUTTON_WIDTH = 183
+SHOP_BUTTON_GAP = 50
+SHOP_BUTTON_BOTTOM = SHOP_CARD_BOTTOM + 138
+SHOP_BUTTON_TOP = SHOP_CARD_BOTTOM + 219
+SHOP_BUTTON_TEXT_Y = (SHOP_BUTTON_BOTTOM + SHOP_BUTTON_TOP) // 2
 
-SHOP_STATE_BUTTON_WIDTH = 420
-SHOP_STATE_BUTTON_BOTTOM = 340
-SHOP_STATE_BUTTON_TOP = 430
-SHOP_STATE_BUTTON_TEXT_Y = 385
+SHOP_STATE_BUTTON_WIDTH = SHOP_CARD_WIDTH - SHOP_BUTTON_MARGIN * 2 - 5
+SHOP_STATE_BUTTON_BOTTOM = SHOP_CARD_BOTTOM + 32
+SHOP_STATE_BUTTON_TOP = SHOP_CARD_BOTTOM + 113
+SHOP_STATE_BUTTON_TEXT_Y = (SHOP_STATE_BUTTON_BOTTOM + SHOP_STATE_BUTTON_TOP) // 2
 
 SHOP_EXIT_BUTTON = (SCREEN_WIDTH - 280, 60, SCREEN_WIDTH - 60, 160)
 
@@ -190,10 +193,21 @@ def stat_rows(gun_id, level):
 class ShopScene:
     """Shop card layout that keeps key and mouse controls in sync."""
 
-    def __init__(self, state=None, hud_font=None, gun_images=None):
+    def __init__(
+        self,
+        state=None,
+        hud_font=None,
+        gun_images=None,
+        background=None,
+        selected_slot_image=None,
+        unselected_slot_image=None,
+    ):
         self.state = state
         self.hud_font = hud_font
         self.gun_images = gun_images or {}
+        self.background = background
+        self.selected_slot_image = selected_slot_image
+        self.unselected_slot_image = unselected_slot_image
         self.keys = set()
         self.gun_index = 0
         self.action_index = BUY_ACTION
@@ -241,17 +255,25 @@ class ShopScene:
         return None
 
     def draw(self, draw_rectangle):
-        draw_rectangle(
-            0,
-            0,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT,
-            24,
-            18,
-            14,
-            255,
-            True,
-        )
+        if self.background is not None:
+            self.background.draw(
+                SCREEN_WIDTH / 2,
+                SCREEN_HEIGHT / 2,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+            )
+        else:
+            draw_rectangle(
+                0,
+                0,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+                24,
+                18,
+                14,
+                255,
+                True,
+            )
         if self.hud_font is None:
             return
         draw_centered_text(self.hud_font, SHOP_TITLE_Y, SHOP_TITLE, (255, 220, 100))
@@ -285,10 +307,20 @@ class ShopScene:
             owned = self.state is not None and self.state.owns_gun(gun_id)
             level = self.state.upgrade_level(gun_id) if self.state is not None else 0
             center_x = (left + right) / 2
+            center_y = (bottom + top) / 2
 
-            draw_rectangle(left, bottom, right, top, 38, 40, 52, 255, True)
-            if selected:
-                draw_rectangle(left, bottom, right, top, 255, 220, 100, 255, False)
+            slot_image = (
+                self.selected_slot_image if selected else self.unselected_slot_image
+            )
+            if slot_image is not None:
+                slot_size = (
+                    SHOP_SELECTED_SLOT_SIZE if selected else SHOP_UNSELECTED_SLOT_SIZE
+                )
+                slot_image.draw(center_x, center_y, *slot_size)
+            else:
+                draw_rectangle(left, bottom, right, top, 38, 40, 52, 255, True)
+                if selected:
+                    draw_rectangle(left, bottom, right, top, 255, 220, 100, 255, False)
 
             draw_text_at(self.hud_font, center_x, SHOP_NAME_Y, name, (255, 220, 100))
             self._draw_gun_image(gun_id, center_x)

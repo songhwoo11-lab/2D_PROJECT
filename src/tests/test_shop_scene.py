@@ -14,11 +14,20 @@ from shop import (
 )
 from shop_scene import (
     BUY_ACTION,
+    SHOP_BUTTON_TEXT_Y,
+    SHOP_CARD_HEIGHT,
+    SHOP_CARD_WIDTH,
     SHOP_COINS_Y,
+    SHOP_COST_Y,
     SHOP_EXIT_BUTTON,
+    SHOP_IMAGE_Y,
     SHOP_LEVEL_Y,
+    SHOP_NAME_Y,
     SHOP_RESULT_Y,
+    SHOP_SELECTED_SLOT_SIZE,
+    SHOP_STATE_BUTTON_TEXT_Y,
     SHOP_TITLE_Y,
+    SHOP_UNSELECTED_SLOT_SIZE,
     STATE_ACTION,
     UPGRADE_ACTION,
     UPGRADE_CHANGED_COLOR,
@@ -58,6 +67,49 @@ class ShopLayoutTests(unittest.TestCase):
         for upper, lower in zip(rects, rects[1:]):
             self.assertLessEqual(upper[2], lower[0])
 
+    def test_card_size_matches_the_slot_image_sizes(self):
+        self.assertEqual(SHOP_SELECTED_SLOT_SIZE, (472, 508))
+        self.assertEqual(SHOP_UNSELECTED_SLOT_SIZE, (464, 509))
+        self.assertEqual(SHOP_CARD_WIDTH, 472)
+        self.assertEqual(SHOP_CARD_HEIGHT, 509)
+
+    def test_card_content_fits_inside_the_slot_images(self):
+        rows = (
+            SHOP_NAME_Y,
+            SHOP_IMAGE_Y,
+            SHOP_LEVEL_Y,
+            SHOP_COST_Y,
+            SHOP_BUTTON_TEXT_Y,
+            SHOP_STATE_BUTTON_TEXT_Y,
+        )
+        for index in range(3):
+            left, bottom, right, top = card_rect(index)
+            with self.subTest(index=index):
+                for y in rows:
+                    self.assertGreater(y, bottom)
+                    self.assertLess(y, top)
+                for action in (BUY_ACTION, UPGRADE_ACTION, STATE_ACTION):
+                    button = button_rect(index, action)
+                    self.assertGreaterEqual(button[0], left)
+                    self.assertLessEqual(button[2], right)
+                    self.assertGreaterEqual(button[1], bottom)
+                    self.assertLessEqual(button[3], top)
+
+    def test_buttons_are_raised_ten_pixels_and_shrunk_five_pixels(self):
+        buy = button_rect(0, BUY_ACTION)
+        upgrade = button_rect(0, UPGRADE_ACTION)
+        state = button_rect(0, STATE_ACTION)
+
+        self.assertEqual(buy, (card_rect(0)[0] + 28, 458, card_rect(0)[0] + 211, 539))
+        self.assertEqual(
+            upgrade, (card_rect(0)[0] + 261, 458, card_rect(0)[0] + 444, 539)
+        )
+        self.assertEqual(state, (card_rect(0)[0] + 30, 352, card_rect(0)[0] + 441, 433))
+        self.assertEqual(buy[2] - buy[0], 183)
+        self.assertEqual(buy[3] - buy[1], 81)
+        self.assertEqual(state[2] - state[0], 411)
+        self.assertEqual(state[3] - state[1], 81)
+
     def test_buttons_are_side_by_side_inside_each_card(self):
         for index in range(3):
             card = card_rect(index)
@@ -86,11 +138,18 @@ class ShopLayoutTests(unittest.TestCase):
             SHOP_COINS_Y,
             SHOP_RESULT_Y,
             SHOP_LEVEL_Y,
+            SHOP_COST_Y,
         ]
 
         for upper, lower in zip(rows, rows[1:]):
             with self.subTest(upper=upper, lower=lower):
                 self.assertGreaterEqual(upper - lower, HUD_FONT_SIZE + 10)
+
+    def test_cost_text_is_drawn_above_the_buttons(self):
+        button_top = button_rect(0, BUY_ACTION)[3]
+
+        self.assertGreaterEqual(SHOP_COST_Y - HUD_FONT_SIZE, button_top + 4)
+        self.assertGreaterEqual(SHOP_LEVEL_Y - HUD_FONT_SIZE, SHOP_COST_Y + 8)
 
     def test_shop_does_not_show_keyboard_hints(self):
         scene = ShopScene(state=GameState(owned_guns=["pistol"]), hud_font=object())
@@ -135,6 +194,74 @@ class ShopSceneTests(unittest.TestCase):
     def test_update_and_draw_run_without_error(self):
         self.scene.update(1.0 / 60)
         self.scene.draw(lambda *args: None)
+
+    def test_draws_the_shop_background_image(self):
+        background = mock.MagicMock()
+        scene = ShopScene(hud_font=object(), background=background)
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at"):
+                scene.draw(lambda *args: None)
+
+        background.draw.assert_called_once_with(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+        )
+
+    def test_draws_selected_and_unselected_slot_images(self):
+        selected = mock.MagicMock()
+        unselected = mock.MagicMock()
+        scene = ShopScene(
+            state=GameState(owned_guns=["pistol"]),
+            hud_font=object(),
+            selected_slot_image=selected,
+            unselected_slot_image=unselected,
+        )
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at"):
+                scene.draw(lambda *args: None)
+
+        selected_center_x = sum(card_rect(0)[::2]) / 2
+        selected_center_y = sum(card_rect(0)[1::2]) / 2
+        selected.draw.assert_called_once_with(
+            selected_center_x,
+            selected_center_y,
+            *SHOP_SELECTED_SLOT_SIZE,
+        )
+        self.assertEqual(unselected.draw.call_count, 2)
+        for index, call in enumerate(unselected.draw.call_args_list, start=1):
+            rect = card_rect(index)
+            self.assertEqual(
+                call.args,
+                (
+                    sum(rect[::2]) / 2,
+                    sum(rect[1::2]) / 2,
+                    *SHOP_UNSELECTED_SLOT_SIZE,
+                ),
+            )
+
+    def test_slot_images_replace_the_card_rectangles(self):
+        selected = mock.MagicMock()
+        unselected = mock.MagicMock()
+        scene = ShopScene(
+            state=GameState(owned_guns=["pistol"]),
+            hud_font=object(),
+            background=mock.MagicMock(),
+            selected_slot_image=selected,
+            unselected_slot_image=unselected,
+        )
+        rects = []
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at"):
+                scene.draw(lambda *args: rects.append(args))
+
+        drawn_cards = {tuple(args[:4]) for args in rects}
+        for index in range(3):
+            self.assertNotIn(card_rect(index), drawn_cards)
 
     def test_gun_prices_follow_the_prd(self):
         self.assertEqual(
@@ -233,6 +360,25 @@ class ShopSceneTests(unittest.TestCase):
                 image.draw.call_args.args,
                 (mock.ANY, shop_scene.SHOP_IMAGE_Y) + shop_scene.GUN_IMAGE_SIZES[gun_id],
             )
+
+    def test_cost_labels_use_the_raised_cost_row(self):
+        scene = ShopScene(
+            state=GameState(owned_guns=["pistol"], coins=100000),
+            hud_font=object(),
+        )
+
+        with mock.patch.object(shop_scene, "draw_centered_text"):
+            with mock.patch.object(shop_scene, "draw_text_at") as positioned:
+                scene.draw(lambda *args: None)
+
+        cost_rows = [
+            call.args[2]
+            for call in positioned.call_args_list
+            if call.args[3].startswith("COIN ")
+        ]
+        self.assertTrue(cost_rows)
+        for row in cost_rows:
+            self.assertEqual(row, SHOP_COST_Y)
 
     def test_shop_draws_the_current_coin_balance(self):
         scene = ShopScene(state=GameState(coins=77), hud_font=object())
