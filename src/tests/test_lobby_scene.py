@@ -627,6 +627,9 @@ class LobbyGunSelectCardTests(unittest.TestCase):
 
         labels = [call.args[3] for call in text_draw.call_args_list]
         self.assertIn("STATE - PISTOL", labels)
+        self.assertFalse(
+            any(label.startswith("STARTING AMMO") for label in labels)
+        )
 
     def test_locked_gun_state_button_does_not_open_the_state_panel(self):
         self.click_rect(gun_select_state_button_rect(GUN_SHOP_ORDER.index("machine_gun")))

@@ -67,7 +67,7 @@ STATE_PANEL_BOTTOM = 450
 STATE_PANEL_TOP = 900
 STATE_PANEL_TITLE_Y = 850
 STATE_PANEL_ROW_TOP = 790
-STATE_PANEL_ROW_GAP = 45
+STATE_PANEL_ROW_GAP = 50
 
 UPGRADE_MODAL_RECT = (180, 100, 1620, 1100)
 UPGRADE_MODAL_TITLE_Y = 1040
@@ -186,7 +186,6 @@ def stat_rows(gun_id, level):
         ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
         ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
         ("MAGAZINE SIZE", str(spec.magazine_size)),
-        ("STARTING AMMO", str(spec.starting_ammo)),
     )
 
 

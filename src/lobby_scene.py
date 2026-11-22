@@ -81,7 +81,7 @@ GUN_SELECT_STATE_PANEL_BOTTOM = 450
 GUN_SELECT_STATE_PANEL_TOP = 900
 GUN_SELECT_STATE_PANEL_TITLE_Y = 850
 GUN_SELECT_STATE_PANEL_ROW_TOP = 790
-GUN_SELECT_STATE_PANEL_ROW_GAP = 45
+GUN_SELECT_STATE_PANEL_ROW_GAP = 50
 
 
 def gun_select_card_rect(index):
@@ -142,7 +142,6 @@ def gun_select_stat_rows(gun_id, level):
         ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
         ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
         ("MAGAZINE SIZE", str(spec.magazine_size)),
-        ("STARTING AMMO", str(spec.starting_ammo)),
     )
 
 

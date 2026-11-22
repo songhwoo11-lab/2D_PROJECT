@@ -551,11 +551,11 @@ class ShopSceneTests(unittest.TestCase):
             "RELOAD TIME {:.1f}s".format(spec.reload_seconds),
             "MAX TEMP {:.1f}".format(spec.temperature_limit),
             "MAGAZINE SIZE {}".format(spec.magazine_size),
-            "STARTING AMMO {}".format(spec.starting_ammo),
         ):
             self.assertIn(expected, texts)
 
         for removed in (
+            "STARTING AMMO {}".format(spec.starting_ammo),
             "GUN ID rifle",
             "PRICE {}".format(gun_price("rifle")),
             "OWNED NO",
@@ -626,7 +626,7 @@ class ShopSceneTests(unittest.TestCase):
         )
         gap = last_y - shop_scene.STATE_PANEL_BOTTOM
 
-        self.assertEqual(len(rows), 8)
+        self.assertEqual(len(rows), 7)
         self.assertGreaterEqual(gap, 0)
         self.assertLessEqual(gap, HUD_FONT_SIZE)
 
