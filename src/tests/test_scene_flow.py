@@ -1,14 +1,26 @@
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 
 from battle_record import BattleRecord
 from battle_scene import BattleResult
-from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y, SCREEN_HEIGHT
+from game_config import (
+    HUD_FONT_SIZE,
+    LOBBY_PLAYER_START_X,
+    LOBBY_PLAYER_START_Y,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY
-from main import GameApp
+from main import (
+    ASSET_DIRECTORY,
+    GameApp,
+    LOADING_BACKGROUND_COLOR,
+    LOADING_TEXT,
+    LOADING_TEXT_COLOR,
+)
 from save_data import BestLog, SaveData, default_save_data
 from save_io import SaveDataError, load_save_data, write_save_data
 from shop import GUN_SHOP_ORDER
@@ -40,6 +52,71 @@ def make_app(save_root=None):
         "draw_circle": None,
     }
     return app
+
+
+class GameAppStartupTests(unittest.TestCase):
+    def test_initialize_shows_loading_before_loading_assets_and_creating_the_lobby(self):
+        app = GameApp()
+        manager = Mock()
+        with patch.object(app, "draw_loading_screen") as draw_loading_screen, patch.object(
+            app, "load_progress"
+        ) as load_progress, patch.object(app, "load_assets") as load_assets, patch.object(
+            app, "switch_scene"
+        ) as switch_scene:
+            manager.attach_mock(draw_loading_screen, "draw_loading_screen")
+            manager.attach_mock(load_progress, "load_progress")
+            manager.attach_mock(load_assets, "load_assets")
+            manager.attach_mock(switch_scene, "switch_scene")
+            app.initialize()
+
+        self.assertEqual(
+            manager.mock_calls,
+            [
+                call.draw_loading_screen(None),
+                call.load_progress(),
+                call.load_assets(),
+                call.switch_scene("lobby"),
+            ],
+        )
+
+    def test_draw_loading_screen_draws_loading_text_and_presents_the_canvas(self):
+        app = GameApp()
+        pico2d_module = Mock()
+        with patch("main.draw_centered_text") as draw_text:
+            app.draw_loading_screen(pico2d_module)
+
+        pico2d_module.load_font.assert_called_once_with(
+            str(ASSET_DIRECTORY / "font" / "MulmaruMono.ttf"),
+            HUD_FONT_SIZE,
+        )
+        pico2d_module.clear_canvas.assert_called_once_with()
+        pico2d_module.draw_rectangle.assert_called_once_with(
+            0,
+            0,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            *LOADING_BACKGROUND_COLOR,
+            True,
+        )
+        draw_text.assert_called_once_with(
+            pico2d_module.load_font.return_value,
+            SCREEN_HEIGHT / 2,
+            LOADING_TEXT,
+            LOADING_TEXT_COLOR,
+        )
+        pico2d_module.update_canvas.assert_called_once_with()
+
+    def test_run_initializes_the_game_before_entering_the_main_loop(self):
+        app = GameApp()
+        app.running = False
+        with patch("main.pico2d.open_canvas"), patch("main.pico2d.close_canvas"), patch(
+            "main.pico2d.show_cursor"
+        ), patch.object(app, "initialize") as initialize, patch.object(
+            app, "save_progress"
+        ):
+            app.run()
+
+        initialize.assert_called_once()
 
 
 def click_shop_button(scene, gun_id, action):

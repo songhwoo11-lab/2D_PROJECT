@@ -24,6 +24,7 @@ from game_config import (
     WORLD_WIDTH,
 )
 from game_state import GameState
+from hud import draw_centered_text
 from lobby_map import LOBBY_START_KEY
 from lobby_scene import LobbyScene
 from player import Player
@@ -34,6 +35,9 @@ from weapon import Gun
 
 
 ASSET_DIRECTORY = Path(__file__).resolve().parent.parent / "image"
+LOADING_TEXT = "로딩중..."
+LOADING_BACKGROUND_COLOR = (18, 26, 22, 255)
+LOADING_TEXT_COLOR = (255, 220, 100)
 
 
 class GameApp:
@@ -49,6 +53,35 @@ class GameApp:
         self.lobby_node_key = LOBBY_START_KEY
         self.cursor_hidden = False
         self.running = True
+
+    def draw_loading_screen(self, pico2d_module=None):
+        pico2d_module = pico2d_module or pico2d
+        font = pico2d_module.load_font(
+            str(ASSET_DIRECTORY / "font" / "MulmaruMono.ttf"),
+            HUD_FONT_SIZE,
+        )
+        pico2d_module.clear_canvas()
+        pico2d_module.draw_rectangle(
+            0,
+            0,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            *LOADING_BACKGROUND_COLOR,
+            True,
+        )
+        draw_centered_text(
+            font,
+            SCREEN_HEIGHT / 2,
+            LOADING_TEXT,
+            LOADING_TEXT_COLOR,
+        )
+        pico2d_module.update_canvas()
+
+    def initialize(self, pico2d_module=None):
+        self.draw_loading_screen(pico2d_module)
+        self.load_progress()
+        self.load_assets()
+        self.switch_scene("lobby")
 
     def load_progress(self):
         """Load saved progress into the state and keep recovery guidance."""
@@ -317,9 +350,7 @@ class GameApp:
 
         pico2d.open_canvas(SCREEN_WIDTH, SCREEN_HEIGHT)
         try:
-            self.load_progress()
-            self.load_assets()
-            self.switch_scene("lobby")
+            self.initialize(pico2d)
             key_map = {
                 pico2d.SDLK_F1: "f1",
                 pico2d.SDLK_w: "w",
