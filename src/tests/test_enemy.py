@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import game_world
 from enemy import (
@@ -16,8 +17,16 @@ class FakePlayer:
         self.y = 0.0
         self.radius = 20.0
         self.is_defeated = False
+        self.damage_taken = []
 
     def take_damage(self, amount):
+        self.damage_taken.append(amount)
+
+
+class FakeAssassinImage:
+    texture = "assassin-texture"
+
+    def draw(self, x, y, w=None, h=None):
         pass
 
 
@@ -164,6 +173,180 @@ class AssassinStealthTests(unittest.TestCase):
 
         self.assertEqual(self.assassin.health_bar_alpha, 0)
         self.assertLess(self.assassin.opacity_alpha, 255)
+
+
+class AssassinAttackTests(unittest.TestCase):
+    def setUp(self):
+        self.player = FakePlayer()
+        self.assassin = AssassinEnemy(0, 0, player=self.player)
+
+    def test_attack_starts_only_when_fully_visible(self):
+        self.player.x = 400.0
+        self.assassin.update(0.1)
+        self.assertFalse(self.assassin.is_preparing_attack)
+
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+        self.assertTrue(self.assassin.is_preparing_attack)
+
+    def test_attack_can_start_when_hit_flash_reveals_the_health_bar(self):
+        self.player.x = 300.0
+        self.assassin.take_damage(1)
+
+        self.assassin.update(0.05)
+
+        self.assertTrue(self.assassin.health_bar_alpha > 0)
+        self.assertTrue(self.assassin.is_preparing_attack)
+
+    def test_assassin_does_not_move_during_preparation(self):
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+        position = (self.assassin.x, self.assassin.y)
+
+        self.assassin.update(0.5)
+        self.assassin.update(0.3)
+
+        self.assertEqual((self.assassin.x, self.assassin.y), position)
+        self.assertTrue(self.assassin.is_preparing_attack)
+
+        self.assassin.update(0.2)
+        self.assertFalse(self.assassin.is_preparing_attack)
+        self.assertAlmostEqual(self.assassin.x, 400.0)
+        self.assertAlmostEqual(self.assassin.y, 0.0)
+
+    def test_assassin_stays_visible_during_preparation_outside_reveal_range(self):
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+        self.player.x = 1000.0
+
+        self.assertTrue(self.assassin.is_preparing_attack)
+        self.assertEqual(self.assassin.opacity_alpha, 255)
+        self.assertEqual(self.assassin.health_bar_alpha, 255)
+
+    def test_assassin_stays_visible_during_the_strike_outside_reveal_range(self):
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+        self.assassin.update(1.0)
+
+        self.assertTrue(self.assassin.is_strike_visible)
+        self.assertEqual(self.assassin.opacity_alpha, 255)
+        self.assertEqual(self.assassin.health_bar_alpha, 255)
+
+    def test_direction_tracks_player_only_for_the_first_half_second(self):
+        self.player.x = 150.0
+        self.assassin.update(0.25)
+        self.assertEqual(self.assassin.attack_direction, (1.0, 0.0))
+
+        self.player.x = 0.0
+        self.player.y = 150.0
+        self.assassin.update(0.25)
+        self.assertEqual(self.assassin.attack_direction, (0.0, 1.0))
+
+        self.player.x = -150.0
+        self.player.y = 0.0
+        self.assassin.update(0.1)
+        self.assertEqual(self.assassin.attack_direction, (0.0, 1.0))
+
+    def test_strike_hits_player_on_the_line_after_one_second(self):
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+        self.assassin.update(1.0)
+
+        self.assertEqual(self.player.damage_taken, [self.assassin.attack_damage])
+        self.assertIsNone(self.assassin.last_damage_source)
+        self.assertFalse(self.assassin.is_preparing_attack)
+        self.assertTrue(self.assassin.is_strike_visible)
+        self.assertAlmostEqual(self.assassin.x, 400.0)
+        self.assertAlmostEqual(self.assassin.y, 0.0)
+
+    def test_strike_does_not_hit_player_beyond_four_hundred(self):
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+        self.assassin.update(0.6)
+        self.player.x = 600.0
+        self.assassin.update(0.4)
+
+        self.assertEqual(self.player.damage_taken, [])
+        self.assertAlmostEqual(self.assassin.x, 400.0)
+        self.assertAlmostEqual(self.assassin.y, 0.0)
+
+    def test_dash_uses_the_locked_direction_even_after_the_player_moves(self):
+        self.player.x = 0.0
+        self.player.y = 150.0
+        self.assassin.update(0.1)
+        self.assassin.update(0.4)
+        self.assassin.update(0.1)
+        self.player.x = -300.0
+        self.player.y = 0.0
+        self.assassin.update(0.4)
+
+        self.assertEqual(self.player.damage_taken, [])
+        self.assertAlmostEqual(self.assassin.x, 0.0)
+        self.assertAlmostEqual(self.assassin.y, 400.0)
+
+    def test_melee_attack_is_restored_at_contact(self):
+        self.player.x = self.assassin.radius + self.player.radius
+
+        self.assassin.update(0.05)
+
+        self.assertEqual(self.player.damage_taken, [self.assassin.attack_damage])
+        self.assertFalse(self.assassin.is_preparing_attack)
+        self.assertAlmostEqual(
+            self.assassin._attack_cooldown_remaining,
+            self.assassin.attack_interval,
+        )
+
+    def test_melee_does_not_trigger_just_outside_old_contact_range(self):
+        contact_distance = self.assassin.radius + self.player.radius
+        self.player.x = contact_distance + 1.0
+
+        self.assassin.update(0.05)
+
+        self.assertEqual(self.player.damage_taken, [])
+        self.assertTrue(self.assassin.is_preparing_attack)
+
+    def test_attack_cooldown_delays_the_next_preparation(self):
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+        self.assassin.update(1.0)
+        self.assertEqual(len(self.player.damage_taken), 1)
+
+        self.assassin.update(0.1)
+        self.assertFalse(self.assassin.is_preparing_attack)
+
+        self.assassin.update(0.5)
+        self.assassin.update(0.1)
+        self.assertTrue(self.assassin.is_preparing_attack)
+
+    def test_strike_line_is_drawn_during_preparation_and_firing(self):
+        rectangles = []
+        self.assassin.draw_rectangle = lambda *args: rectangles.append(args)
+        self.assassin.image = FakeAssassinImage()
+        self.assassin._screen_position = (100.0, 200.0)
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+
+        with patch("enemy_types.pico2d.SDL_SetTextureBlendMode", return_value=0), patch(
+            "enemy_types.pico2d.SDL_SetTextureAlphaMod", return_value=0
+        ):
+            self.assassin.draw()
+        telegraph_sizes = [rect[3] - rect[1] for rect in rectangles]
+        self.assertGreaterEqual(len([size for size in telegraph_sizes if size == 6]), 20)
+
+        rectangles.clear()
+        self.assassin.update(1.0)
+        self.assassin.set_screen_position(500.0, 200.0)
+        with patch("enemy_types.pico2d.SDL_SetTextureBlendMode", return_value=0), patch(
+            "enemy_types.pico2d.SDL_SetTextureAlphaMod", return_value=0
+        ):
+            self.assassin.draw()
+        strike_rectangles = [rect for rect in rectangles if rect[3] - rect[1] == 14]
+        self.assertGreaterEqual(len(strike_rectangles), 20)
+        first_x1, first_y1, first_x2, first_y2 = strike_rectangles[0][:4]
+        self.assertAlmostEqual(first_x1, 113.0)
+        self.assertAlmostEqual(first_y1, 193.0)
+        self.assertAlmostEqual(first_x2, 127.0)
+        self.assertAlmostEqual(first_y2, 207.0)
 
 
 class EnemyCollisionTests(unittest.TestCase):

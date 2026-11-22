@@ -244,15 +244,19 @@ class Enemy:
         if self.player is None or not self.is_alive or self.player.is_defeated:
             return
         self._update_attack_cooldown(delta_time)
+        if self._move_toward_player(delta_time):
+            self._attack_if_ready()
+
+    def _move_toward_player(self, delta_time):
+        """Advance toward the player without attacking; True when in contact."""
         direction_x = self.player.x - self.x
         direction_y = self.player.y - self.y
-        distance = (direction_x**2 + direction_y**2) ** 0.5
+        distance = math.hypot(direction_x, direction_y)
         contact_distance = self.radius + self.player.radius
         if distance <= contact_distance + DISTANCE_EPSILON or distance == 0:
             self.velocity_x = 0.0
             self.velocity_y = 0.0
-            self._attack_if_ready()
-            return
+            return True
         self.velocity_x = direction_x / distance
         self.velocity_y = direction_y / distance
         movement = self.move_speed * delta_time
@@ -266,8 +270,7 @@ class Enemy:
             self.player.x - self.x,
             self.player.y - self.y,
         )
-        if distance <= contact_distance + DISTANCE_EPSILON:
-            self._attack_if_ready()
+        return distance <= contact_distance + DISTANCE_EPSILON
 
     def _update_attack_cooldown(self, delta_time):
         self._attack_cooldown_remaining = max(

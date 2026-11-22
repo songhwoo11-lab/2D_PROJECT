@@ -39,6 +39,11 @@ class AssassinEnemy(Enemy):
     FADE_DISTANCE = 350.0
     HEALTH_BAR_DISTANCE = 200.0
     HIT_FLASH_DURATION_SECONDS = 0.2
+    ATTACK_LENGTH = 400.0
+    PREPARE_DURATION_SECONDS = 1.0
+    TRACK_DURATION_SECONDS = 0.5
+    STRIKE_VISIBLE_SECONDS = 0.2
+    STRIKE_HIT_RADIUS = 24.0
 
     def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
         super().__init__(
@@ -53,6 +58,11 @@ class AssassinEnemy(Enemy):
         self._uses_spatial_collision = False
         self._checks_enemy_collisions = False
         self._hit_flash_remaining = 0.0
+        self._attack_prepare_remaining = 0.0
+        self._attack_direction = (1.0, 0.0)
+        self._strike_remaining = 0.0
+        self._strike_origin = (self.x, self.y)
+        self._strike_direction = self._attack_direction
 
     @property
     def distance_to_player(self):
@@ -61,9 +71,13 @@ class AssassinEnemy(Enemy):
         return math.hypot(self.player.x - self.x, self.player.y - self.y)
 
     @property
+    def is_attack_visible(self):
+        return self.is_preparing_attack or self.is_strike_visible
+
+    @property
     def opacity_alpha(self):
-        # 체력바가 보이는 거리에서는 암살자도 완전히 드러낸다.
-        if self._hit_flash_remaining > 0 or self.health_bar_alpha > 0:
+        # 체력바가 보이거나 직선 공격 중에는 암살자도 완전히 드러낸다.
+        if self.is_attack_visible or self._hit_flash_remaining > 0 or self.health_bar_alpha > 0:
             return 255
         opacity = min(
             max(1.0 - self.distance_to_player / self.FADE_DISTANCE, 0.0),
@@ -74,7 +88,8 @@ class AssassinEnemy(Enemy):
     @property
     def health_bar_alpha(self):
         if (
-            self.distance_to_player <= self.HEALTH_BAR_DISTANCE
+            self.is_attack_visible
+            or self.distance_to_player <= self.HEALTH_BAR_DISTANCE
             or self._hit_flash_remaining > 0
         ):
             return 255
@@ -87,12 +102,135 @@ class AssassinEnemy(Enemy):
             self._hit_flash_remaining = self.HIT_FLASH_DURATION_SECONDS
         return defeated
 
+    @property
+    def is_fully_visible(self):
+        if self.player is None:
+            return False
+        return self.health_bar_alpha > 0
+
+    @property
+    def is_preparing_attack(self):
+        return self._attack_prepare_remaining > 0
+
+    @property
+    def attack_prepare_progress(self):
+        if not self.is_preparing_attack:
+            return 0.0
+        return min(
+            1.0,
+            1.0 - self._attack_prepare_remaining / self.PREPARE_DURATION_SECONDS,
+        )
+
+    @property
+    def attack_direction(self):
+        return self._attack_direction
+
+    @property
+    def is_strike_visible(self):
+        return self._strike_remaining > 0
+
     def update(self, delta_time):
         self._hit_flash_remaining = max(
             0.0,
             self._hit_flash_remaining - delta_time,
         )
-        super().update(delta_time)
+        if self.player is None or not self.is_alive or self.player.is_defeated:
+            return
+        self._update_attack_cooldown(delta_time)
+        self._strike_remaining = max(0.0, self._strike_remaining - delta_time)
+
+        if self.is_preparing_attack:
+            self._advance_attack_preparation(delta_time)
+            return
+
+        if self._is_touching_player():
+            self.velocity_x = 0.0
+            self.velocity_y = 0.0
+            self._attack_if_ready()
+            return
+
+        if self.is_fully_visible and self._attack_cooldown_remaining <= 0:
+            self.velocity_x = 0.0
+            self.velocity_y = 0.0
+            self._attack_prepare_remaining = self.PREPARE_DURATION_SECONDS
+            self._advance_attack_preparation(delta_time)
+            return
+        self._move_toward_player(delta_time)
+
+    def _is_touching_player(self):
+        distance = math.hypot(self.player.x - self.x, self.player.y - self.y)
+        contact_distance = self.radius + self.player.radius
+        return distance <= contact_distance + DISTANCE_EPSILON or distance == 0
+
+    def _advance_attack_preparation(self, delta_time):
+        elapsed = self.PREPARE_DURATION_SECONDS - self._attack_prepare_remaining
+        if elapsed < self.TRACK_DURATION_SECONDS:
+            self._aim_at_player()
+        self._attack_prepare_remaining = max(
+            0.0,
+            self._attack_prepare_remaining - delta_time,
+        )
+        if self._attack_prepare_remaining <= 0:
+            self._fire_strike()
+
+    def _aim_at_player(self):
+        direction_x = self.player.x - self.x
+        direction_y = self.player.y - self.y
+        distance = math.hypot(direction_x, direction_y)
+        if distance <= 0:
+            return
+        self._attack_direction = (direction_x / distance, direction_y / distance)
+
+    def _strike_end(self):
+        origin_x, origin_y = self._strike_origin
+        direction_x, direction_y = self._strike_direction
+        return (
+            origin_x + direction_x * self.ATTACK_LENGTH,
+            origin_y + direction_y * self.ATTACK_LENGTH,
+        )
+
+    def _fire_strike(self):
+        self._strike_origin = (self.x, self.y)
+        self._strike_direction = self._attack_direction
+        self._strike_remaining = self.STRIKE_VISIBLE_SECONDS
+        self._attack_cooldown_remaining = self.attack_interval
+        end_x, end_y = self._strike_end()
+        if self._player_on_strike_line(end_x, end_y):
+            self.player.take_damage(self.attack_damage)
+        self.x = end_x
+        self.y = end_y
+        self.velocity_x = 0.0
+        self.velocity_y = 0.0
+        game_world.refresh_spatial_position(self)
+
+    def _player_on_strike_line(self, end_x, end_y):
+        origin_x, origin_y = self._strike_origin
+        distance = Enemy._distance_to_segment(
+            self.player.x,
+            self.player.y,
+            origin_x,
+            origin_y,
+            end_x,
+            end_y,
+        )
+        return distance <= self.player.radius + self.STRIKE_HIT_RADIUS
+
+    def _draw_strike_line(self, screen_x, screen_y, direction, color, size):
+        direction_x, direction_y = direction
+        steps = 20
+        for step in range(1, steps + 1):
+            distance = self.ATTACK_LENGTH * step / steps
+            center_x = screen_x + direction_x * distance
+            center_y = screen_y + direction_y * distance
+            self.draw_rectangle(
+                center_x - size / 2,
+                center_y - size / 2,
+                center_x + size / 2,
+                center_y + size / 2,
+                *color,
+                255,
+                True,
+            )
 
     def draw(self):
         if self.image is None:
@@ -136,6 +274,24 @@ class AssassinEnemy(Enemy):
         health_bar_alpha = self.health_bar_alpha
         if health_bar_alpha > 0:
             self.draw_health_bar(x, y, health_bar_alpha)
+
+        if self.is_preparing_attack:
+            locked = self.attack_prepare_progress >= (
+                self.TRACK_DURATION_SECONDS / self.PREPARE_DURATION_SECONDS
+            )
+            color = (255, 70, 60) if locked else (255, 200, 60)
+            self._draw_strike_line(x, y, self._attack_direction, color, 6)
+        if self.is_strike_visible:
+            origin_x, origin_y = self._strike_origin
+            line_x = x + (origin_x - self.x)
+            line_y = y + (origin_y - self.y)
+            self._draw_strike_line(
+                line_x,
+                line_y,
+                self._strike_direction,
+                (255, 245, 150),
+                14,
+            )
 
 
 class ArcherEnemy(Enemy):
