@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import game_world
 from enemy import (
@@ -180,6 +180,10 @@ class AssassinAttackTests(unittest.TestCase):
         self.player = FakePlayer()
         self.assassin = AssassinEnemy(0, 0, player=self.player)
 
+    def test_strike_width_is_five_pixels_and_length_is_unchanged(self):
+        self.assertEqual(self.assassin.STRIKE_WIDTH, 5.0)
+        self.assertEqual(self.assassin.ATTACK_LENGTH, 400.0)
+
     def test_attack_starts_only_when_fully_visible(self):
         self.player.x = 400.0
         self.assassin.update(0.1)
@@ -270,6 +274,15 @@ class AssassinAttackTests(unittest.TestCase):
         self.assertAlmostEqual(self.assassin.x, 400.0)
         self.assertAlmostEqual(self.assassin.y, 0.0)
 
+    def test_strike_does_not_hit_just_outside_the_five_pixel_width(self):
+        self.player.x = 150.0
+        self.assassin.update(0.1)
+        self.assassin.update(0.6)
+        self.player.y = self.player.radius + 3.0
+        self.assassin.update(0.3)
+
+        self.assertEqual(self.player.damage_taken, [])
+
     def test_dash_uses_the_locked_direction_even_after_the_player_moves(self):
         self.player.x = 0.0
         self.player.y = 150.0
@@ -318,7 +331,7 @@ class AssassinAttackTests(unittest.TestCase):
         self.assassin.update(0.1)
         self.assertTrue(self.assassin.is_preparing_attack)
 
-    def test_strike_line_is_drawn_with_the_same_range(self):
+    def test_strike_line_is_drawn_five_pixels_wide_with_the_same_range(self):
         self.assassin.draw_rectangle = lambda *args: None
         self.assassin.image = FakeAssassinImage()
         self.assassin._screen_position = (100.0, 200.0)
@@ -329,8 +342,9 @@ class AssassinAttackTests(unittest.TestCase):
             "enemy_types.pico2d.SDL_SetTextureAlphaMod", return_value=0
         ), patch("enemy_types.pico2d.draw_line") as draw_line:
             self.assassin.draw()
-        draw_line.assert_called_once_with(
-            100.0, 200.0, 500.0, 200.0, 255, 200, 60, 255
+        self.assertEqual(
+            draw_line.call_args_list,
+            [call(100.0, 198.0 + offset, 500.0, 198.0 + offset, 255, 200, 60, 255) for offset in range(5)],
         )
 
         self.assassin.update(1.0)
@@ -339,8 +353,9 @@ class AssassinAttackTests(unittest.TestCase):
             "enemy_types.pico2d.SDL_SetTextureAlphaMod", return_value=0
         ), patch("enemy_types.pico2d.draw_line") as draw_line:
             self.assassin.draw()
-        draw_line.assert_called_once_with(
-            100.0, 200.0, 500.0, 200.0, 255, 245, 150, 255
+        self.assertEqual(
+            draw_line.call_args_list,
+            [call(100.0, 198.0 + offset, 500.0, 198.0 + offset, 255, 245, 150, 255) for offset in range(5)],
         )
 
 

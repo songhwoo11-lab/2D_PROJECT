@@ -43,7 +43,7 @@ class AssassinEnemy(Enemy):
     PREPARE_DURATION_SECONDS = 1.0
     TRACK_DURATION_SECONDS = 0.5
     STRIKE_VISIBLE_SECONDS = 0.2
-    STRIKE_HIT_RADIUS = 24.0
+    STRIKE_WIDTH = 5.0
 
     def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
         super().__init__(
@@ -213,13 +213,30 @@ class AssassinEnemy(Enemy):
             end_x,
             end_y,
         )
-        return distance <= self.player.radius + self.STRIKE_HIT_RADIUS
+        return distance <= self.player.radius + self.STRIKE_WIDTH / 2.0
 
     def _draw_strike_line(self, screen_x, screen_y, direction, color):
         direction_x, direction_y = direction
         end_x = screen_x + direction_x * self.ATTACK_LENGTH
         end_y = screen_y + direction_y * self.ATTACK_LENGTH
-        pico2d.draw_line(screen_x, screen_y, end_x, end_y, *color, 255)
+        length = math.hypot(direction_x, direction_y)
+        if length == 0:
+            pico2d.draw_line(screen_x, screen_y, end_x, end_y, *color, 255)
+            return
+        perpendicular_x = -direction_y / length
+        perpendicular_y = direction_x / length
+        half_offset = int((self.STRIKE_WIDTH - 1) / 2.0)
+        for offset in range(-half_offset, half_offset + 1):
+            offset_x = perpendicular_x * offset
+            offset_y = perpendicular_y * offset
+            pico2d.draw_line(
+                screen_x + offset_x,
+                screen_y + offset_y,
+                end_x + offset_x,
+                end_y + offset_y,
+                *color,
+                255,
+            )
 
     def draw(self):
         if self.image is None:
