@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
@@ -47,6 +47,31 @@ class TrainingSceneTests(unittest.TestCase):
     def test_update_and_draw_run_without_error(self):
         self.scene.update(1.0 / 60)
         self.scene.draw(lambda *args: None)
+
+    def test_training_title_is_not_drawn(self):
+        self.scene.hud_font = object()
+
+        with patch("training_scene.draw_centered_text") as draw_text, patch(
+            "training_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: None)
+
+        labels = [call.args[2] for call in draw_text.call_args_list]
+        self.assertNotIn("TRAINING", labels)
+
+    def test_top_time_display_shows_only_the_number(self):
+        self.scene.hud_font = object()
+        self.scene.phase = "playing"
+        self.scene.time_remaining = 42.0
+
+        with patch("training_scene.draw_centered_text") as draw_text, patch(
+            "training_scene.draw_text_at_center"
+        ):
+            self.scene.draw(lambda *args: None)
+
+        labels = [call.args[2] for call in draw_text.call_args_list]
+        self.assertIn("42", labels)
+        self.assertNotIn("TIME 42", labels)
 
     def test_target_is_hidden_before_training_starts(self):
         with patch.object(self.scene.target, "draw") as draw_target:

@@ -19,12 +19,10 @@ from player import Player
 from weapon import Gun
 
 
-TRAINING_TITLE = "TRAINING"
 TRAINING_NOTICE = "TRAINING GROUND OPENING SOON"
 TRAINING_HINT = "PRESS SPACE : BACK TO LOBBY"
 TRAINING_CURSOR_COLOR = (20, 20, 20)
 TRAINING_CURSOR_ALPHA = AIM_CURSOR_ALPHA
-TRAINING_TITLE_Y = SCREEN_HEIGHT - 200
 TRAINING_NOTICE_Y = SCREEN_HEIGHT - 300
 TRAINING_HINT_Y = 120
 
@@ -269,13 +267,6 @@ class TrainingScene:
             EXIT_BUTTON_LABEL,
             EXIT_BUTTON_TEXT_COLOR,
         )
-        draw_centered_text(
-            self.hud_font,
-            TRAINING_TITLE_Y,
-            TRAINING_TITLE,
-            (0, 120, 0),
-        )
-
         if self.phase == "countdown":
             draw_centered_text(
                 self.hud_font,
@@ -311,7 +302,7 @@ class TrainingScene:
             draw_centered_text(
                 self.hud_font,
                 SCREEN_HEIGHT - 80,
-                "TIME {:02d}".format(int(self.time_remaining)),
+                "{:02d}".format(int(self.time_remaining)),
                 (255, 255, 255),
             )
             draw_centered_text(
