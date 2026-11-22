@@ -107,6 +107,8 @@ class Enemy:
         self._screen_position = None
         self._attack_cooldown_remaining = 0.0
         self._uses_spatial_collision = True
+        # 다른 적과의 충돌을 무시하는 적(암살자)은 경로 검사에서 적을 제외한다.
+        self._checks_enemy_collisions = True
         # 마지막으로 피해를 준 출처. None이면 플레이어 공격으로 간주한다.
         self.last_damage_source = None
 
@@ -148,9 +150,10 @@ class Enemy:
         if max_distance <= 0:
             return False
 
-        enemies = game_world.nearby_spatial_objects(
-            self,
-            max_distance + self.radius,
+        enemies = (
+            game_world.nearby_spatial_objects(self, max_distance + self.radius)
+            if self._checks_enemy_collisions
+            else []
         )
         if distance == 0 and not enemies:
             return False

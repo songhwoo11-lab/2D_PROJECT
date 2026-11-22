@@ -1,11 +1,24 @@
 import unittest
 
+import game_world
 from enemy import (
     DAMAGE_SOURCE_EXPLOSION,
     ENEMY_STATS,
     Enemy,
     EnemyType,
 )
+from enemy_types import AssassinEnemy, BasicEnemy
+
+
+class FakePlayer:
+    def __init__(self):
+        self.x = 200.0
+        self.y = 0.0
+        self.radius = 20.0
+        self.is_defeated = False
+
+    def take_damage(self, amount):
+        pass
 
 
 class EnemyStatScalingTests(unittest.TestCase):
@@ -115,6 +128,106 @@ class EnemyDamageSourceTests(unittest.TestCase):
         enemy.take_damage(5)
 
         self.assertEqual(enemy.last_damage_source, DAMAGE_SOURCE_EXPLOSION)
+
+
+class AssassinStealthTests(unittest.TestCase):
+    def setUp(self):
+        self.player = FakePlayer()
+        self.assassin = AssassinEnemy(0, 0, player=self.player)
+
+    def test_reveal_range_is_extended_by_fifty(self):
+        self.assertEqual(AssassinEnemy.FADE_DISTANCE, 350.0)
+
+    def test_assassin_is_visible_at_the_previous_reveal_edge(self):
+        self.assassin.x = self.player.x - 300.0
+
+        self.assertGreater(self.assassin.opacity_alpha, 0)
+
+    def test_assassin_is_hidden_at_the_new_reveal_edge(self):
+        self.assassin.x = self.player.x - AssassinEnemy.FADE_DISTANCE
+
+        self.assertEqual(self.assassin.opacity_alpha, 0)
+
+    def test_assassin_is_fully_visible_up_close(self):
+        self.assassin.x = self.player.x
+
+        self.assertEqual(self.assassin.opacity_alpha, 255)
+
+    def test_opacity_is_maximal_when_health_bar_is_visible(self):
+        self.assassin.x = self.player.x - AssassinEnemy.HEALTH_BAR_DISTANCE
+
+        self.assertEqual(self.assassin.health_bar_alpha, 255)
+        self.assertEqual(self.assassin.opacity_alpha, 255)
+
+    def test_opacity_fades_when_health_bar_is_hidden(self):
+        self.assassin.x = self.player.x - AssassinEnemy.HEALTH_BAR_DISTANCE - 1.0
+
+        self.assertEqual(self.assassin.health_bar_alpha, 0)
+        self.assertLess(self.assassin.opacity_alpha, 255)
+
+
+class EnemyCollisionTests(unittest.TestCase):
+    def tearDown(self):
+        game_world.clear()
+
+    def move_past(self, mover, blocker):
+        game_world.add_object(mover)
+        game_world.add_object(blocker)
+        moved = mover.move_towards(200.0, 0.0, 100.0)
+        return moved, (mover.x, mover.y)
+
+    def assert_passed_through(self, mover, blocker):
+        moved, position = self.move_past(mover, blocker)
+
+        self.assertTrue(moved)
+        self.assertAlmostEqual(position[0], 100.0)
+        self.assertAlmostEqual(position[1], 0.0)
+
+    def test_assassin_ignores_other_enemies_when_moving(self):
+        self.assert_passed_through(
+            AssassinEnemy(0, 0, player=FakePlayer()),
+            BasicEnemy(50, 0, player=FakePlayer()),
+        )
+
+    def test_other_enemies_ignore_assassins_when_moving(self):
+        self.assert_passed_through(
+            BasicEnemy(0, 0, player=FakePlayer()),
+            AssassinEnemy(50, 0, player=FakePlayer()),
+        )
+
+    def test_assassins_ignore_each_other_when_moving(self):
+        self.assert_passed_through(
+            AssassinEnemy(0, 0, player=FakePlayer()),
+            AssassinEnemy(50, 0, player=FakePlayer()),
+        )
+
+    def test_non_assassins_still_avoid_each_other(self):
+        mover = BasicEnemy(0, 0, player=FakePlayer())
+        game_world.add_object(mover)
+        game_world.add_object(BasicEnemy(50, 0, player=FakePlayer()))
+
+        mover.move_towards(200.0, 0.0, 100.0)
+
+        self.assertLess(mover.x, 0.0)
+
+    def test_assassins_are_excluded_from_the_spatial_index(self):
+        assassin = AssassinEnemy(0, 0, player=FakePlayer())
+        observer = BasicEnemy(0, 0, player=FakePlayer())
+        other = BasicEnemy(10, 0, player=FakePlayer())
+        for enemy in (assassin, observer, other):
+            game_world.add_object(enemy)
+
+        game_world._build_spatial_index()
+        candidates = game_world.nearby_spatial_objects(observer, 200.0)
+
+        self.assertNotIn(assassin, candidates)
+        self.assertIn(other, candidates)
+
+    def test_assassin_is_still_hit_by_bullet_collision_checks(self):
+        assassin = AssassinEnemy(0, 0, player=FakePlayer())
+        basic = BasicEnemy(0, 0, player=FakePlayer())
+
+        self.assertTrue(assassin.collides_with(basic))
 
 
 if __name__ == "__main__":

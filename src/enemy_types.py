@@ -36,7 +36,7 @@ class TankerEnemy(Enemy):
 
 
 class AssassinEnemy(Enemy):
-    FADE_DISTANCE = 300.0
+    FADE_DISTANCE = 350.0
     HEALTH_BAR_DISTANCE = 200.0
     HIT_FLASH_DURATION_SECONDS = 0.2
 
@@ -49,6 +49,9 @@ class AssassinEnemy(Enemy):
             player=player,
             draw_rectangle=draw_rectangle,
         )
+        # 암살자는 다른 적과 충돌하지 않고, 다른 적도 암살자를 피하지 않는다.
+        self._uses_spatial_collision = False
+        self._checks_enemy_collisions = False
         self._hit_flash_remaining = 0.0
 
     @property
@@ -59,7 +62,8 @@ class AssassinEnemy(Enemy):
 
     @property
     def opacity_alpha(self):
-        if self._hit_flash_remaining > 0:
+        # 체력바가 보이는 거리에서는 암살자도 완전히 드러낸다.
+        if self._hit_flash_remaining > 0 or self.health_bar_alpha > 0:
             return 255
         opacity = min(
             max(1.0 - self.distance_to_player / self.FADE_DISTANCE, 0.0),
