@@ -215,22 +215,11 @@ class AssassinEnemy(Enemy):
         )
         return distance <= self.player.radius + self.STRIKE_HIT_RADIUS
 
-    def _draw_strike_line(self, screen_x, screen_y, direction, color, size):
+    def _draw_strike_line(self, screen_x, screen_y, direction, color):
         direction_x, direction_y = direction
-        steps = 20
-        for step in range(1, steps + 1):
-            distance = self.ATTACK_LENGTH * step / steps
-            center_x = screen_x + direction_x * distance
-            center_y = screen_y + direction_y * distance
-            self.draw_rectangle(
-                center_x - size / 2,
-                center_y - size / 2,
-                center_x + size / 2,
-                center_y + size / 2,
-                *color,
-                255,
-                True,
-            )
+        end_x = screen_x + direction_x * self.ATTACK_LENGTH
+        end_y = screen_y + direction_y * self.ATTACK_LENGTH
+        pico2d.draw_line(screen_x, screen_y, end_x, end_y, *color, 255)
 
     def draw(self):
         if self.image is None:
@@ -280,7 +269,7 @@ class AssassinEnemy(Enemy):
                 self.TRACK_DURATION_SECONDS / self.PREPARE_DURATION_SECONDS
             )
             color = (255, 70, 60) if locked else (255, 200, 60)
-            self._draw_strike_line(x, y, self._attack_direction, color, 6)
+            self._draw_strike_line(x, y, self._attack_direction, color)
         if self.is_strike_visible:
             origin_x, origin_y = self._strike_origin
             line_x = x + (origin_x - self.x)
@@ -290,7 +279,6 @@ class AssassinEnemy(Enemy):
                 line_y,
                 self._strike_direction,
                 (255, 245, 150),
-                14,
             )
 
 

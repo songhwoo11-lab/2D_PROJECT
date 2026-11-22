@@ -318,9 +318,8 @@ class AssassinAttackTests(unittest.TestCase):
         self.assassin.update(0.1)
         self.assertTrue(self.assassin.is_preparing_attack)
 
-    def test_strike_line_is_drawn_during_preparation_and_firing(self):
-        rectangles = []
-        self.assassin.draw_rectangle = lambda *args: rectangles.append(args)
+    def test_strike_line_is_drawn_with_the_same_range(self):
+        self.assassin.draw_rectangle = lambda *args: None
         self.assassin.image = FakeAssassinImage()
         self.assassin._screen_position = (100.0, 200.0)
         self.player.x = 150.0
@@ -328,25 +327,21 @@ class AssassinAttackTests(unittest.TestCase):
 
         with patch("enemy_types.pico2d.SDL_SetTextureBlendMode", return_value=0), patch(
             "enemy_types.pico2d.SDL_SetTextureAlphaMod", return_value=0
-        ):
+        ), patch("enemy_types.pico2d.draw_line") as draw_line:
             self.assassin.draw()
-        telegraph_sizes = [rect[3] - rect[1] for rect in rectangles]
-        self.assertGreaterEqual(len([size for size in telegraph_sizes if size == 6]), 20)
+        draw_line.assert_called_once_with(
+            100.0, 200.0, 500.0, 200.0, 255, 200, 60, 255
+        )
 
-        rectangles.clear()
         self.assassin.update(1.0)
         self.assassin.set_screen_position(500.0, 200.0)
         with patch("enemy_types.pico2d.SDL_SetTextureBlendMode", return_value=0), patch(
             "enemy_types.pico2d.SDL_SetTextureAlphaMod", return_value=0
-        ):
+        ), patch("enemy_types.pico2d.draw_line") as draw_line:
             self.assassin.draw()
-        strike_rectangles = [rect for rect in rectangles if rect[3] - rect[1] == 14]
-        self.assertGreaterEqual(len(strike_rectangles), 20)
-        first_x1, first_y1, first_x2, first_y2 = strike_rectangles[0][:4]
-        self.assertAlmostEqual(first_x1, 113.0)
-        self.assertAlmostEqual(first_y1, 193.0)
-        self.assertAlmostEqual(first_x2, 127.0)
-        self.assertAlmostEqual(first_y2, 207.0)
+        draw_line.assert_called_once_with(
+            100.0, 200.0, 500.0, 200.0, 255, 245, 150, 255
+        )
 
 
 class EnemyCollisionTests(unittest.TestCase):
