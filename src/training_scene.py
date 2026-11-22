@@ -222,7 +222,7 @@ class TrainingScene:
                 255,
                 True,
             )
-        if self.target is not None:
+        if self.shows_target and self.target is not None:
             self.target.draw(draw_rectangle)
         if self.player is not None and self.player.image is not None:
             self.player.draw()
@@ -292,6 +292,10 @@ class TrainingScene:
     @property
     def shows_aim_cursor(self):
         return not self.paused
+
+    @property
+    def shows_target(self):
+        return self.phase in ("playing", "finished")
 
     @property
     def shows_system_cursor(self):

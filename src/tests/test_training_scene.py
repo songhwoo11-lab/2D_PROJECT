@@ -27,6 +27,21 @@ class TrainingSceneTests(unittest.TestCase):
         self.scene.update(1.0 / 60)
         self.scene.draw(lambda *args: None)
 
+    def test_target_is_hidden_before_training_starts(self):
+        with patch.object(self.scene.target, "draw") as draw_target:
+            self.scene.draw(lambda *args: None)
+
+        draw_target.assert_not_called()
+
+    def test_target_appears_as_soon_as_training_starts(self):
+        self.scene.update(3.0)
+        self.assertEqual(self.scene.phase, "playing")
+
+        with patch.object(self.scene.target, "draw") as draw_target:
+            self.scene.draw(lambda *args: None)
+
+        draw_target.assert_called_once()
+
     def test_escape_before_training_starts_is_ignored(self):
         self.scene.key_down("escape")
 
