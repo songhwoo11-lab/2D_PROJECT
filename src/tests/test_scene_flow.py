@@ -259,6 +259,7 @@ class SceneSwitchTests(unittest.TestCase):
 
     def test_escape_pauses_the_battle_without_stopping_the_game(self):
         self.app.switch_scene("battle")
+        self.app.scene.start_countdown_remaining = 0.0
 
         self.app.handle_escape_key()
 

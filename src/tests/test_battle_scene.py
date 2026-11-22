@@ -92,7 +92,7 @@ class SequenceStubRandom(StubRandom):
         return self.roll
 
 
-def make_scene(total_waves, spawn_rate):
+def make_scene(total_waves, spawn_rate, skip_countdown=True):
     scene = BattleScene(
         Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
         Gun(),
@@ -110,7 +110,9 @@ def make_scene(total_waves, spawn_rate):
     )
     scene.spawn_warnings = []
     scene.waves_cleared = False
-    scene._announce_wave()
+    if skip_countdown:
+        scene.start_countdown_remaining = 0.0
+        scene._announce_wave()
     return scene
 
 
@@ -216,10 +218,97 @@ class BattleSceneWaveTests(unittest.TestCase):
         self.assertEqual(self.scene.wave_director.current_wave, 1)
         self.assertEqual(self.scene.spawn_warnings, [])
         self.assertFalse(self.scene.waves_cleared)
-        self.assertEqual(self.scene.wave_banner_text, "WAVE 1")
+        self.assertTrue(self.scene.is_counting_down)
+        self.assertEqual(self.scene.wave_banner_text, "")
         self.assertEqual(alive_enemies(), [])
         self.assertEqual(self.scene.coins, 0)
         self.assertEqual(self.scene.pickups, [])
+
+
+class BattleSceneStartCountdownTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_scene(
+            total_waves=1,
+            spawn_rate=1000,
+            skip_countdown=False,
+        )
+
+    def tearDown(self):
+        game_world.clear()
+
+    def test_battle_starts_after_three_seconds(self):
+        self.assertTrue(self.scene.is_counting_down)
+        self.assertEqual(self.scene.start_countdown_remaining, 3.0)
+        self.assertEqual(self.scene.wave_banner_text, "")
+
+        self.scene.update(2.9)
+
+        self.assertTrue(self.scene.is_counting_down)
+        self.assertEqual(self.scene.spawn_warnings, [])
+        self.assertEqual(self.scene.elapsed_time, 0.0)
+
+        self.scene.update(0.2)
+
+        self.assertFalse(self.scene.is_counting_down)
+        self.assertEqual(self.scene.wave_banner_text, "WAVE 1")
+
+        self.scene.update(0.1)
+
+        self.assertEqual(len(self.scene.spawn_warnings), 10)
+        self.assertAlmostEqual(self.scene.elapsed_time, 0.1)
+
+    def test_player_can_move_during_the_countdown(self):
+        start_x = self.scene.player.x
+        self.scene.keys.add("d")
+
+        self.scene.update(1.0)
+
+        self.assertGreater(self.scene.player.x, start_x)
+        self.assertTrue(self.scene.is_counting_down)
+
+    def test_gun_does_not_fire_during_the_countdown(self):
+        magazine_ammo = self.scene.gun.magazine_ammo
+        self.scene.mouse_down("left")
+
+        self.scene.update(0.0)
+
+        self.assertEqual(self.scene.gun_recoil_remaining, 0.0)
+        self.assertEqual(self.scene.gun.magazine_ammo, magazine_ammo)
+
+    def test_gun_fires_after_the_countdown(self):
+        self.scene.update(3.0)
+        self.scene.mouse_down("left")
+
+        self.scene.update(0.0)
+
+        self.assertEqual(
+            self.scene.gun_recoil_remaining,
+            battle_scene.GUN_RECOIL_RECOVERY_SECONDS,
+        )
+
+    def test_escape_does_not_pause_during_the_countdown(self):
+        self.scene.key_down("escape")
+        self.assertFalse(self.scene.paused)
+
+        self.scene.key_up("escape")
+        self.scene.update(3.0)
+        self.scene.key_down("escape")
+
+        self.assertTrue(self.scene.paused)
+
+    def test_countdown_number_is_drawn(self):
+        self.scene.player.image = FakeImage()
+        with mock.patch("battle_scene.draw_hud"), mock.patch(
+            "battle_scene.draw_centered_text"
+        ) as draw_text:
+            self.scene.draw(lambda *args: None)
+
+        draw_text.assert_any_call(
+            self.scene.hud_font,
+            SCREEN_HEIGHT * 3 / 4,
+            "3",
+            (255, 220, 100),
+        )
 
 
 class BattleSceneRewardTests(unittest.TestCase):

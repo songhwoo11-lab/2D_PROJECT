@@ -65,6 +65,7 @@ SHOT_FEEDBACK_COLOR = (255, 255, 255)
 SHOT_FEEDBACK_FONT_SIZE = 48
 WAVE_BANNER_SECONDS = 2.5
 WAVE_STRENGTH_BANNER_SECONDS = 3.5
+BATTLE_START_COUNTDOWN_SECONDS = 3.0
 
 # 총 온도가 한계 온도의 이 비율에 도달하는 시점부터 서서히 붉게 물든다.
 GUN_HEAT_TINT_START_RATIO = 0.5
@@ -188,6 +189,7 @@ class BattleScene:
         self.spawn_warnings = []
         self.wave_banner_text = ""
         self.wave_banner_remaining = 0.0
+        self.start_countdown_remaining = BATTLE_START_COUNTDOWN_SECONDS
         self.waves_cleared = False
         self.elapsed_time = 0.0
         self.reached_wave = 1
@@ -206,7 +208,6 @@ class BattleScene:
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
-        self._announce_wave()
 
     def close(self):
         game_world.clear()
@@ -246,6 +247,10 @@ class BattleScene:
         else:
             self.wave_banner_text = "WAVE {}".format(wave)
             self.wave_banner_remaining = WAVE_BANNER_SECONDS
+
+    @property
+    def is_counting_down(self):
+        return self.start_countdown_remaining > 0.0
 
     def _spawn_wave_enemy(self, enemy_type, x, y):
         enemy = self.spawn_enemy(enemy_type, x, y)
@@ -410,6 +415,8 @@ class BattleScene:
                 self.exit_requested = True
             return
         if key == "escape":
+            if self.is_counting_down:
+                return
             self.paused = not self.paused
             if self.paused:
                 self.pause_menu_index = 0
@@ -608,6 +615,9 @@ class BattleScene:
         self.show_assassin_reveal_range = False
         self.wave_director = self._create_wave_director()
         self.spawn_warnings = []
+        self.wave_banner_text = ""
+        self.wave_banner_remaining = 0.0
+        self.start_countdown_remaining = BATTLE_START_COUNTDOWN_SECONDS
         self.waves_cleared = False
         self.elapsed_time = 0.0
         self.reached_wave = 1
@@ -625,12 +635,19 @@ class BattleScene:
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
-        self._announce_wave()
 
     def update(self, delta_time):
         if self.finished or self.paused:
             return
-        self.elapsed_time += delta_time
+        if self.is_counting_down:
+            self.start_countdown_remaining = max(
+                0.0,
+                self.start_countdown_remaining - delta_time,
+            )
+            if not self.is_counting_down:
+                self._announce_wave()
+        else:
+            self.elapsed_time += delta_time
         self.shot_feedbacks = [
             (x, y, label, remaining - delta_time)
             for x, y, label, remaining in self.shot_feedbacks
@@ -663,10 +680,12 @@ class BattleScene:
         self.player.aim_at(world_x, world_y)
         self._update_player_view()
 
-        fired = self.gun.handle_fire_input(
-            mouse_held=self.mouse_held,
-            mouse_pressed=self._mouse_pressed,
-        )
+        fired = False
+        if not self.is_counting_down:
+            fired = self.gun.handle_fire_input(
+                mouse_held=self.mouse_held,
+                mouse_pressed=self._mouse_pressed,
+            )
         self._mouse_pressed = False
         if fired:
             self.gun_recoil_remaining = GUN_RECOIL_RECOVERY_SECONDS
@@ -686,7 +705,8 @@ class BattleScene:
                 )
         self._remove_defeated_enemies()
         self._update_pickups(delta_time)
-        self._update_waves(delta_time)
+        if not self.is_counting_down:
+            self._update_waves(delta_time)
         self.wave_banner_remaining = max(
             0.0,
             self.wave_banner_remaining - delta_time,
@@ -792,6 +812,13 @@ class BattleScene:
         if self.hud_font is None:
             raise RuntimeError("BattleScene.draw requires a loaded HUD font")
         self._draw_wave_banner()
+        if self.is_counting_down:
+            draw_centered_text(
+                self.hud_font,
+                SCREEN_HEIGHT * 3 / 4,
+                str(math.ceil(self.start_countdown_remaining)),
+                (255, 220, 100),
+            )
         draw_hud(
             self.player,
             self.gun,
