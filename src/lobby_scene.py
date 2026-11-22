@@ -27,6 +27,7 @@ from weapon import weapon_display_name, weapon_stats_at_level
 PORTAL_ENTRY_SECONDS = 3.0
 PORTAL_ENTRY_TOTAL_ROTATIONS = 3.0
 PORTAL_ENTRY_MOVE_DEPTH = 120.0
+PORTAL_ENTRY_SPEED_GROWTH_RATE = 3.0
 
 GUN_SELECT_TITLE_Y = SCREEN_HEIGHT - 120
 # 총칸은 상점에서 사용하는 것과 같은 이미지를 같은 크기로 출력한다.
@@ -191,6 +192,7 @@ class LobbyScene:
         self.portal_entry_target = (0.0, 0.0)
         self.portal_entry_angle = 0.0
         self.portal_entry_opacity = 1.0
+        self.portal_entry_scale = 1.0
         self.locations = tuple(LOBBY_LOCATIONS)
         self.current_node = (
             node_key if node_key in LOBBY_NODE_BY_KEY else LOBBY_START_KEY
@@ -228,7 +230,11 @@ class LobbyScene:
         self.portal_entry_elapsed = min(
             PORTAL_ENTRY_SECONDS, self.portal_entry_elapsed + max(0.0, delta_time)
         )
-        progress = self.portal_entry_elapsed / PORTAL_ENTRY_SECONDS
+        linear_progress = self.portal_entry_elapsed / PORTAL_ENTRY_SECONDS
+        growth = math.exp(PORTAL_ENTRY_SPEED_GROWTH_RATE)
+        progress = (math.exp(PORTAL_ENTRY_SPEED_GROWTH_RATE * linear_progress) - 1.0) / (
+            growth - 1.0
+        )
         start_x, start_y = self.portal_entry_start
         target_x, target_y = self.portal_entry_target
         if self.player is not None:
@@ -238,9 +244,11 @@ class LobbyScene:
             math.tau * PORTAL_ENTRY_TOTAL_ROTATIONS * progress
         )
         self.portal_entry_opacity = 1.0 - progress
+        self.portal_entry_scale = 1.0 - progress
         if self.portal_entry_elapsed >= PORTAL_ENTRY_SECONDS:
             self.portal_entry_active = False
             self.portal_entry_opacity = 0.0
+            self.portal_entry_scale = 0.0
             self.pending_action = "battle_entry_loading"
 
     def _update_nearby_location(self):
@@ -280,6 +288,7 @@ class LobbyScene:
                 self.player.draw(
                     angle=self.portal_entry_angle,
                     opacity=self.portal_entry_opacity,
+                    scale=self.portal_entry_scale,
                 )
             else:
                 self.player.draw()
@@ -819,6 +828,7 @@ class LobbyScene:
         )
         self.portal_entry_angle = 0.0
         self.portal_entry_opacity = 1.0
+        self.portal_entry_scale = 1.0
 
     def open_gun_selection(self):
         """Show the gun selection screen before the battle starts."""

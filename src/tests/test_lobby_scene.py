@@ -23,6 +23,7 @@ from lobby_scene import (
     GUN_SELECT_UNSELECTED_SLOT_SIZE,
     LobbyScene,
     PORTAL_ENTRY_SECONDS,
+    PORTAL_ENTRY_SPEED_GROWTH_RATE,
     PORTAL_ENTRY_TOTAL_ROTATIONS,
     RECORDS_BOOK_HEIGHT,
     RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y,
@@ -44,6 +45,14 @@ def make_scene():
 def press(scene, key):
     scene.key_down(key)
     scene.key_up(key)
+
+
+def portal_entry_progress(elapsed):
+    linear_progress = elapsed / PORTAL_ENTRY_SECONDS
+    growth = math.exp(PORTAL_ENTRY_SPEED_GROWTH_RATE)
+    return (math.exp(PORTAL_ENTRY_SPEED_GROWTH_RATE * linear_progress) - 1.0) / (
+        growth - 1.0
+    )
 
 
 class LobbySceneLifecycleTests(unittest.TestCase):
@@ -423,7 +432,7 @@ class LobbyPortalEntryTests(unittest.TestCase):
         self.assertTrue(self.scene.portal_entry_active)
         self.assertIsNone(self.scene.pending_action)
 
-    def test_portal_entry_moves_spins_and_fades_the_player_over_three_seconds(self):
+    def test_portal_entry_moves_spins_fades_and_shrinks_the_player_over_three_seconds(self):
         self.state.owned_guns = ["pistol", "rifle"]
         self.scene.open_gun_selection()
         press(self.scene, "space")
@@ -432,13 +441,15 @@ class LobbyPortalEntryTests(unittest.TestCase):
 
         self.scene.update(PORTAL_ENTRY_SECONDS / 2)
 
+        half_progress = portal_entry_progress(PORTAL_ENTRY_SECONDS / 2)
         self.assertTrue(self.scene.portal_entry_active)
         self.assertAlmostEqual(self.scene.player.x, start_x)
         self.assertGreater(self.scene.player.y, start_y)
-        self.assertAlmostEqual(self.scene.portal_entry_opacity, 0.5)
+        self.assertAlmostEqual(self.scene.portal_entry_opacity, 1.0 - half_progress)
+        self.assertAlmostEqual(self.scene.portal_entry_scale, 1.0 - half_progress)
         self.assertAlmostEqual(
             self.scene.portal_entry_angle,
-            math.pi * PORTAL_ENTRY_TOTAL_ROTATIONS,
+            math.tau * PORTAL_ENTRY_TOTAL_ROTATIONS * half_progress,
         )
         self.assertIsNone(self.scene.pending_action)
 
@@ -446,13 +457,39 @@ class LobbyPortalEntryTests(unittest.TestCase):
 
         self.assertFalse(self.scene.portal_entry_active)
         self.assertAlmostEqual(self.scene.portal_entry_opacity, 0.0)
+        self.assertAlmostEqual(self.scene.portal_entry_scale, 0.0)
         self.assertAlmostEqual(
             self.scene.portal_entry_angle,
             math.tau * PORTAL_ENTRY_TOTAL_ROTATIONS,
         )
         self.assertEqual(self.scene.pending_action, "battle_entry_loading")
 
-    def test_portal_entry_draws_the_player_with_spin_and_transparency(self):
+    def test_portal_entry_speed_grows_geometrically(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+        press(self.scene, "space")
+        start_y = self.scene.player.y
+
+        self.scene.update(1.0)
+        first_step = self.scene.player.y - start_y
+        first_step_end = self.scene.player.y
+
+        self.scene.update(1.0)
+        second_step = self.scene.player.y - first_step_end
+        second_step_end = self.scene.player.y
+
+        self.scene.update(1.0)
+        third_step = self.scene.player.y - second_step_end
+
+        expected_ratio = math.exp(
+            PORTAL_ENTRY_SPEED_GROWTH_RATE / PORTAL_ENTRY_SECONDS
+        )
+        self.assertGreater(second_step, first_step)
+        self.assertGreater(third_step, second_step)
+        self.assertAlmostEqual(second_step / first_step, expected_ratio, places=5)
+        self.assertAlmostEqual(third_step / second_step, expected_ratio, places=5)
+
+    def test_portal_entry_draws_the_player_with_spin_transparency_and_scale(self):
         self.state.owned_guns = ["pistol", "rifle"]
         self.scene.open_gun_selection()
         press(self.scene, "space")
@@ -465,6 +502,7 @@ class LobbyPortalEntryTests(unittest.TestCase):
         self.scene.player.draw.assert_called_once_with(
             angle=self.scene.portal_entry_angle,
             opacity=self.scene.portal_entry_opacity,
+            scale=self.scene.portal_entry_scale,
         )
 
     def test_portal_entry_hides_the_direction_arrows(self):

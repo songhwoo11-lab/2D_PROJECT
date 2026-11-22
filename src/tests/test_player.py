@@ -108,6 +108,14 @@ class PlayerDrawTests(unittest.TestCase):
         self.assertEqual(image.opacify.call_args_list[1].args, (1.0,))
         image.draw.assert_called_once_with(10, 20, 30, 30)
 
+    def test_draw_scales_the_image_when_a_scale_is_given(self):
+        image = MagicMock()
+        player = Player(10, 20, image=image, radius=15)
+
+        player.draw(scale=0.25)
+
+        image.draw.assert_called_once_with(10, 20, 7.5, 7.5)
+
 
 if __name__ == "__main__":
     unittest.main()

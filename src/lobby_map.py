@@ -57,8 +57,8 @@ LOBBY_LOCATIONS = (
         key="portal",
         label="BATTLE PORTAL",
         zone_x=900.0,
-        zone_y=820.0,
-        zone_radius=130.0,
+        zone_y=750.0,
+        zone_radius=240.0,
     ),
     LobbyLocation(
         key="training",
