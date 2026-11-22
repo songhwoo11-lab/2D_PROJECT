@@ -38,6 +38,7 @@ ASSET_DIRECTORY = Path(__file__).resolve().parent.parent / "image"
 LOADING_TEXT = "로딩중..."
 LOADING_BACKGROUND_COLOR = (18, 26, 22, 255)
 LOADING_TEXT_COLOR = (255, 220, 100)
+BATTLE_ENTRY_LOADING_SECONDS = 1.0
 
 
 class GameApp:
@@ -53,13 +54,17 @@ class GameApp:
         self.lobby_node_key = LOBBY_START_KEY
         self.cursor_hidden = False
         self.running = True
+        self.battle_entry_loading_remaining = 0.0
+        self.loading_font = None
 
-    def draw_loading_screen(self, pico2d_module=None):
+    def draw_loading_screen(self, pico2d_module=None, present=True):
         pico2d_module = pico2d_module or pico2d
-        font = pico2d_module.load_font(
-            str(ASSET_DIRECTORY / "font" / "MulmaruMono.ttf"),
-            HUD_FONT_SIZE,
-        )
+        if self.loading_font is None:
+            self.loading_font = pico2d_module.load_font(
+                str(ASSET_DIRECTORY / "font" / "MulmaruMono.ttf"),
+                HUD_FONT_SIZE,
+            )
+        font = self.loading_font
         pico2d_module.clear_canvas()
         pico2d_module.draw_rectangle(
             0,
@@ -75,7 +80,8 @@ class GameApp:
             LOADING_TEXT,
             LOADING_TEXT_COLOR,
         )
-        pico2d_module.update_canvas()
+        if present:
+            pico2d_module.update_canvas()
 
     def initialize(self, pico2d_module=None):
         self.draw_loading_screen(pico2d_module)
@@ -297,10 +303,23 @@ class GameApp:
         if action == "start_battle":
             self.switch_scene("battle")
             return True
+        if action == "battle_entry_loading":
+            self.battle_entry_loading_remaining = BATTLE_ENTRY_LOADING_SECONDS
+            return True
         if action == "return_to_lobby":
             self.switch_scene("lobby")
             return True
         raise ValueError("unknown scene action: {}".format(action))
+
+    def tick_battle_entry_loading(self, delta_time):
+        if self.battle_entry_loading_remaining <= 0.0:
+            return False
+        self.battle_entry_loading_remaining = max(
+            0.0, self.battle_entry_loading_remaining - delta_time
+        )
+        if self.battle_entry_loading_remaining == 0.0:
+            self.switch_scene("battle")
+        return True
 
     def handle_scene_exit(self):
         """Handle the active scene's request to leave the game."""
@@ -310,7 +329,11 @@ class GameApp:
         self.running = False
 
     def handle_escape_key(self):
+        if self.battle_entry_loading_remaining > 0.0:
+            return
         if self.scene_kind == "lobby":
+            if getattr(self.scene, "portal_entry_active", False):
+                return
             if getattr(self.scene, "panel", None) in ("gun_select", "records"):
                 self.scene.key_down("escape")
                 return
@@ -393,8 +416,12 @@ class GameApp:
 
                 self.scene.update(delta_time)
                 self.handle_scene_action()
+                showing_battle_loading = self.tick_battle_entry_loading(delta_time)
                 pico2d.clear_canvas()
-                self.scene.draw(pico2d.draw_rectangle)
+                if showing_battle_loading:
+                    self.draw_loading_screen(pico2d, present=False)
+                else:
+                    self.scene.draw(pico2d.draw_rectangle)
                 self.update_cursor_visibility()
                 pico2d.update_canvas()
                 if self.scene.exit_requested:

@@ -100,7 +100,7 @@ class Player:
         self.x = min(max(self.x, self.radius), WORLD_WIDTH - self.radius)
         self.y = min(max(self.y, self.radius), WORLD_HEIGHT - self.radius)
 
-    def draw(self, screen_x=None, screen_y=None):
+    def draw(self, screen_x=None, screen_y=None, angle=None, opacity=None):
         if self.image is None:
             raise RuntimeError("Player.draw requires a loaded player image")
         if screen_x is None and self._screen_position is not None:
@@ -108,4 +108,21 @@ class Player:
         else:
             x = self.x if screen_x is None else screen_x
             y = self.y if screen_y is None else screen_y
-        self.image.draw(x, y, self.radius * 2, self.radius * 2)
+        if opacity is not None and opacity < 1.0:
+            self.image.opacify(opacity)
+            try:
+                self._draw_image(x, y, angle)
+            finally:
+                self.image.opacify(1.0)
+        else:
+            self._draw_image(x, y, angle)
+
+    def _draw_image(self, x, y, angle):
+        if angle is None:
+            self.image.draw(x, y, self.radius * 2, self.radius * 2)
+            return
+        rotate_draw = getattr(self.image, "rotate_draw", None)
+        if rotate_draw is None:
+            self.image.draw(x, y, self.radius * 2, self.radius * 2)
+            return
+        rotate_draw(angle, x, y, self.radius * 2, self.radius * 2)

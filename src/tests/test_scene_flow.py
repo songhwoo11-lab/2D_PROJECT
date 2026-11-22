@@ -16,6 +16,7 @@ from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY
 from main import (
     ASSET_DIRECTORY,
+    BATTLE_ENTRY_LOADING_SECONDS,
     GameApp,
     LOADING_BACKGROUND_COLOR,
     LOADING_TEXT,
@@ -262,6 +263,44 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertTrue(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "battle")
+
+    def test_escape_is_ignored_during_the_portal_entry_animation(self):
+        self.app.scene.portal_entry_active = True
+
+        self.app.handle_escape_key()
+
+        self.assertTrue(self.app.running)
+
+    def test_escape_is_ignored_while_the_battle_loading_screen_is_shown(self):
+        self.app.battle_entry_loading_remaining = 1.0
+
+        self.app.handle_escape_key()
+
+        self.assertTrue(self.app.running)
+
+    def test_battle_entry_loading_starts_the_one_second_countdown(self):
+        self.app.scene.pending_action = "battle_entry_loading"
+
+        self.assertTrue(self.app.handle_scene_action())
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertAlmostEqual(
+            self.app.battle_entry_loading_remaining,
+            BATTLE_ENTRY_LOADING_SECONDS,
+        )
+
+    def test_battle_entry_loading_switches_to_battle_after_one_second(self):
+        self.app.battle_entry_loading_remaining = BATTLE_ENTRY_LOADING_SECONDS
+
+        self.assertTrue(self.app.tick_battle_entry_loading(0.4))
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertAlmostEqual(
+            self.app.battle_entry_loading_remaining,
+            BATTLE_ENTRY_LOADING_SECONDS - 0.4,
+        )
+
+        self.assertTrue(self.app.tick_battle_entry_loading(0.6))
+        self.assertEqual(self.app.scene_kind, "battle")
+        self.assertEqual(self.app.battle_entry_loading_remaining, 0.0)
 
     def test_battle_scene_uses_the_common_pistol_spec(self):
         self.app.switch_scene("battle")

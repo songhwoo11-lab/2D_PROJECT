@@ -1,3 +1,4 @@
+import math
 import unittest
 from unittest.mock import MagicMock, call, patch
 
@@ -21,6 +22,8 @@ from lobby_scene import (
     GUN_SELECT_STATE_DISABLED_TEXT_COLOR,
     GUN_SELECT_UNSELECTED_SLOT_SIZE,
     LobbyScene,
+    PORTAL_ENTRY_SECONDS,
+    PORTAL_ENTRY_TOTAL_ROTATIONS,
     RECORDS_BOOK_HEIGHT,
     RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y,
     RECORDS_BOOK_PAPER_TOP_IMAGE_Y,
@@ -64,6 +67,12 @@ class LobbySceneLifecycleTests(unittest.TestCase):
         self.scene.draw(lambda *args: calls.append(args))
 
         self.assertEqual(calls, [])
+
+    def test_draw_shows_direction_arrows_outside_the_portal_animation(self):
+        with patch.object(self.scene, "_draw_direction_arrows") as draw_arrows:
+            self.scene.draw(lambda *args: None)
+
+        draw_arrows.assert_called_once_with()
 
     def test_key_down_and_up_track_pressed_keys(self):
         self.scene.key_down("w")
@@ -247,7 +256,8 @@ class LobbyLocationTests(unittest.TestCase):
 
         press(self.scene, "space")
 
-        self.assertEqual(self.scene.pending_action, "start_battle")
+        self.assertTrue(self.scene.portal_entry_active)
+        self.assertIsNone(self.scene.pending_action)
 
     def test_enter_at_records_opens_the_record_panel(self):
         press(self.scene, "a")
@@ -401,7 +411,7 @@ class LobbyPortalEntryTests(unittest.TestCase):
 
         self.assertEqual(self.scene.gun_selection_index, 1)
 
-    def test_confirming_the_gun_selection_starts_the_battle(self):
+    def test_confirming_the_gun_selection_starts_the_portal_entry_animation(self):
         self.state.owned_guns = ["pistol", "rifle"]
         self.scene.open_gun_selection()
         press(self.scene, "s")
@@ -410,7 +420,74 @@ class LobbyPortalEntryTests(unittest.TestCase):
 
         self.assertEqual(self.state.selected_gun, "rifle")
         self.assertIsNone(self.scene.panel)
-        self.assertEqual(self.scene.pending_action, "start_battle")
+        self.assertTrue(self.scene.portal_entry_active)
+        self.assertIsNone(self.scene.pending_action)
+
+    def test_portal_entry_moves_spins_and_fades_the_player_over_three_seconds(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+        press(self.scene, "space")
+        start_x = self.scene.player.x
+        start_y = self.scene.player.y
+
+        self.scene.update(PORTAL_ENTRY_SECONDS / 2)
+
+        self.assertTrue(self.scene.portal_entry_active)
+        self.assertAlmostEqual(self.scene.player.x, start_x)
+        self.assertGreater(self.scene.player.y, start_y)
+        self.assertAlmostEqual(self.scene.portal_entry_opacity, 0.5)
+        self.assertAlmostEqual(
+            self.scene.portal_entry_angle,
+            math.pi * PORTAL_ENTRY_TOTAL_ROTATIONS,
+        )
+        self.assertIsNone(self.scene.pending_action)
+
+        self.scene.update(PORTAL_ENTRY_SECONDS / 2)
+
+        self.assertFalse(self.scene.portal_entry_active)
+        self.assertAlmostEqual(self.scene.portal_entry_opacity, 0.0)
+        self.assertAlmostEqual(
+            self.scene.portal_entry_angle,
+            math.tau * PORTAL_ENTRY_TOTAL_ROTATIONS,
+        )
+        self.assertEqual(self.scene.pending_action, "battle_entry_loading")
+
+    def test_portal_entry_draws_the_player_with_spin_and_transparency(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+        press(self.scene, "space")
+        self.scene.update(1.0)
+        self.scene.player.image = object()
+        self.scene.player.draw = MagicMock()
+
+        self.scene.draw(lambda *args: None)
+
+        self.scene.player.draw.assert_called_once_with(
+            angle=self.scene.portal_entry_angle,
+            opacity=self.scene.portal_entry_opacity,
+        )
+
+    def test_portal_entry_hides_the_direction_arrows(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+        press(self.scene, "space")
+
+        with patch.object(self.scene, "_draw_direction_arrows") as draw_arrows:
+            self.scene.draw(lambda *args: None)
+
+        draw_arrows.assert_not_called()
+
+    def test_portal_entry_ignores_input_until_the_animation_finishes(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.open_gun_selection()
+        press(self.scene, "space")
+
+        press(self.scene, "a")
+        self.scene.mouse_down("left", 10, 10)
+
+        self.assertEqual(self.scene.current_node, "center")
+        self.assertIsNone(self.scene.panel)
+        self.assertTrue(self.scene.portal_entry_active)
 
     def test_escape_cancels_the_gun_selection_and_keeps_the_previous_gun(self):
         self.state.owned_guns = ["pistol", "rifle"]
@@ -596,7 +673,8 @@ class LobbyGunSelectCardTests(unittest.TestCase):
 
         self.assertEqual(self.state.selected_gun, "rifle")
         self.assertIsNone(self.scene.panel)
-        self.assertEqual(self.scene.pending_action, "start_battle")
+        self.assertTrue(self.scene.portal_entry_active)
+        self.assertIsNone(self.scene.pending_action)
 
     def test_clicking_a_different_gun_moves_the_mark(self):
         self.click_rect(gun_select_card_rect(GUN_SHOP_ORDER.index("rifle")))

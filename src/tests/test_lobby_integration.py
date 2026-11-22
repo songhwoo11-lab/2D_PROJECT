@@ -82,8 +82,13 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.assertIsNone(self.app.scene.pending_action)
 
         press(self.app, "space")
-        self.assertEqual(self.app.scene.pending_action, "start_battle")
+        self.assertTrue(self.app.scene.portal_entry_active)
+        self.assertIsNone(self.app.scene.pending_action)
+
+        self.app.scene.update(3.0)
+        self.assertEqual(self.app.scene.pending_action, "battle_entry_loading")
         self.app.handle_scene_action()
+        self.app.tick_battle_entry_loading(1.0)
         self.assertEqual(self.app.scene_kind, "battle")
 
     def test_record_place_shows_the_stored_records(self):
@@ -124,7 +129,9 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.assertEqual(self.app.scene.panel, "gun_select")
 
         press(self.app, "space")
+        self.app.scene.update(3.0)
         self.app.handle_scene_action()
+        self.app.tick_battle_entry_loading(1.0)
 
         self.assertEqual(self.app.scene_kind, "battle")
         self.assertEqual(self.app.scene.wave_director.current_wave, 1)

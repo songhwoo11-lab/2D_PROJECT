@@ -1,5 +1,7 @@
 """Lobby scene shown when the game starts and after every battle."""
 
+import math
+
 import pico2d
 
 from battle_record import result_record_text, training_record_text
@@ -21,6 +23,10 @@ from lobby_map import (
 from shop import GUN_SHOP_ORDER
 from weapon import weapon_display_name, weapon_stats_at_level
 
+
+PORTAL_ENTRY_SECONDS = 3.0
+PORTAL_ENTRY_TOTAL_ROTATIONS = 3.0
+PORTAL_ENTRY_MOVE_DEPTH = 120.0
 
 GUN_SELECT_TITLE_Y = SCREEN_HEIGHT - 120
 # 총칸은 상점에서 사용하는 것과 같은 이미지를 같은 크기로 출력한다.
@@ -179,6 +185,12 @@ class LobbyScene:
         self.mouse_screen_y = SCREEN_HEIGHT / 2
         self.exit_requested = False
         self.pending_action = None
+        self.portal_entry_active = False
+        self.portal_entry_elapsed = 0.0
+        self.portal_entry_start = (0.0, 0.0)
+        self.portal_entry_target = (0.0, 0.0)
+        self.portal_entry_angle = 0.0
+        self.portal_entry_opacity = 1.0
         self.locations = tuple(LOBBY_LOCATIONS)
         self.current_node = (
             node_key if node_key in LOBBY_NODE_BY_KEY else LOBBY_START_KEY
@@ -209,6 +221,27 @@ class LobbyScene:
     def update(self, delta_time):
         """Keep the fixed lobby position in sync with the current node."""
         self._update_nearby_location()
+        if self.portal_entry_active:
+            self._update_portal_entry(delta_time)
+
+    def _update_portal_entry(self, delta_time):
+        self.portal_entry_elapsed = min(
+            PORTAL_ENTRY_SECONDS, self.portal_entry_elapsed + max(0.0, delta_time)
+        )
+        progress = self.portal_entry_elapsed / PORTAL_ENTRY_SECONDS
+        start_x, start_y = self.portal_entry_start
+        target_x, target_y = self.portal_entry_target
+        if self.player is not None:
+            self.player.x = start_x + (target_x - start_x) * progress
+            self.player.y = start_y + (target_y - start_y) * progress
+        self.portal_entry_angle = (
+            math.tau * PORTAL_ENTRY_TOTAL_ROTATIONS * progress
+        )
+        self.portal_entry_opacity = 1.0 - progress
+        if self.portal_entry_elapsed >= PORTAL_ENTRY_SECONDS:
+            self.portal_entry_active = False
+            self.portal_entry_opacity = 0.0
+            self.pending_action = "battle_entry_loading"
 
     def _update_nearby_location(self):
         """Remember the fixed location the player is standing at."""
@@ -243,8 +276,15 @@ class LobbyScene:
                 LOBBY_WORLD_HEIGHT,
             )
         if self.player is not None and self.player.image is not None:
-            self.player.draw()
-        self._draw_direction_arrows()
+            if self.portal_entry_active:
+                self.player.draw(
+                    angle=self.portal_entry_angle,
+                    opacity=self.portal_entry_opacity,
+                )
+            else:
+                self.player.draw()
+        if not self.portal_entry_active:
+            self._draw_direction_arrows()
         if self.hud_font is not None:
             self.hud_font.draw(
                 40,
@@ -729,6 +769,8 @@ class LobbyScene:
         if key in self.keys:
             return
         self.keys.add(key)
+        if self.portal_entry_active:
+            return
         if self.panel is not None:
             if self.panel == "gun_select":
                 self._handle_gun_selection_key(key)
@@ -762,7 +804,21 @@ class LobbyScene:
         if self.state is not None and self.state.needs_gun_selection():
             self.open_gun_selection()
             return
-        self.pending_action = "start_battle"
+        self._start_portal_entry()
+
+    def _start_portal_entry(self):
+        portal = LOBBY_NODE_BY_KEY["portal"]
+        start_x = self.player.x if self.player is not None else portal.zone_x
+        start_y = self.player.y if self.player is not None else portal.zone_y
+        self.portal_entry_active = True
+        self.portal_entry_elapsed = 0.0
+        self.portal_entry_start = (start_x, start_y)
+        self.portal_entry_target = (
+            portal.zone_x,
+            portal.zone_y + PORTAL_ENTRY_MOVE_DEPTH,
+        )
+        self.portal_entry_angle = 0.0
+        self.portal_entry_opacity = 1.0
 
     def open_gun_selection(self):
         """Show the gun selection screen before the battle starts."""
@@ -795,7 +851,7 @@ class LobbyScene:
             self._confirm_gun_selection()
 
     def _confirm_gun_selection(self, gun_id=None):
-        """Store the chosen gun and ask the app to start the battle."""
+        """Store the chosen gun and start the portal entry animation."""
         if self.state is None:
             self.close_panel()
             return
@@ -805,7 +861,7 @@ class LobbyScene:
             return
         self.state.select_gun(gun_id)
         self.close_panel()
-        self.pending_action = "start_battle"
+        self._start_portal_entry()
 
     def open_records(self):
         """Show the battle record panel."""
@@ -845,6 +901,8 @@ class LobbyScene:
     def mouse_move(self, screen_x, screen_y):
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
+        if self.portal_entry_active:
+            return
         canvas_y = SCREEN_HEIGHT - screen_y
         if self.panel == "records":
             self.gun_select_hover_target = None
@@ -872,6 +930,8 @@ class LobbyScene:
 
     def mouse_down(self, button, screen_x=None, screen_y=None):
         if button != "left" or screen_x is None or screen_y is None:
+            return None
+        if self.portal_entry_active:
             return None
         if self.panel == "records":
             canvas_y = SCREEN_HEIGHT - screen_y

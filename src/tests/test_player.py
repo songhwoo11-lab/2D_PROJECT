@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock
 
 from player import Player
 
@@ -85,6 +86,27 @@ class PlayerHpTrailTests(unittest.TestCase):
         player.reset_hp_trail()
 
         self.assertEqual(player.hp_trail.value, player.max_hp)
+
+
+class PlayerDrawTests(unittest.TestCase):
+    def test_draw_rotates_the_image_when_an_angle_is_given(self):
+        image = MagicMock()
+        player = Player(10, 20, image=image, radius=15)
+
+        player.draw(angle=1.25)
+
+        image.rotate_draw.assert_called_once_with(1.25, 10, 20, 30, 30)
+        image.draw.assert_not_called()
+
+    def test_draw_sets_and_restores_transparency(self):
+        image = MagicMock()
+        player = Player(10, 20, image=image, radius=15)
+
+        player.draw(opacity=0.25)
+
+        self.assertEqual(image.opacify.call_args_list[0].args, (0.25,))
+        self.assertEqual(image.opacify.call_args_list[1].args, (1.0,))
+        image.draw.assert_called_once_with(10, 20, 30, 30)
 
 
 if __name__ == "__main__":
