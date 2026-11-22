@@ -308,6 +308,20 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertIs(self.app.scene.selected_slot_image, selected)
         self.assertIs(self.app.scene.unselected_slot_image, unselected)
 
+    def test_lobby_scene_uses_the_gun_select_ui_images(self):
+        background = object()
+        selected = object()
+        unselected = object()
+        self.app.assets["gun_select_background"] = background
+        self.app.assets["shop_selected_slot_image"] = selected
+        self.app.assets["shop_unselected_slot_image"] = unselected
+
+        self.app.switch_scene("lobby")
+
+        self.assertIs(self.app.scene.gun_select_background, background)
+        self.assertIs(self.app.scene.selected_slot_image, selected)
+        self.assertIs(self.app.scene.unselected_slot_image, unselected)
+
     def test_lobby_state_keeps_the_session_progress(self):
         self.app.state.add_record("record")
 

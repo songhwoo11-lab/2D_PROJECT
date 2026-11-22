@@ -23,20 +23,28 @@ from weapon import weapon_display_name, weapon_stats_at_level
 
 
 GUN_SELECT_TITLE_Y = SCREEN_HEIGHT - 120
-GUN_SELECT_CARD_WIDTH = 480
+# 총칸은 상점에서 사용하는 것과 같은 이미지를 같은 크기로 출력한다.
+GUN_SELECT_SELECTED_SLOT_SIZE = (472, 508)
+GUN_SELECT_UNSELECTED_SLOT_SIZE = (464, 509)
+GUN_SELECT_CARD_WIDTH = max(
+    GUN_SELECT_SELECTED_SLOT_SIZE[0], GUN_SELECT_UNSELECTED_SLOT_SIZE[0]
+)
+GUN_SELECT_CARD_HEIGHT = max(
+    GUN_SELECT_SELECTED_SLOT_SIZE[1], GUN_SELECT_UNSELECTED_SLOT_SIZE[1]
+)
 GUN_SELECT_CARD_GAP = 60
 GUN_SELECT_CARD_LEFT = (
     SCREEN_WIDTH
     - (len(GUN_SHOP_ORDER) * GUN_SELECT_CARD_WIDTH + (len(GUN_SHOP_ORDER) - 1) * GUN_SELECT_CARD_GAP)
 ) // 2
 GUN_SELECT_CARD_BOTTOM = 320
-GUN_SELECT_CARD_TOP = 850
-GUN_SELECT_NAME_Y = 800
+GUN_SELECT_CARD_TOP = GUN_SELECT_CARD_BOTTOM + GUN_SELECT_CARD_HEIGHT
+GUN_SELECT_NAME_Y = GUN_SELECT_CARD_TOP - 48
 GUN_SELECT_IMAGE_Y = 710
-GUN_SELECT_STATE_BUTTON_WIDTH = 420
-GUN_SELECT_STATE_BUTTON_BOTTOM = 340
-GUN_SELECT_STATE_BUTTON_TOP = 430
-GUN_SELECT_STATE_BUTTON_TEXT_Y = 385
+GUN_SELECT_STATE_BUTTON_WIDTH = 415
+GUN_SELECT_STATE_BUTTON_BOTTOM = 352
+GUN_SELECT_STATE_BUTTON_TOP = 437
+GUN_SELECT_STATE_BUTTON_TEXT_Y = 394
 GUN_SELECT_STATE_DISABLED_COLOR = (35, 40, 50)
 GUN_SELECT_STATE_DISABLED_TEXT_COLOR = (110, 110, 110)
 GUN_SELECT_LOCKED_OPACITY = 0.5
@@ -149,6 +157,9 @@ class LobbyScene:
         state=None,
         node_key=None,
         gun_images=None,
+        gun_select_background=None,
+        selected_slot_image=None,
+        unselected_slot_image=None,
         records_background=None,
         records_book_image=None,
         notice=None,
@@ -158,6 +169,9 @@ class LobbyScene:
         self.hud_font = hud_font
         self.state = state
         self.gun_images = gun_images or {}
+        self.gun_select_background = gun_select_background
+        self.selected_slot_image = selected_slot_image
+        self.unselected_slot_image = unselected_slot_image
         self.records_background = records_background
         self.records_book_image = records_book_image
         self.notice = notice or ""
@@ -255,17 +269,25 @@ class LobbyScene:
 
     def _draw_gun_selection_panel(self, draw_rectangle):
         """Draw the three gun cards that are shown before the battle starts."""
-        draw_rectangle(
-            0,
-            0,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT,
-            10,
-            10,
-            20,
-            210,
-            True,
-        )
+        if self.gun_select_background is not None:
+            self.gun_select_background.draw(
+                SCREEN_WIDTH / 2,
+                SCREEN_HEIGHT / 2,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+            )
+        else:
+            draw_rectangle(
+                0,
+                0,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+                10,
+                10,
+                20,
+                210,
+                True,
+            )
         if self.hud_font is None:
             return
         draw_centered_text(
@@ -295,12 +317,24 @@ class LobbyScene:
     def _draw_gun_select_card(self, draw_rectangle, index, gun_id, selected_gun_id):
         left, bottom, right, top = gun_select_card_rect(index)
         center_x = (left + right) / 2
+        center_y = (bottom + top) / 2
         owned = self.state is not None and self.state.owns_gun(gun_id)
         selected = owned and gun_id == selected_gun_id
 
-        draw_rectangle(left, bottom, right, top, 38, 40, 52, 255, True)
-        if selected:
-            draw_rectangle(left, bottom, right, top, 255, 220, 100, 255, False)
+        slot_image = (
+            self.selected_slot_image if selected else self.unselected_slot_image
+        )
+        if slot_image is not None:
+            slot_size = (
+                GUN_SELECT_SELECTED_SLOT_SIZE
+                if selected
+                else GUN_SELECT_UNSELECTED_SLOT_SIZE
+            )
+            slot_image.draw(center_x, center_y, *slot_size)
+        else:
+            draw_rectangle(left, bottom, right, top, 38, 40, 52, 255, True)
+            if selected:
+                draw_rectangle(left, bottom, right, top, 255, 220, 100, 255, False)
         if index == self.gun_select_hover_index:
             draw_rectangle(
                 left,

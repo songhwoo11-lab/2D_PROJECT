@@ -16,8 +16,10 @@ from lobby_scene import (
     GUN_SELECT_LOCKED_OPACITY,
     GUN_SELECT_LOCK_COLOR,
     GUN_SELECT_LOCK_KEYHOLE_COLOR,
+    GUN_SELECT_SELECTED_SLOT_SIZE,
     GUN_SELECT_STATE_DISABLED_COLOR,
     GUN_SELECT_STATE_DISABLED_TEXT_COLOR,
+    GUN_SELECT_UNSELECTED_SLOT_SIZE,
     LobbyScene,
     RECORDS_BOOK_HEIGHT,
     RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y,
@@ -484,6 +486,27 @@ class LobbyGunSelectCardTests(unittest.TestCase):
             )
         )
 
+    def test_state_button_is_raised_twenty_pixels_and_keeps_its_size(self):
+        left, bottom, right, top = gun_select_state_button_rect(0)
+        card_left = gun_select_card_rect(0)[0]
+
+        self.assertEqual(left, card_left + 28)
+        self.assertEqual((bottom, top), (352, 437))
+        self.assertEqual(right - left, 415)
+        self.assertEqual(top - bottom, 85)
+
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: None)
+
+        state_labels = [
+            call for call in text_draw.call_args_list if call.args[3] == "State"
+        ]
+        self.assertEqual(len(state_labels), 3)
+        for label in state_labels:
+            self.assertEqual(label.args[2], 394)
+
     def test_exit_button_is_in_the_bottom_right(self):
         left, bottom, right, top = gun_select_exit_button_rect()
 
@@ -680,6 +703,89 @@ class LobbyGunSelectCardTests(unittest.TestCase):
             GUN_SHOP_ORDER.index("machine_gun")
         )
         return (left + right) / 2
+
+
+class LobbyGunSelectImageTests(unittest.TestCase):
+    def setUp(self):
+        self.state = GameState(owned_guns=["pistol", "rifle"])
+        self.background = MagicMock()
+        self.selected = MagicMock()
+        self.unselected = MagicMock()
+        self.scene = LobbyScene(
+            Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
+            hud_font=MagicMock(),
+            state=self.state,
+            gun_select_background=self.background,
+            selected_slot_image=self.selected,
+            unselected_slot_image=self.unselected,
+        )
+        self.scene.open_gun_selection()
+
+    def tearDown(self):
+        self.scene.close()
+
+    def draw_scene(self, rectangles=None):
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ):
+            self.scene.draw(
+                lambda *args: rectangles.append(args)
+                if rectangles is not None
+                else None
+            )
+
+    def center_of(self, index):
+        rect = gun_select_card_rect(index)
+        return (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2
+
+    def test_draws_the_gun_select_background_image(self):
+        self.draw_scene()
+
+        self.background.draw.assert_called_once_with(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+        )
+
+    def test_draws_selected_and_unselected_slot_images(self):
+        self.draw_scene()
+
+        selected_index = GUN_SHOP_ORDER.index("pistol")
+        self.selected.draw.assert_called_once_with(
+            *self.center_of(selected_index), *GUN_SELECT_SELECTED_SLOT_SIZE
+        )
+        self.assertEqual(self.unselected.draw.call_count, 2)
+        expected_calls = [
+            call(*self.center_of(index), *GUN_SELECT_UNSELECTED_SLOT_SIZE)
+            for index, gun_id in enumerate(GUN_SHOP_ORDER)
+            if gun_id != "pistol"
+        ]
+        self.assertEqual(self.unselected.draw.call_args_list, expected_calls)
+
+    def test_slot_images_replace_the_card_rectangles(self):
+        rectangles = []
+
+        self.draw_scene(rectangles)
+
+        drawn_rects = {tuple(args[:4]) for args in rectangles}
+        for index in range(len(GUN_SHOP_ORDER)):
+            self.assertNotIn(gun_select_card_rect(index), drawn_rects)
+
+    def test_clicking_another_owned_gun_moves_the_selected_slot(self):
+        index = GUN_SHOP_ORDER.index("rifle")
+        center_x, center_y = self.center_of(index)
+        screen_y = SCREEN_HEIGHT - center_y
+        self.scene.mouse_move(center_x, screen_y)
+        self.scene.mouse_down("left", center_x, screen_y)
+
+        self.selected.draw.reset_mock()
+        self.unselected.draw.reset_mock()
+        self.draw_scene()
+
+        self.selected.draw.assert_called_once_with(
+            center_x, center_y, *GUN_SELECT_SELECTED_SLOT_SIZE
+        )
 
 
 class LobbyStairsExitTests(unittest.TestCase):

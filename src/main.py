@@ -119,6 +119,9 @@ class GameApp:
         self.assets["records_book_image"] = pico2d.load_image(
             str(directory / "book.png")
         )
+        self.assets["gun_select_background"] = pico2d.load_image(
+            str(directory / "potal.png")
+        )
         self.assets["hud_font"] = pico2d.load_font(
             str(directory / "font" / "MulmaruMono.ttf"),
             HUD_FONT_SIZE,
@@ -156,6 +159,9 @@ class GameApp:
             state=self.state,
             node_key=self.lobby_node_key,
             gun_images=self.assets.get("shop_gun_images"),
+            gun_select_background=self.assets.get("gun_select_background"),
+            selected_slot_image=self.assets.get("shop_selected_slot_image"),
+            unselected_slot_image=self.assets.get("shop_unselected_slot_image"),
             records_background=self.assets.get("records_background"),
             records_book_image=self.assets.get("records_book_image"),
             notice=self.save_notice,
