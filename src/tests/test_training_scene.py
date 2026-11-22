@@ -221,16 +221,16 @@ class TrainingCursorTests(unittest.TestCase):
         self.assertAlmostEqual(second_center[0] - first_center[0], 200.0)
         self.assertAlmostEqual(second_center[1] - first_center[1], -100.0)
 
-    def test_cursor_is_drawn_with_the_scene(self):
+    def test_cursor_is_drawn_immediately_when_the_scene_starts(self):
         self.scene.mouse_move(300.0, 200.0)
-        self.scene.phase = "playing"
+        self.assertEqual(self.scene.phase, "countdown")
 
         self.scene.draw(lambda *args: self.rectangles.append(args))
 
         self.assertEqual(len(self.rectangles), 6)
 
-    def test_aim_cursor_is_visible_only_while_playing_and_unpaused(self):
-        self.assertFalse(self.scene.shows_aim_cursor)
+    def test_aim_cursor_is_visible_immediately_and_only_hidden_while_paused(self):
+        self.assertTrue(self.scene.shows_aim_cursor)
 
         self.scene.phase = "playing"
         self.assertTrue(self.scene.shows_aim_cursor)
@@ -240,10 +240,10 @@ class TrainingCursorTests(unittest.TestCase):
 
         self.scene.paused = False
         self.scene.phase = "finished"
-        self.assertFalse(self.scene.shows_aim_cursor)
+        self.assertTrue(self.scene.shows_aim_cursor)
 
-    def test_system_cursor_is_hidden_only_while_aiming(self):
-        self.assertTrue(self.scene.shows_system_cursor)
+    def test_system_cursor_is_hidden_immediately_and_shown_only_while_paused(self):
+        self.assertFalse(self.scene.shows_system_cursor)
 
         self.scene.phase = "playing"
         self.assertFalse(self.scene.shows_system_cursor)
@@ -253,4 +253,4 @@ class TrainingCursorTests(unittest.TestCase):
 
         self.scene.paused = False
         self.scene.phase = "finished"
-        self.assertTrue(self.scene.shows_system_cursor)
+        self.assertFalse(self.scene.shows_system_cursor)

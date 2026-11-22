@@ -291,7 +291,7 @@ class TrainingScene:
 
     @property
     def shows_aim_cursor(self):
-        return self.phase == "playing" and not self.paused
+        return not self.paused
 
     @property
     def shows_system_cursor(self):
