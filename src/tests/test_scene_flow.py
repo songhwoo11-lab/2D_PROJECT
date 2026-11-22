@@ -17,6 +17,12 @@ from lobby_map import LOBBY_NODE_BY_KEY
 from main import (
     ASSET_DIRECTORY,
     BATTLE_ENTRY_LOADING_SECONDS,
+    EXIT_DIALOG_BUTTON_TEXT_Y,
+    EXIT_DIALOG_NO_RECT,
+    EXIT_DIALOG_TEXT_COLOR,
+    EXIT_DIALOG_TITLE,
+    EXIT_DIALOG_TITLE_Y,
+    EXIT_DIALOG_YES_RECT,
     GameApp,
     LOADING_BACKGROUND_COLOR,
     LOADING_TEXT,
@@ -132,6 +138,12 @@ def click_upgrade_confirm(scene):
     center_x = (rect[0] + rect[2]) / 2
     canvas_y = (rect[1] + rect[3]) / 2
     scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
+
+
+def click_exit_dialog_button(app, rect):
+    center_x = (rect[0] + rect[2]) / 2
+    canvas_y = (rect[1] + rect[3]) / 2
+    app.handle_exit_confirmation_mouse_down(center_x, SCREEN_HEIGHT - canvas_y)
 
 
 class SceneSwitchTests(unittest.TestCase):
@@ -343,18 +355,21 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertFalse(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
 
-    def test_lobby_exit_request_stops_the_game(self):
+    def test_lobby_exit_request_opens_the_confirmation_dialog(self):
         self.app.scene.exit_requested = True
 
         self.app.handle_scene_exit()
 
-        self.assertFalse(self.app.running)
+        self.assertTrue(self.app.running)
+        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertFalse(self.app.scene.exit_requested)
         self.assertEqual(self.app.scene_kind, "lobby")
 
-    def test_escape_stops_the_game_from_the_lobby(self):
+    def test_escape_opens_the_confirmation_dialog_from_the_lobby(self):
         self.app.handle_escape_key()
 
-        self.assertFalse(self.app.running)
+        self.assertTrue(self.app.running)
+        self.assertTrue(self.app.exit_confirmation_open)
 
     def test_escape_closes_gun_selection_instead_of_exiting_the_game(self):
         self.app.scene.open_gun_selection()
@@ -702,3 +717,84 @@ class SaveExitIntegrationTests(unittest.TestCase):
                 self.assertFalse(app.save_progress())
 
             self.assertIn("disk full", app.save_notice)
+
+
+class ExitConfirmationTests(unittest.TestCase):
+    def setUp(self):
+        self.app = make_app()
+        self.app.switch_scene("lobby")
+
+    def tearDown(self):
+        if self.app.scene is not None:
+            self.app.scene.close()
+
+    def test_no_button_closes_the_dialog_and_keeps_the_game_running(self):
+        self.app.open_exit_confirmation()
+
+        click_exit_dialog_button(self.app, EXIT_DIALOG_NO_RECT)
+
+        self.assertTrue(self.app.running)
+        self.assertFalse(self.app.exit_confirmation_open)
+        self.assertEqual(self.app.scene_kind, "lobby")
+
+    def test_yes_button_closes_the_game(self):
+        self.app.open_exit_confirmation()
+
+        click_exit_dialog_button(self.app, EXIT_DIALOG_YES_RECT)
+
+        self.assertFalse(self.app.running)
+
+    def test_escape_closes_the_dialog_without_exiting(self):
+        self.app.open_exit_confirmation()
+
+        self.app.handle_escape_key()
+
+        self.assertTrue(self.app.running)
+        self.assertFalse(self.app.exit_confirmation_open)
+
+    def test_clicking_outside_the_buttons_keeps_the_dialog_open(self):
+        self.app.open_exit_confirmation()
+
+        self.app.handle_exit_confirmation_mouse_down(1, SCREEN_HEIGHT - 1)
+
+        self.assertTrue(self.app.running)
+        self.assertTrue(self.app.exit_confirmation_open)
+
+    def test_draw_confirmation_shows_the_title_and_both_buttons(self):
+        self.app.assets["hud_font"] = object()
+        pico2d_module = Mock()
+        yes_center_x = (EXIT_DIALOG_YES_RECT[0] + EXIT_DIALOG_YES_RECT[2]) / 2
+        no_center_x = (EXIT_DIALOG_NO_RECT[0] + EXIT_DIALOG_NO_RECT[2]) / 2
+
+        with patch("main.draw_centered_text") as centered_text, patch(
+            "main.draw_text_at_center"
+        ) as text_at_center:
+            self.app.draw_exit_confirmation(pico2d_module)
+
+        centered_text.assert_called_once_with(
+            self.app.assets["hud_font"],
+            EXIT_DIALOG_TITLE_Y,
+            EXIT_DIALOG_TITLE,
+            EXIT_DIALOG_TEXT_COLOR,
+        )
+        self.assertEqual(
+            text_at_center.call_args_list,
+            [
+                call(
+                    self.app.assets["hud_font"],
+                    yes_center_x,
+                    EXIT_DIALOG_BUTTON_TEXT_Y,
+                    "YES",
+                    EXIT_DIALOG_TEXT_COLOR,
+                ),
+                call(
+                    self.app.assets["hud_font"],
+                    no_center_x,
+                    EXIT_DIALOG_BUTTON_TEXT_Y,
+                    "NO",
+                    EXIT_DIALOG_TEXT_COLOR,
+                ),
+            ],
+        )
+        self.assertEqual(pico2d_module.draw_rectangle.call_count, 4)
+        pico2d_module.update_canvas.assert_called_once_with()

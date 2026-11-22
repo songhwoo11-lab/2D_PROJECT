@@ -176,7 +176,9 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
 
         self.app.handle_scene_exit()
 
-        self.assertFalse(self.app.running)
+        self.assertTrue(self.app.running)
+        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertFalse(self.app.scene.exit_requested)
 
     def _make_record(self, result, reached_wave, elapsed_time):
         from battle_record import BattleRecord

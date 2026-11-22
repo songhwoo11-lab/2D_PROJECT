@@ -24,7 +24,7 @@ from game_config import (
     WORLD_WIDTH,
 )
 from game_state import GameState
-from hud import draw_centered_text
+from hud import draw_centered_text, draw_text_at_center
 from lobby_map import LOBBY_START_KEY
 from lobby_scene import LobbyScene
 from player import Player
@@ -39,6 +39,46 @@ LOADING_TEXT = "로딩중..."
 LOADING_BACKGROUND_COLOR = (18, 26, 22, 255)
 LOADING_TEXT_COLOR = (255, 220, 100)
 BATTLE_ENTRY_LOADING_SECONDS = 1.0
+
+EXIT_DIALOG_TITLE = "EXIT GAME?"
+EXIT_DIALOG_WIDTH = 620
+EXIT_DIALOG_HEIGHT = 360
+EXIT_DIALOG_LEFT = (SCREEN_WIDTH - EXIT_DIALOG_WIDTH) // 2
+EXIT_DIALOG_BOTTOM = (SCREEN_HEIGHT - EXIT_DIALOG_HEIGHT) // 2
+EXIT_DIALOG_RIGHT = EXIT_DIALOG_LEFT + EXIT_DIALOG_WIDTH
+EXIT_DIALOG_TOP = EXIT_DIALOG_BOTTOM + EXIT_DIALOG_HEIGHT
+EXIT_DIALOG_TITLE_Y = EXIT_DIALOG_TOP - 90
+EXIT_DIALOG_BUTTON_WIDTH = 180
+EXIT_DIALOG_BUTTON_HEIGHT = 80
+EXIT_DIALOG_BUTTON_BOTTOM = EXIT_DIALOG_BOTTOM + 70
+EXIT_DIALOG_BUTTON_GAP = 60
+EXIT_DIALOG_BUTTONS_WIDTH = (
+    EXIT_DIALOG_BUTTON_WIDTH * 2 + EXIT_DIALOG_BUTTON_GAP
+)
+EXIT_DIALOG_YES_RECT = (
+    EXIT_DIALOG_LEFT + (EXIT_DIALOG_WIDTH - EXIT_DIALOG_BUTTONS_WIDTH) // 2,
+    EXIT_DIALOG_BUTTON_BOTTOM,
+    EXIT_DIALOG_LEFT
+    + (EXIT_DIALOG_WIDTH - EXIT_DIALOG_BUTTONS_WIDTH) // 2
+    + EXIT_DIALOG_BUTTON_WIDTH,
+    EXIT_DIALOG_BUTTON_BOTTOM + EXIT_DIALOG_BUTTON_HEIGHT,
+)
+EXIT_DIALOG_NO_RECT = (
+    EXIT_DIALOG_YES_RECT[2] + EXIT_DIALOG_BUTTON_GAP,
+    EXIT_DIALOG_BUTTON_BOTTOM,
+    EXIT_DIALOG_YES_RECT[2] + EXIT_DIALOG_BUTTON_GAP + EXIT_DIALOG_BUTTON_WIDTH,
+    EXIT_DIALOG_BUTTON_BOTTOM + EXIT_DIALOG_BUTTON_HEIGHT,
+)
+EXIT_DIALOG_BUTTON_TEXT_Y = EXIT_DIALOG_BUTTON_BOTTOM + EXIT_DIALOG_BUTTON_HEIGHT // 2
+EXIT_DIALOG_DIM_COLOR = (0, 0, 0, 160)
+EXIT_DIALOG_PANEL_COLOR = (30, 42, 38, 255)
+EXIT_DIALOG_YES_COLOR = (150, 60, 55, 255)
+EXIT_DIALOG_NO_COLOR = (60, 100, 150, 255)
+EXIT_DIALOG_TEXT_COLOR = (255, 255, 255)
+
+
+def point_in_rect(rect, x, y):
+    return rect[0] <= x <= rect[2] and rect[1] <= y <= rect[3]
 
 
 class GameApp:
@@ -56,6 +96,7 @@ class GameApp:
         self.running = True
         self.battle_entry_loading_remaining = 0.0
         self.loading_font = None
+        self.exit_confirmation_open = False
 
     def draw_loading_screen(self, pico2d_module=None, present=True):
         pico2d_module = pico2d_module or pico2d
@@ -80,6 +121,59 @@ class GameApp:
             LOADING_TEXT,
             LOADING_TEXT_COLOR,
         )
+        if present:
+            pico2d_module.update_canvas()
+
+    def draw_exit_confirmation(self, pico2d_module=None, present=True):
+        pico2d_module = pico2d_module or pico2d
+        pico2d_module.draw_rectangle(
+            0,
+            0,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            *EXIT_DIALOG_DIM_COLOR,
+            True,
+        )
+        pico2d_module.draw_rectangle(
+            EXIT_DIALOG_LEFT,
+            EXIT_DIALOG_BOTTOM,
+            EXIT_DIALOG_RIGHT,
+            EXIT_DIALOG_TOP,
+            *EXIT_DIALOG_PANEL_COLOR,
+            True,
+        )
+        pico2d_module.draw_rectangle(
+            *EXIT_DIALOG_YES_RECT,
+            *EXIT_DIALOG_YES_COLOR,
+            True,
+        )
+        pico2d_module.draw_rectangle(
+            *EXIT_DIALOG_NO_RECT,
+            *EXIT_DIALOG_NO_COLOR,
+            True,
+        )
+        font = self.assets.get("hud_font")
+        if font is not None:
+            draw_centered_text(
+                font,
+                EXIT_DIALOG_TITLE_Y,
+                EXIT_DIALOG_TITLE,
+                EXIT_DIALOG_TEXT_COLOR,
+            )
+            draw_text_at_center(
+                font,
+                (EXIT_DIALOG_YES_RECT[0] + EXIT_DIALOG_YES_RECT[2]) / 2,
+                EXIT_DIALOG_BUTTON_TEXT_Y,
+                "YES",
+                EXIT_DIALOG_TEXT_COLOR,
+            )
+            draw_text_at_center(
+                font,
+                (EXIT_DIALOG_NO_RECT[0] + EXIT_DIALOG_NO_RECT[2]) / 2,
+                EXIT_DIALOG_BUTTON_TEXT_Y,
+                "NO",
+                EXIT_DIALOG_TEXT_COLOR,
+            )
         if present:
             pico2d_module.update_canvas()
 
@@ -326,9 +420,30 @@ class GameApp:
         if self.scene_kind == "battle":
             self.handle_battle_exit()
             return
-        self.running = False
+        self.open_exit_confirmation()
+
+    def open_exit_confirmation(self):
+        if self.exit_confirmation_open:
+            return
+        self.exit_confirmation_open = True
+        if self.scene is not None and getattr(self.scene, "exit_requested", False):
+            self.scene.exit_requested = False
+
+    def close_exit_confirmation(self):
+        self.exit_confirmation_open = False
+
+    def handle_exit_confirmation_mouse_down(self, screen_x, screen_y):
+        canvas_y = SCREEN_HEIGHT - screen_y
+        if point_in_rect(EXIT_DIALOG_YES_RECT, screen_x, canvas_y):
+            self.running = False
+            return
+        if point_in_rect(EXIT_DIALOG_NO_RECT, screen_x, canvas_y):
+            self.close_exit_confirmation()
 
     def handle_escape_key(self):
+        if self.exit_confirmation_open:
+            self.close_exit_confirmation()
+            return
         if self.battle_entry_loading_remaining > 0.0:
             return
         if self.scene_kind == "lobby":
@@ -337,12 +452,15 @@ class GameApp:
             if getattr(self.scene, "panel", None) in ("gun_select", "records"):
                 self.scene.key_down("escape")
                 return
-            self.running = False
+            self.open_exit_confirmation()
             return
         self.scene.key_down("escape")
 
     def update_cursor_visibility(self):
-        should_hide = not bool(getattr(self.scene, "shows_system_cursor", True))
+        if self.exit_confirmation_open:
+            should_hide = False
+        else:
+            should_hide = not bool(getattr(self.scene, "shows_system_cursor", True))
         if should_hide == self.cursor_hidden:
             return
         if should_hide:
@@ -396,32 +514,45 @@ class GameApp:
                 delta_time = min(max(frame_start - last_time, 0.0), 0.1)
                 for event in pico2d.get_events():
                     if event.type == pico2d.SDL_QUIT:
-                        self.running = False
+                        self.open_exit_confirmation()
                     elif event.type == pico2d.SDL_KEYDOWN:
                         if event.key == pico2d.SDLK_ESCAPE:
                             self.handle_escape_key()
-                        elif event.key in key_map:
+                        elif event.key in key_map and not self.exit_confirmation_open:
                             self.scene.key_down(key_map[event.key])
                     elif event.type == pico2d.SDL_KEYUP:
                         if event.key in key_map:
                             self.scene.key_up(key_map[event.key])
                     elif event.type == pico2d.SDL_MOUSEMOTION:
-                        self.scene.mouse_move(event.x, event.y)
+                        if not self.exit_confirmation_open:
+                            self.scene.mouse_move(event.x, event.y)
                     elif event.type == pico2d.SDL_MOUSEBUTTONDOWN:
                         if event.button == pico2d.SDL_BUTTON_LEFT:
-                            self.scene.mouse_down("left", event.x, event.y)
+                            if self.exit_confirmation_open:
+                                self.handle_exit_confirmation_mouse_down(
+                                    event.x, event.y
+                                )
+                            else:
+                                self.scene.mouse_down("left", event.x, event.y)
                     elif event.type == pico2d.SDL_MOUSEBUTTONUP:
-                        if event.button == pico2d.SDL_BUTTON_LEFT:
+                        if (
+                            event.button == pico2d.SDL_BUTTON_LEFT
+                            and not self.exit_confirmation_open
+                        ):
                             self.scene.mouse_up("left")
 
-                self.scene.update(delta_time)
-                self.handle_scene_action()
-                showing_battle_loading = self.tick_battle_entry_loading(delta_time)
+                showing_battle_loading = False
+                if not self.exit_confirmation_open:
+                    self.scene.update(delta_time)
+                    self.handle_scene_action()
+                    showing_battle_loading = self.tick_battle_entry_loading(delta_time)
                 pico2d.clear_canvas()
                 if showing_battle_loading:
                     self.draw_loading_screen(pico2d, present=False)
                 else:
                     self.scene.draw(pico2d.draw_rectangle)
+                if self.exit_confirmation_open:
+                    self.draw_exit_confirmation(pico2d, present=False)
                 self.update_cursor_visibility()
                 pico2d.update_canvas()
                 if self.scene.exit_requested:
