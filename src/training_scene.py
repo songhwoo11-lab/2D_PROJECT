@@ -14,7 +14,7 @@ from game_config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
-from hud import draw_centered_text
+from hud import draw_centered_text, draw_text_at_center
 from player import Player
 from weapon import Gun
 
@@ -29,6 +29,29 @@ TRAINING_NOTICE_Y = SCREEN_HEIGHT - 300
 TRAINING_HINT_Y = 120
 
 PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
+
+EXIT_BUTTON_LABEL = "EXIT"
+EXIT_BUTTON_WIDTH = 160
+EXIT_BUTTON_HEIGHT = 70
+EXIT_BUTTON_RIGHT_MARGIN = 40
+EXIT_BUTTON_BOTTOM_MARGIN = 40
+EXIT_BUTTON_COLOR = (150, 55, 50, 255)
+EXIT_BUTTON_TEXT_COLOR = (255, 255, 255)
+
+
+def exit_button_rect():
+    return (
+        SCREEN_WIDTH - EXIT_BUTTON_RIGHT_MARGIN - EXIT_BUTTON_WIDTH,
+        EXIT_BUTTON_BOTTOM_MARGIN,
+        SCREEN_WIDTH - EXIT_BUTTON_RIGHT_MARGIN,
+        EXIT_BUTTON_BOTTOM_MARGIN + EXIT_BUTTON_HEIGHT,
+    )
+
+
+def exit_button_contains(screen_x, screen_y):
+    canvas_y = SCREEN_HEIGHT - screen_y
+    left, bottom, right, top = exit_button_rect()
+    return left <= screen_x <= right and bottom <= canvas_y <= top
 
 
 class TrainingTarget:
@@ -228,8 +251,24 @@ class TrainingScene:
             self.player.draw()
         if self.shows_aim_cursor:
             self._draw_aim_cursor(draw_rectangle)
+        exit_left, exit_bottom, exit_right, exit_top = exit_button_rect()
+        draw_rectangle(
+            exit_left,
+            exit_bottom,
+            exit_right,
+            exit_top,
+            *EXIT_BUTTON_COLOR,
+            True,
+        )
         if self.hud_font is None:
             return
+        draw_text_at_center(
+            self.hud_font,
+            (exit_left + exit_right) / 2,
+            (exit_bottom + exit_top) / 2,
+            EXIT_BUTTON_LABEL,
+            EXIT_BUTTON_TEXT_COLOR,
+        )
         draw_centered_text(
             self.hud_font,
             TRAINING_TITLE_Y,
@@ -295,11 +334,32 @@ class TrainingScene:
 
     @property
     def shows_target(self):
-        return self.phase in ("playing", "finished")
+        return (
+            self.phase in ("playing", "finished")
+            and self.target is not None
+            and not self._target_overlaps_exit_button(
+                self.target.x, self.target.y, self.target.radius
+            )
+        )
 
     @property
     def shows_system_cursor(self):
         return not self.shows_aim_cursor
+
+    def _open_pause_menu(self):
+        self.paused = True
+        self.pause_menu_index = 0
+        self.mouse_held = False
+        self._mouse_pressed = False
+
+    def _target_overlaps_exit_button(self, x, y, radius):
+        left, bottom, right, top = exit_button_rect()
+        return (
+            x + radius >= left
+            and x - radius <= right
+            and y + radius >= bottom
+            and y - radius <= top
+        )
 
     def _draw_aim_cursor(self, draw_rectangle):
         cursor_x, cursor_y = self.aim_cursor_position
@@ -367,20 +427,10 @@ class TrainingScene:
             return
         self.keys.add(key)
 
-        if self.phase == "countdown":
-            return
-
-        if key == "escape":
-            if self.phase == "playing":
-                self.paused = not self.paused
-                self.pause_menu_index = 0
-                if self.paused:
-                    self.mouse_held = False
-                    self._mouse_pressed = False
-            return
-
         if self.paused:
-            if key in ("w", "up"):
+            if key == "escape":
+                self.paused = False
+            elif key in ("w", "up"):
                 self.pause_menu_index = (
                     self.pause_menu_index - 1
                 ) % len(PAUSE_MENU_ITEMS)
@@ -390,6 +440,14 @@ class TrainingScene:
                 ) % len(PAUSE_MENU_ITEMS)
             elif key == "space":
                 self._select_pause_menu_item()
+            return
+
+        if self.phase == "countdown":
+            return
+
+        if key == "escape":
+            if self.phase == "playing":
+                self._open_pause_menu()
             return
 
         if self.phase == "finished":
@@ -415,7 +473,7 @@ class TrainingScene:
     def mouse_move(self, screen_x, screen_y):
         self.mouse_screen_x = screen_x
         self.mouse_screen_y = screen_y
-        if self.paused and self.phase == "playing":
+        if self.paused:
             hovered = self._pause_menu_item_at(screen_x, screen_y)
             if hovered is not None:
                 self.pause_menu_index = hovered
@@ -434,11 +492,16 @@ class TrainingScene:
         return None
 
     def _respawn_target(self):
+        if self.target is None:
+            return
         margin = 80.0
-        self.target.move_to(
-            self.random_source.uniform(margin, SCREEN_WIDTH - margin),
-            self.random_source.uniform(margin, SCREEN_HEIGHT - margin),
-        )
+        for _ in range(50):
+            x = self.random_source.uniform(margin, SCREEN_WIDTH - margin)
+            y = self.random_source.uniform(margin, SCREEN_HEIGHT - margin)
+            if not self._target_overlaps_exit_button(x, y, self.target.radius):
+                self.target.move_to(x, y)
+                return
+        self.target.move_to(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
 
     @property
     def accuracy(self):
@@ -483,7 +546,11 @@ class TrainingScene:
     def mouse_down(self, button, screen_x=None, screen_y=None):
         if button != "left":
             return
-        if self.paused and self.phase == "playing":
+        if screen_x is not None and screen_y is not None:
+            if exit_button_contains(screen_x, screen_y):
+                self._open_pause_menu()
+                return
+        if self.paused:
             if screen_x is not None and screen_y is not None:
                 hovered = self._pause_menu_item_at(screen_x, screen_y)
                 if hovered is not None:

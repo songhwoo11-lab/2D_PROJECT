@@ -3,7 +3,28 @@ from unittest.mock import patch
 
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
-from training_scene import TRAINING_CURSOR_ALPHA, TRAINING_CURSOR_COLOR, TrainingScene
+from training_scene import (
+    EXIT_BUTTON_COLOR,
+    EXIT_BUTTON_LABEL,
+    EXIT_BUTTON_TEXT_COLOR,
+    TRAINING_CURSOR_ALPHA,
+    TRAINING_CURSOR_COLOR,
+    TrainingScene,
+    exit_button_rect,
+)
+
+
+class SequenceRandom:
+    def __init__(self, values):
+        self.values = iter(values)
+
+    def uniform(self, low, high):
+        return next(self.values)
+
+
+def exit_button_screen_center():
+    left, bottom, right, top = exit_button_rect()
+    return (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2
 
 
 class TrainingSceneTests(unittest.TestCase):
@@ -142,7 +163,9 @@ class TrainingSceneTests(unittest.TestCase):
         self.scene.hud_font = object()
         rectangles = []
 
-        with patch("training_scene.draw_centered_text") as draw_text:
+        with patch("training_scene.draw_centered_text") as draw_text, patch(
+            "training_scene.draw_text_at_center"
+        ):
             self.scene.draw(lambda *args: rectangles.append(args))
 
         labels = [call.args[2] for call in draw_text.call_args_list]
@@ -155,6 +178,74 @@ class TrainingSceneTests(unittest.TestCase):
                 for rectangle in rectangles
             )
         )
+
+    def test_exit_button_opens_the_pause_menu(self):
+        self.scene.phase = "playing"
+        screen_x, screen_y = exit_button_screen_center()
+        self.scene.mouse_held = True
+
+        self.scene.mouse_down("left", screen_x, screen_y)
+
+        self.assertTrue(self.scene.paused)
+        self.assertEqual(self.scene.pause_menu_index, 0)
+        self.assertFalse(self.scene.mouse_held)
+        self.assertIsNone(self.scene.pending_action)
+
+    def test_exit_button_can_open_the_pause_menu_during_the_countdown(self):
+        screen_x, screen_y = exit_button_screen_center()
+
+        self.scene.mouse_down("left", screen_x, screen_y)
+
+        self.assertTrue(self.scene.paused)
+
+        self.scene.key_down("escape")
+
+        self.assertFalse(self.scene.paused)
+
+    def test_exit_button_is_drawn_in_the_bottom_right(self):
+        self.scene.hud_font = object()
+        rectangles = []
+        left, bottom, right, top = exit_button_rect()
+
+        with patch("training_scene.draw_centered_text"), patch(
+            "training_scene.draw_text_at_center"
+        ) as text_at_center:
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        self.assertIn(
+            (left, bottom, right, top, *EXIT_BUTTON_COLOR, True),
+            rectangles,
+        )
+        text_at_center.assert_any_call(
+            self.scene.hud_font,
+            (left + right) / 2,
+            (bottom + top) / 2,
+            EXIT_BUTTON_LABEL,
+            EXIT_BUTTON_TEXT_COLOR,
+        )
+
+    def test_target_does_not_appear_over_the_exit_button(self):
+        self.scene.phase = "playing"
+        self.scene.target.x = (exit_button_rect()[0] + exit_button_rect()[2]) / 2
+        self.scene.target.y = (exit_button_rect()[1] + exit_button_rect()[3]) / 2
+
+        with patch.object(self.scene.target, "draw") as draw_target:
+            self.scene.draw(lambda *args: None)
+
+        draw_target.assert_not_called()
+
+    def test_target_respawn_avoids_the_exit_button_area(self):
+        left, bottom, right, top = exit_button_rect()
+        exit_x = (left + right) / 2
+        exit_y = (bottom + top) / 2
+        self.scene.random_source = SequenceRandom(
+            [exit_x, exit_y, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2]
+        )
+
+        self.scene._respawn_target()
+
+        self.assertAlmostEqual(self.scene.target.x, SCREEN_WIDTH / 2)
+        self.assertAlmostEqual(self.scene.target.y, SCREEN_HEIGHT / 2)
 
     def test_time_expiry_records_the_destroyed_target_count(self):
         state = GameState()
@@ -242,7 +333,7 @@ class TrainingCursorTests(unittest.TestCase):
 
         self.scene.draw(lambda *args: self.rectangles.append(args))
 
-        self.assertEqual(len(self.rectangles), 6)
+        self.assertEqual(len(self.rectangles), 7)
 
     def test_aim_cursor_is_visible_immediately_and_only_hidden_while_paused(self):
         self.assertTrue(self.scene.shows_aim_cursor)
