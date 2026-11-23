@@ -38,6 +38,8 @@ ASSET_DIRECTORY = Path(__file__).resolve().parent.parent / "image"
 LOADING_TEXT = "로딩중..."
 LOADING_BACKGROUND_COLOR = (18, 26, 22, 255)
 LOADING_TEXT_COLOR = (255, 220, 100)
+LOADING_PORTAL_WIDTH = 700
+LOADING_PORTAL_HEIGHT = 660
 BATTLE_ENTRY_LOADING_SECONDS = 1.0
 
 EXIT_DIALOG_TITLE = "EXIT GAME?"
@@ -115,6 +117,14 @@ class GameApp:
             *LOADING_BACKGROUND_COLOR,
             True,
         )
+        portal_image = self.assets.get("portal_image")
+        if portal_image is not None:
+            portal_image.draw(
+                SCREEN_WIDTH / 2,
+                SCREEN_HEIGHT / 2,
+                LOADING_PORTAL_WIDTH,
+                LOADING_PORTAL_HEIGHT,
+            )
         draw_centered_text(
             font,
             SCREEN_HEIGHT / 2,
@@ -216,6 +226,9 @@ class GameApp:
             str(directory / "game_lobby.png")
         )
         self.assets["player_image"] = pico2d.load_image(str(directory / "boy.png"))
+        self.assets["portal_image"] = pico2d.load_image(
+            str(directory / "portal_image.png")
+        )
         self.assets["gun_image"] = pico2d.load_image(str(directory / "gun.png"))
         self.assets["shop_gun_images"] = {
             "pistol": self.assets["gun_image"],
@@ -300,7 +313,7 @@ class GameApp:
             notice=self.save_notice,
         )
 
-    def create_battle_scene(self):
+    def create_battle_scene(self, portal_transition=False):
         player = Player(
             WORLD_WIDTH / 2,
             WORLD_HEIGHT / 2,
@@ -331,11 +344,13 @@ class GameApp:
             ammo_image=self.assets["ammo_image"],
             health_image=self.assets["health_image"],
             cooling_image=self.assets.get("cooling_image"),
+            portal_image=self.assets.get("portal_image"),
+            portal_transition=portal_transition,
             total_waves=development_total_waves(),
             wave_spawn_rate=development_spawn_rate(),
         )
 
-    def switch_scene(self, kind):
+    def switch_scene(self, kind, portal_transition=False):
         if self.scene_kind == "lobby" and self.scene is not None:
             self.lobby_node_key = getattr(
                 self.scene, "current_node", LOBBY_START_KEY
@@ -345,7 +360,9 @@ class GameApp:
         if kind == "lobby":
             self.scene = self.create_lobby_scene()
         elif kind == "battle":
-            self.scene = self.create_battle_scene()
+            self.scene = self.create_battle_scene(
+                portal_transition=portal_transition
+            )
         elif kind == "shop":
             self.scene = self.create_shop_scene()
         elif kind == "training":
@@ -412,7 +429,7 @@ class GameApp:
             0.0, self.battle_entry_loading_remaining - delta_time
         )
         if self.battle_entry_loading_remaining == 0.0:
-            self.switch_scene("battle")
+            self.switch_scene("battle", portal_transition=True)
         return True
 
     def handle_scene_exit(self):

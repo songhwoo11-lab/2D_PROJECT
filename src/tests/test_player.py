@@ -116,6 +116,30 @@ class PlayerDrawTests(unittest.TestCase):
 
         image.draw.assert_called_once_with(10, 20, 7.5, 7.5)
 
+    def test_draw_uses_the_stored_render_transform_until_it_is_reset(self):
+        image = MagicMock(rotate_draw=MagicMock(), opacify=MagicMock())
+        player = Player(10, 20, image=image, radius=15)
+        player.render_angle = 1.25
+        player.render_opacity = 0.5
+        player.render_scale = 0.25
+
+        player.draw()
+
+        image.rotate_draw.assert_called_once_with(1.25, 10, 20, 7.5, 7.5)
+        self.assertEqual(image.opacify.call_args_list[0].args, (0.5,))
+        self.assertEqual(image.opacify.call_args_list[-1].args, (1.0,))
+
+        player.reset_render_transform()
+        image.rotate_draw.reset_mock()
+        image.opacify.reset_mock()
+        image.draw.reset_mock()
+
+        player.draw()
+
+        image.rotate_draw.assert_not_called()
+        image.opacify.assert_not_called()
+        image.draw.assert_called_once_with(10, 20, 30, 30)
+
 
 if __name__ == "__main__":
     unittest.main()

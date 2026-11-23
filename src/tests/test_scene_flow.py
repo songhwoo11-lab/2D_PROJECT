@@ -25,6 +25,8 @@ from main import (
     EXIT_DIALOG_YES_RECT,
     GameApp,
     LOADING_BACKGROUND_COLOR,
+    LOADING_PORTAL_HEIGHT,
+    LOADING_PORTAL_WIDTH,
     LOADING_TEXT,
     LOADING_TEXT_COLOR,
 )
@@ -112,6 +114,23 @@ class GameAppStartupTests(unittest.TestCase):
             LOADING_TEXT_COLOR,
         )
         pico2d_module.update_canvas.assert_called_once_with()
+
+    def test_draw_loading_screen_draws_the_portal_image_in_the_center(self):
+        app = GameApp()
+        portal_image = Mock()
+        app.assets["portal_image"] = portal_image
+        pico2d_module = Mock()
+
+        with patch("main.draw_centered_text"):
+            app.draw_loading_screen(pico2d_module, present=False)
+
+        portal_image.draw.assert_called_once_with(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2,
+            LOADING_PORTAL_WIDTH,
+            LOADING_PORTAL_HEIGHT,
+        )
+        pico2d_module.update_canvas.assert_not_called()
 
     def test_run_initializes_the_game_before_entering_the_main_loop(self):
         app = GameApp()
@@ -313,6 +332,7 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertTrue(self.app.tick_battle_entry_loading(0.6))
         self.assertEqual(self.app.scene_kind, "battle")
         self.assertEqual(self.app.battle_entry_loading_remaining, 0.0)
+        self.assertTrue(self.app.scene.portal_transition_active)
 
     def test_battle_scene_uses_the_common_pistol_spec(self):
         self.app.switch_scene("battle")

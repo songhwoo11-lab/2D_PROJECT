@@ -36,6 +36,9 @@ class Player:
         self._move_x = 0.0
         self._move_y = 0.0
         self._screen_position = None
+        self.render_angle = None
+        self.render_opacity = None
+        self.render_scale = None
 
     @property
     def is_alive(self):
@@ -79,6 +82,11 @@ class Player:
     def set_screen_position(self, screen_x, screen_y):
         self._screen_position = (screen_x, screen_y)
 
+    def reset_render_transform(self):
+        self.render_angle = None
+        self.render_opacity = None
+        self.render_scale = None
+
     @property
     def screen_position(self):
         if self._screen_position is None:
@@ -103,6 +111,12 @@ class Player:
     def draw(self, screen_x=None, screen_y=None, angle=None, opacity=None, scale=None):
         if self.image is None:
             raise RuntimeError("Player.draw requires a loaded player image")
+        if angle is None:
+            angle = self.render_angle
+        if opacity is None:
+            opacity = self.render_opacity
+        if scale is None:
+            scale = self.render_scale
         if screen_x is None and self._screen_position is not None:
             x, y = self.screen_position
         else:

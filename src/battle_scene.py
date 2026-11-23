@@ -66,6 +66,12 @@ SHOT_FEEDBACK_FONT_SIZE = 48
 WAVE_BANNER_SECONDS = 2.5
 WAVE_STRENGTH_BANNER_SECONDS = 3.5
 BATTLE_START_COUNTDOWN_SECONDS = 3.0
+BATTLE_PORTAL_EXIT_SECONDS = 3.0
+BATTLE_PORTAL_EXIT_ROTATIONS = 3.0
+BATTLE_PORTAL_EXIT_MOVE_DISTANCE = 360.0
+BATTLE_PORTAL_EXIT_SPEED_DECAY_RATE = 3.0
+BATTLE_PORTAL_IMAGE_WIDTH = 700
+BATTLE_PORTAL_IMAGE_HEIGHT = 660
 
 # 총 온도가 한계 온도의 이 비율에 도달하는 시점부터 서서히 붉게 물든다.
 GUN_HEAT_TINT_START_RATIO = 0.5
@@ -150,6 +156,8 @@ class BattleScene:
         total_waves=None,
         wave_spawn_rate=None,
         gun_images=None,
+        portal_image=None,
+        portal_transition=False,
     ):
         self.player = player
         self.gun = gun
@@ -170,7 +178,21 @@ class BattleScene:
         self.ammo_image = ammo_image
         self.health_image = health_image
         self.cooling_image = cooling_image
+        self.portal_image = portal_image
         self.initial_player_position = (player.x, player.y)
+        self.portal_transition_active = bool(portal_transition)
+        self.portal_transition_elapsed = 0.0
+        self.portal_transition_angle = 0.0
+        self.portal_transition_opacity = 1.0
+        self.portal_transition_scale = 1.0
+        self.portal_transition_start_position = (
+            self.initial_player_position[0],
+            min(
+                WORLD_HEIGHT - PLAYER_RADIUS,
+                self.initial_player_position[1]
+                + BATTLE_PORTAL_EXIT_MOVE_DISTANCE,
+            ),
+        )
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -204,9 +226,15 @@ class BattleScene:
         self.result = None
         self.exit_requested = False
 
+        if self.portal_transition_active:
+            self.player.x, self.player.y = self.portal_transition_start_position
+            self._set_portal_player_transform(0.0)
         game_world.clear()
         game_world.add_object(self.player, depth=1)
-        self.camera.follow(self.player.x, self.player.y)
+        if self.portal_transition_active:
+            self.camera.follow(*self.initial_player_position)
+        else:
+            self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
 
     def close(self):
@@ -250,7 +278,10 @@ class BattleScene:
 
     @property
     def is_counting_down(self):
-        return self.start_countdown_remaining > 0.0
+        return (
+            not self.portal_transition_active
+            and self.start_countdown_remaining > 0.0
+        )
 
     def _spawn_wave_enemy(self, enemy_type, x, y):
         enemy = self.spawn_enemy(enemy_type, x, y)
@@ -406,6 +437,8 @@ class BattleScene:
                 self.wave_banner_remaining = WAVE_STRENGTH_BANNER_SECONDS
 
     def key_down(self, key):
+        if self.portal_transition_active:
+            return
         key = key.lower()
         if key in self.keys:
             return
@@ -488,7 +521,11 @@ class BattleScene:
 
     @property
     def shows_aim_cursor(self):
-        return not self.paused and not self.finished
+        return (
+            not self.portal_transition_active
+            and not self.paused
+            and not self.finished
+        )
 
     @property
     def shows_system_cursor(self):
@@ -500,6 +537,8 @@ class BattleScene:
         )
 
     def mouse_down(self, button, screen_x=None, screen_y=None):
+        if self.portal_transition_active:
+            return
         if (
             button == "left"
             and self.paused
@@ -598,6 +637,9 @@ class BattleScene:
             game_world.remove_object(enemy)
 
     def reset_map(self):
+        self.portal_transition_active = False
+        self.portal_transition_elapsed = 0.0
+        self.player.reset_render_transform()
         self.player.x, self.player.y = self.initial_player_position
         self.player.hp = self.player.max_hp
         self.player.reset_hp_trail()
@@ -636,8 +678,55 @@ class BattleScene:
         self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
 
+    def _set_portal_player_transform(self, progress):
+        self.portal_transition_angle = (
+            math.tau * BATTLE_PORTAL_EXIT_ROTATIONS * progress
+        )
+        self.portal_transition_opacity = progress
+        self.portal_transition_scale = progress
+        self.player.render_angle = self.portal_transition_angle
+        self.player.render_opacity = self.portal_transition_opacity
+        self.player.render_scale = self.portal_transition_scale
+
+    @staticmethod
+    def _portal_transition_progress(elapsed):
+        linear_progress = min(
+            max(elapsed / BATTLE_PORTAL_EXIT_SECONDS, 0.0),
+            1.0,
+        )
+        remaining = 1.0 - linear_progress
+        decay = (
+            math.exp(BATTLE_PORTAL_EXIT_SPEED_DECAY_RATE * remaining) - 1.0
+        ) / (math.exp(BATTLE_PORTAL_EXIT_SPEED_DECAY_RATE) - 1.0)
+        return 1.0 - decay
+
+    def _update_portal_transition(self, delta_time):
+        self.portal_transition_elapsed = min(
+            BATTLE_PORTAL_EXIT_SECONDS,
+            self.portal_transition_elapsed + delta_time,
+        )
+        progress = self._portal_transition_progress(self.portal_transition_elapsed)
+        start_x, start_y = self.portal_transition_start_position
+        end_x, end_y = self.initial_player_position
+        self.player.x = start_x + (end_x - start_x) * progress
+        self.player.y = start_y + (end_y - start_y) * progress
+        self._set_portal_player_transform(progress)
+        self.camera.follow(*self.initial_player_position)
+        self._update_player_view()
+        if self.portal_transition_elapsed < BATTLE_PORTAL_EXIT_SECONDS:
+            return
+        self.portal_transition_active = False
+        self.player.x, self.player.y = self.initial_player_position
+        self.player.reset_render_transform()
+        self.start_countdown_remaining = BATTLE_START_COUNTDOWN_SECONDS
+        self.camera.follow(*self.initial_player_position)
+        self._update_player_view()
+
     def update(self, delta_time):
         if self.finished or self.paused:
+            return
+        if self.portal_transition_active:
+            self._update_portal_transition(delta_time)
             return
         if self.is_counting_down:
             self.start_countdown_remaining = max(
@@ -782,6 +871,16 @@ class BattleScene:
             WORLD_WIDTH,
             WORLD_HEIGHT,
         )
+        if self.portal_transition_active:
+            if self.portal_image is not None:
+                self.portal_image.draw(
+                    SCREEN_WIDTH / 2,
+                    SCREEN_HEIGHT / 2,
+                    BATTLE_PORTAL_IMAGE_WIDTH,
+                    BATTLE_PORTAL_IMAGE_HEIGHT,
+                )
+            game_world.render(self._is_visible_on_screen)
+            return
 
         for layer in game_world.world:
             for obj in layer:

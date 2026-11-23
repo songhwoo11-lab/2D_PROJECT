@@ -116,6 +116,22 @@ def make_scene(total_waves, spawn_rate, skip_countdown=True):
     return scene
 
 
+def make_portal_transition_scene(portal_image=None):
+    scene = BattleScene(
+        Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
+        Gun(),
+        FakeBackground(),
+        hud_font=FakeFont(),
+        enemy_images={enemy_type: FakeImage() for enemy_type in EnemyType},
+        enemy_draw_rectangle=lambda *args: None,
+        enemy_draw_circle=lambda *args: None,
+        random_source=random.Random(0),
+        portal_image=portal_image,
+        portal_transition=True,
+    )
+    return scene
+
+
 def alive_enemies():
     return [
         obj
@@ -309,6 +325,88 @@ class BattleSceneStartCountdownTests(unittest.TestCase):
             "3",
             (255, 220, 100),
         )
+
+
+class BattleScenePortalTransitionTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = make_portal_transition_scene()
+
+    def tearDown(self):
+        game_world.clear()
+
+    def test_transition_starts_above_the_spawn_point_with_the_system_cursor(self):
+        start_x, start_y = self.scene.portal_transition_start_position
+        end_x, end_y = self.scene.initial_player_position
+
+        self.assertTrue(self.scene.portal_transition_active)
+        self.assertEqual((self.scene.player.x, self.scene.player.y), (start_x, start_y))
+        self.assertGreater(start_y, end_y)
+        self.assertFalse(self.scene.is_counting_down)
+        self.assertFalse(self.scene.shows_aim_cursor)
+        self.assertTrue(self.scene.shows_system_cursor)
+        self.assertEqual(self.scene.start_countdown_remaining, 3.0)
+
+    def test_transition_moves_down_and_decelerates_geometrically(self):
+        start_y = self.scene.portal_transition_start_position[1]
+        end_y = self.scene.initial_player_position[1]
+        total_distance = start_y - end_y
+
+        self.scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS / 2)
+        first_half_distance = start_y - self.scene.player.y
+
+        self.scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS / 2)
+        second_half_distance = (start_y - first_half_distance) - self.scene.player.y
+
+        self.assertGreater(first_half_distance, second_half_distance * 3.0)
+        self.assertGreater(first_half_distance, total_distance * 0.7)
+        self.assertGreater(self.scene.portal_transition_angle, 0.0)
+        self.assertFalse(self.scene.portal_transition_active)
+
+    def test_transition_starts_the_countdown_only_after_it_finishes(self):
+        self.scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS)
+
+        self.assertFalse(self.scene.portal_transition_active)
+        self.assertEqual((self.scene.player.x, self.scene.player.y),
+                         self.scene.initial_player_position)
+        self.assertIsNone(self.scene.player.render_angle)
+        self.assertIsNone(self.scene.player.render_opacity)
+        self.assertIsNone(self.scene.player.render_scale)
+        self.assertTrue(self.scene.is_counting_down)
+        self.assertEqual(self.scene.start_countdown_remaining, 3.0)
+        self.assertTrue(self.scene.shows_aim_cursor)
+        self.assertFalse(self.scene.shows_system_cursor)
+
+        self.scene.update(3.0)
+
+        self.assertFalse(self.scene.is_counting_down)
+        self.assertEqual(self.scene.wave_banner_text, "WAVE 1")
+
+    def test_transition_ignores_gameplay_input(self):
+        self.scene.key_down("d")
+        self.scene.mouse_down("left")
+
+        self.assertEqual(self.scene.keys, set())
+        self.assertFalse(self.scene.mouse_held)
+        self.assertFalse(self.scene.paused)
+
+    def test_transition_draws_the_portal_image_and_no_hud(self):
+        portal_image = mock.MagicMock()
+        scene = make_portal_transition_scene(portal_image)
+        scene.player.image = mock.MagicMock()
+
+        with mock.patch("battle_scene.draw_hud") as draw_hud, mock.patch(
+            "battle_scene.draw_centered_text"
+        ) as draw_text:
+            scene.draw(lambda *args: None)
+
+        portal_image.draw.assert_called_once_with(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2,
+            battle_scene.BATTLE_PORTAL_IMAGE_WIDTH,
+            battle_scene.BATTLE_PORTAL_IMAGE_HEIGHT,
+        )
+        draw_hud.assert_not_called()
+        draw_text.assert_not_called()
 
 
 class BattleSceneRewardTests(unittest.TestCase):
