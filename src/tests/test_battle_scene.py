@@ -116,11 +116,12 @@ def make_scene(total_waves, spawn_rate, skip_countdown=True):
     return scene
 
 
-def make_portal_transition_scene(portal_image=None):
+def make_portal_transition_scene(portal_image=None, gun_image=None):
     scene = BattleScene(
         Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
         Gun(),
         FakeBackground(),
+        gun_image=gun_image,
         hud_font=FakeFont(),
         enemy_images={enemy_type: FakeImage() for enemy_type in EnemyType},
         enemy_draw_rectangle=lambda *args: None,
@@ -358,13 +359,14 @@ class BattleScenePortalTransitionTests(unittest.TestCase):
 
         self.scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS / 2)
         first_half_distance = start_y - self.scene.player.y
+        mid_transition_angle = self.scene.portal_transition_angle
 
         self.scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS / 2)
         second_half_distance = (start_y - first_half_distance) - self.scene.player.y
 
         self.assertGreater(first_half_distance, second_half_distance * 3.0)
         self.assertGreater(first_half_distance, total_distance * 0.7)
-        self.assertGreater(self.scene.portal_transition_angle, 0.0)
+        self.assertGreater(mid_transition_angle, 0.0)
         self.assertTrue(self.scene.portal_fade_active)
         self.assertTrue(self.scene.portal_transition_active)
         self.assertFalse(self.scene.is_counting_down)
@@ -452,6 +454,25 @@ class BattleScenePortalTransitionTests(unittest.TestCase):
         scene.draw(lambda *args: None)
 
         portal_image.draw.assert_not_called()
+
+    def test_transition_draws_the_equipped_gun_with_the_player_transform(self):
+        gun_image = mock.MagicMock()
+        gun_image.texture = None
+        scene = make_portal_transition_scene(gun_image=gun_image)
+        scene.player.image = mock.MagicMock()
+        scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS / 2)
+
+        scene.draw(lambda *args: None)
+
+        angle, flip, x, y, width, height = gun_image.composite_draw.call_args.args
+        self.assertAlmostEqual(angle, scene.portal_transition_angle)
+        self.assertEqual(flip, "")
+        self.assertAlmostEqual(width, 126 * scene.portal_transition_scale)
+        self.assertAlmostEqual(height, 72 * scene.portal_transition_scale)
+        self.assertEqual(
+            gun_image.opacify.call_args_list,
+            [mock.call(scene.portal_transition_opacity), mock.call(1.0)],
+        )
 
     def test_transition_ignores_gameplay_input(self):
         self.scene.key_down("d")

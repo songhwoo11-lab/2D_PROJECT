@@ -652,6 +652,9 @@ class BattleScene:
         self.portal_fade_elapsed = 0.0
         self.portal_camera_pan_active = False
         self.portal_camera_pan_elapsed = 0.0
+        self.portal_transition_angle = 0.0
+        self.portal_transition_opacity = 1.0
+        self.portal_transition_scale = 1.0
         self.player.reset_render_transform()
         self.player.x, self.player.y = self.initial_player_position
         self.player.hp = self.player.max_hp
@@ -784,6 +787,9 @@ class BattleScene:
             return
         self.player.x, self.player.y = self.portal_transition_end_position
         self.player.reset_render_transform()
+        self.portal_transition_angle = 0.0
+        self.portal_transition_opacity = 1.0
+        self.portal_transition_scale = 1.0
         self.portal_fade_active = True
         self.portal_fade_elapsed = 0.0
 
@@ -964,6 +970,13 @@ class BattleScene:
                         BATTLE_PORTAL_IMAGE_HEIGHT,
                     )
             game_world.render(self._is_visible_on_screen)
+            if self._selected_gun_image() is not None:
+                self._draw_gun(
+                    angle=self.portal_transition_angle,
+                    opacity=self.portal_transition_opacity,
+                    scale=self.portal_transition_scale,
+                    allow_flip=False,
+                )
             return
 
         for layer in game_world.world:
@@ -1031,47 +1044,58 @@ class BattleScene:
         gun_id = getattr(self.gun, "gun_id", None)
         return GUN_PIVOT_Y_OFFSETS.get(gun_id, 0.0)
 
-    def _draw_gun(self):
+    def _draw_gun(self, angle=None, opacity=None, scale=1.0, allow_flip=True):
         """Draw the gun with its recoil offset and temperature tint."""
         image = self._selected_gun_image()
-        gun_offset = PLAYER_RADIUS * 0.6
+        aim_angle = self.player.aim_angle if angle is None else angle
+        gun_offset = PLAYER_RADIUS * 0.6 * scale
         recoil_offset = self._gun_recoil_offset()
         gun_x = (
             self.player.screen_position[0]
-            + math.cos(self.player.aim_angle) * gun_offset
-            - math.cos(self.player.aim_angle) * recoil_offset
-            - self._gun_pivot_left_offset()
+            + math.cos(aim_angle) * gun_offset
+            - math.cos(aim_angle) * recoil_offset
+            - self._gun_pivot_left_offset() * scale
         )
         gun_y = (
             self.player.screen_position[1]
-            + math.sin(self.player.aim_angle) * gun_offset
-            - math.sin(self.player.aim_angle) * recoil_offset
-            - self._gun_pivot_y_offset()
+            + math.sin(aim_angle) * gun_offset
+            - math.sin(aim_angle) * recoil_offset
+            - self._gun_pivot_y_offset() * scale
         )
-        gun_angle = self.player.aim_angle
+        gun_angle = aim_angle
         flip = ""
-        if gun_angle > math.pi / 2:
-            gun_angle -= math.pi
-            flip = "h"
-        elif gun_angle < -math.pi / 2:
-            gun_angle += math.pi
-            flip = "h"
+        if allow_flip:
+            if gun_angle > math.pi / 2:
+                gun_angle -= math.pi
+                flip = "h"
+            elif gun_angle < -math.pi / 2:
+                gun_angle += math.pi
+                flip = "h"
 
         texture = getattr(image, "texture", None)
         if texture is not None:
             pico2d.SDL_SetTextureColorMod(texture, *self._gun_tint_color())
+        opacify = (
+            getattr(image, "opacify", None)
+            if opacity is not None and opacity < 1.0
+            else None
+        )
+        if opacify is not None:
+            opacify(opacity)
         try:
             image.composite_draw(
                 gun_angle,
                 flip,
                 gun_x,
                 gun_y,
-                126,
-                72,
+                126 * scale,
+                72 * scale,
             )
         finally:
             if texture is not None:
                 pico2d.SDL_SetTextureColorMod(texture, *GUN_WHITE_TINT)
+            if opacify is not None:
+                opacify(1.0)
 
     def _gun_tint_color(self):
         """Return the gun tint for the current temperature.
