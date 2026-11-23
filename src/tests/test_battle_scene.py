@@ -465,14 +465,70 @@ class BattleScenePortalTransitionTests(unittest.TestCase):
         scene.draw(lambda *args: None)
 
         angle, flip, x, y, width, height = gun_image.composite_draw.call_args.args
-        self.assertAlmostEqual(angle, scene.portal_transition_angle)
+        player_x, player_y = scene.player.screen_position
+        reverse_angle = -(
+            battle_scene.BATTLE_PORTAL_EXIT_ROTATIONS * math.tau
+            - scene.portal_transition_angle
+        )
+        final_x = (
+            math.cos(scene.player.aim_angle) * PLAYER_RADIUS * 0.6
+            - scene._gun_pivot_left_offset()
+        )
+        final_y = (
+            math.sin(scene.player.aim_angle) * PLAYER_RADIUS * 0.6
+            - scene._gun_pivot_y_offset()
+        )
+        cosine = math.cos(reverse_angle)
+        sine = math.sin(reverse_angle)
+        expected_offset_x = (
+            final_x * cosine - final_y * sine
+        ) * scene.portal_transition_scale
+        expected_offset_y = (
+            final_x * sine + final_y * cosine
+        ) * scene.portal_transition_scale
+
+        self.assertAlmostEqual(angle, reverse_angle)
         self.assertEqual(flip, "")
+        self.assertAlmostEqual(x, player_x + expected_offset_x)
+        self.assertAlmostEqual(y, player_y + expected_offset_y)
+        self.assertLess(
+            math.hypot(x - player_x, y - player_y),
+            PLAYER_RADIUS * 0.6 + 1.0,
+        )
         self.assertAlmostEqual(width, 126 * scene.portal_transition_scale)
         self.assertAlmostEqual(height, 72 * scene.portal_transition_scale)
         self.assertEqual(
             gun_image.opacify.call_args_list,
             [mock.call(scene.portal_transition_opacity), mock.call(1.0)],
         )
+
+    def test_gun_returns_to_the_battle_position_after_player_animation(self):
+        gun_image = mock.MagicMock()
+        gun_image.texture = None
+        scene = make_portal_transition_scene(gun_image=gun_image)
+        scene.player.image = mock.MagicMock()
+        scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS)
+        gun_image.composite_draw.reset_mock()
+
+        scene.draw(lambda *args: None)
+
+        angle, flip, x, y, width, height = gun_image.composite_draw.call_args.args
+        player_x, player_y = scene.player.screen_position
+        expected_x = (
+            player_x
+            + math.cos(scene.player.aim_angle) * PLAYER_RADIUS * 0.6
+            - scene._gun_pivot_left_offset()
+        )
+        expected_y = (
+            player_y
+            + math.sin(scene.player.aim_angle) * PLAYER_RADIUS * 0.6
+            - scene._gun_pivot_y_offset()
+        )
+        self.assertAlmostEqual(x, expected_x)
+        self.assertAlmostEqual(y, expected_y)
+        self.assertAlmostEqual(width, 126)
+        self.assertAlmostEqual(height, 72)
+        gun_image.opacify.assert_not_called()
 
     def test_transition_ignores_gameplay_input(self):
         self.scene.key_down("d")

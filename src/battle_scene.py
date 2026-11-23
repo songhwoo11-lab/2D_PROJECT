@@ -716,6 +716,30 @@ class BattleScene:
         ) / (math.exp(BATTLE_PORTAL_EXIT_SPEED_DECAY_RATE) - 1.0)
         return 1.0 - decay
 
+    def _portal_gun_reverse_angle(self):
+        return -(
+            BATTLE_PORTAL_EXIT_ROTATIONS * math.tau
+            - self.portal_transition_angle
+        )
+
+    def _portal_gun_screen_offset(self):
+        aim_angle = self.player.aim_angle
+        final_x = (
+            math.cos(aim_angle) * PLAYER_RADIUS * 0.6
+            - self._gun_pivot_left_offset()
+        )
+        final_y = (
+            math.sin(aim_angle) * PLAYER_RADIUS * 0.6
+            - self._gun_pivot_y_offset()
+        )
+        reverse_angle = self._portal_gun_reverse_angle()
+        cosine = math.cos(reverse_angle)
+        sine = math.sin(reverse_angle)
+        return (
+            (final_x * cosine - final_y * sine) * self.portal_transition_scale,
+            (final_x * sine + final_y * cosine) * self.portal_transition_scale,
+        )
+
     def _camera_offset_for_position(self, world_x, world_y):
         max_x = max(self.camera.world_width - self.camera.screen_width, 0.0)
         max_y = max(self.camera.world_height - self.camera.screen_height, 0.0)
@@ -971,12 +995,16 @@ class BattleScene:
                     )
             game_world.render(self._is_visible_on_screen)
             if self._selected_gun_image() is not None:
-                self._draw_gun(
-                    angle=self.portal_transition_angle,
-                    opacity=self.portal_transition_opacity,
-                    scale=self.portal_transition_scale,
-                    allow_flip=False,
-                )
+                if self.portal_fade_active or self.portal_camera_pan_active:
+                    self._draw_gun()
+                else:
+                    self._draw_gun(
+                        angle=self._portal_gun_reverse_angle(),
+                        opacity=self.portal_transition_opacity,
+                        scale=self.portal_transition_scale,
+                        allow_flip=False,
+                        screen_offset=self._portal_gun_screen_offset(),
+                    )
             return
 
         for layer in game_world.world:
@@ -1044,24 +1072,35 @@ class BattleScene:
         gun_id = getattr(self.gun, "gun_id", None)
         return GUN_PIVOT_Y_OFFSETS.get(gun_id, 0.0)
 
-    def _draw_gun(self, angle=None, opacity=None, scale=1.0, allow_flip=True):
+    def _draw_gun(
+        self,
+        angle=None,
+        opacity=None,
+        scale=1.0,
+        allow_flip=True,
+        screen_offset=None,
+    ):
         """Draw the gun with its recoil offset and temperature tint."""
         image = self._selected_gun_image()
         aim_angle = self.player.aim_angle if angle is None else angle
-        gun_offset = PLAYER_RADIUS * 0.6 * scale
-        recoil_offset = self._gun_recoil_offset()
-        gun_x = (
-            self.player.screen_position[0]
-            + math.cos(aim_angle) * gun_offset
-            - math.cos(aim_angle) * recoil_offset
-            - self._gun_pivot_left_offset() * scale
-        )
-        gun_y = (
-            self.player.screen_position[1]
-            + math.sin(aim_angle) * gun_offset
-            - math.sin(aim_angle) * recoil_offset
-            - self._gun_pivot_y_offset() * scale
-        )
+        if screen_offset is None:
+            gun_offset = PLAYER_RADIUS * 0.6 * scale
+            recoil_offset = self._gun_recoil_offset()
+            gun_x = (
+                self.player.screen_position[0]
+                + math.cos(aim_angle) * gun_offset
+                - math.cos(aim_angle) * recoil_offset
+                - self._gun_pivot_left_offset() * scale
+            )
+            gun_y = (
+                self.player.screen_position[1]
+                + math.sin(aim_angle) * gun_offset
+                - math.sin(aim_angle) * recoil_offset
+                - self._gun_pivot_y_offset() * scale
+            )
+        else:
+            gun_x = self.player.screen_position[0] + screen_offset[0]
+            gun_y = self.player.screen_position[1] + screen_offset[1]
         gun_angle = aim_angle
         flip = ""
         if allow_flip:
