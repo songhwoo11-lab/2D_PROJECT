@@ -140,7 +140,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.app.switch_scene("battle")
         battle = self.app.scene
         battle.result = BattleResult.VICTORY
-        battle.reached_wave = 30
+        battle.reached_wave = 10
         battle.elapsed_time = 600.0
         battle.clear_time = 580.0
         battle.coins = 25
@@ -154,7 +154,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
             self.app.switch_scene("battle")
             battle = self.app.scene
             battle.result = BattleResult.VICTORY
-            battle.reached_wave = 30
+            battle.reached_wave = 10
             battle.elapsed_time = 600.0
             battle.clear_time = 580.0
             battle.coins = 10

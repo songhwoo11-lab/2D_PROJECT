@@ -57,8 +57,8 @@ class WaveTextTests(unittest.TestCase):
     def test_wave_text_shows_current_and_total(self):
         self.assertEqual(wave_text(3, 30), "WAVE 3/30")
 
-    def test_wave_text_defaults_to_thirty_waves(self):
-        self.assertEqual(wave_text(7), "WAVE 7/30")
+    def test_wave_text_defaults_to_ten_waves(self):
+        self.assertEqual(wave_text(7), "WAVE 7/10")
 
 
 class CoinTextTests(unittest.TestCase):

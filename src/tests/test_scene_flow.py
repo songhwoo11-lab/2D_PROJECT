@@ -525,7 +525,7 @@ class BattleReturnTests(unittest.TestCase):
         self.app.switch_scene("battle")
         battle = self.app.scene
         battle.result = BattleResult.VICTORY
-        battle.reached_wave = 30
+        battle.reached_wave = 10
         battle.elapsed_time = 900.0
         battle.clear_time = 880.0
         battle.coins = 40
@@ -623,8 +623,8 @@ class SaveStartupIntegrationTests(unittest.TestCase):
             acquired_guns=[False, True, False],
             upgrade_levels=[0, 4, 0],
             coins=321,
-            best_log=BestLog(reached_wave=15, elapsed_time=250.0),
-            recent_logs=[(15, 250.0)],
+            best_log=BestLog(reached_wave=10, elapsed_time=250.0),
+            recent_logs=[(10, 250.0)],
             training_records=[6],
         )
         with tempfile.TemporaryDirectory() as temp_dir:

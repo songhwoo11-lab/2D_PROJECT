@@ -17,6 +17,11 @@ from waves import (
 )
 
 
+class WaveConfigurationTests(unittest.TestCase):
+    def test_game_has_ten_waves(self):
+        self.assertEqual(TOTAL_WAVES, 10)
+
+
 class WaveCompositionTests(unittest.TestCase):
     def test_first_wave_is_all_basic_enemies(self):
         self.assertEqual(wave_enemy_count(1), 10)
@@ -42,27 +47,6 @@ class WaveCompositionTests(unittest.TestCase):
                 wave_enemy_count(wave),
                 wave * 10,
                 msg="wave {}".format(wave),
-            )
-
-    def test_ratios_repeat_every_ten_waves(self):
-        def ratios(wave):
-            composition = wave_composition(wave)
-            total = sum(composition.values())
-            return {
-                enemy_type: count / total
-                for enemy_type, count in composition.items()
-            }
-
-        for offset in range(10):
-            self.assertEqual(
-                ratios(1 + offset),
-                ratios(11 + offset),
-                msg="wave {} vs {}".format(1 + offset, 11 + offset),
-            )
-            self.assertEqual(
-                ratios(1 + offset),
-                ratios(21 + offset),
-                msg="wave {} vs {}".format(1 + offset, 21 + offset),
             )
 
     def test_every_wave_composition_sums_to_its_count(self):
@@ -99,16 +83,8 @@ class WaveStatMultiplierTests(unittest.TestCase):
         self.assertEqual(wave_stat_multiplier(1), 1)
         self.assertEqual(wave_stat_multiplier(9), 1)
 
-    def test_second_block_doubles_stats(self):
-        self.assertEqual(wave_stat_multiplier(10), 2)
-        self.assertEqual(wave_stat_multiplier(19), 2)
-
-    def test_third_block_quadruples_stats(self):
-        self.assertEqual(wave_stat_multiplier(20), 4)
-        self.assertEqual(wave_stat_multiplier(29), 4)
-
-    def test_final_wave_octuples_stats(self):
-        self.assertEqual(wave_stat_multiplier(30), 8)
+    def test_final_wave_doubles_stats(self):
+        self.assertEqual(wave_stat_multiplier(TOTAL_WAVES), 2)
 
 
 class WaveDirectorTests(unittest.TestCase):

@@ -31,8 +31,8 @@ class SaveIntegrationTests(unittest.TestCase):
             acquired_guns=[True, True, False],
             upgrade_levels=[0, 5, 10],
             coins=4321,
-            best_log=BestLog(reached_wave=30, elapsed_time=1000.0),
-            recent_logs=[(30, 1000.0), (18, 200.0)],
+            best_log=BestLog(reached_wave=10, elapsed_time=1000.0),
+            recent_logs=[(10, 1000.0), (9, 200.0)],
             training_records=[7, 9],
         )
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -59,8 +59,8 @@ class SaveIntegrationTests(unittest.TestCase):
 
     def test_record_updates_keep_best_and_recent_limits(self):
         state = GameState(coins=50)
-        state.add_record(BattleRecord(VICTORY, reached_wave=30, elapsed_time=1000.0))
-        for wave in range(1, 13):
+        state.add_record(BattleRecord(VICTORY, reached_wave=10, elapsed_time=1000.0))
+        for wave in range(1, 11):
             state.add_record(
                 BattleRecord("defeat", reached_wave=wave, elapsed_time=float(wave))
             )
@@ -69,7 +69,7 @@ class SaveIntegrationTests(unittest.TestCase):
         data = state.to_save_data()
 
         self.assertEqual(len(data.recent_logs), RECENT_LOG_LIMIT)
-        self.assertEqual(data.best_log, BestLog(30, 1000.0))
+        self.assertEqual(data.best_log, BestLog(10, 10.0))
         self.assertEqual(data.training_records, [15])
         with tempfile.TemporaryDirectory() as temp_dir:
             write_save_data(data, temp_dir)

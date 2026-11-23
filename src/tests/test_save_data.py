@@ -79,9 +79,9 @@ class DefaultSaveDataTests(unittest.TestCase):
         self.assertEqual(second.recent_logs, [])
 
     def test_best_log_stores_wave_and_time(self):
-        log = BestLog(reached_wave=30, elapsed_time=125.5)
+        log = BestLog(reached_wave=10, elapsed_time=125.5)
 
-        self.assertEqual(log.reached_wave, 30)
+        self.assertEqual(log.reached_wave, 10)
         self.assertEqual(log.elapsed_time, 125.5)
 
     def test_save_data_accepts_custom_values(self):
@@ -182,10 +182,10 @@ class BestLogFileTests(unittest.TestCase):
     def test_round_trip(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "BestLog.txt"
-            write_best_log(BestLog(reached_wave=30, elapsed_time=125.5), path)
+            write_best_log(BestLog(reached_wave=10, elapsed_time=125.5), path)
 
             loaded = read_best_log(path)
-            self.assertEqual(loaded.reached_wave, 30)
+            self.assertEqual(loaded.reached_wave, 10)
             self.assertEqual(loaded.elapsed_time, 125.5)
 
     def test_missing_record_uses_zero_sentinel(self):
@@ -323,14 +323,14 @@ class SaveDataValidationTests(unittest.TestCase):
 
 class RecordRankingTests(unittest.TestCase):
     def test_higher_wave_wins_even_with_a_longer_time(self):
-        best = select_best_log([(30, 900.0), (29, 100.0)])
+        best = select_best_log([(10, 900.0), (9, 100.0)])
 
-        self.assertEqual(best, BestLog(reached_wave=30, elapsed_time=900.0))
+        self.assertEqual(best, BestLog(reached_wave=10, elapsed_time=900.0))
 
     def test_equal_waves_use_the_shorter_time(self):
-        best = select_best_log([(20, 300.0), (20, 250.0), (19, 10.0)])
+        best = select_best_log([(10, 300.0), (10, 250.0), (9, 10.0)])
 
-        self.assertEqual(best, BestLog(reached_wave=20, elapsed_time=250.0))
+        self.assertEqual(best, BestLog(reached_wave=10, elapsed_time=250.0))
 
     def test_best_log_objects_are_accepted(self):
         best = select_best_log(
@@ -343,13 +343,15 @@ class RecordRankingTests(unittest.TestCase):
         self.assertIsNone(select_best_log([]))
 
     def test_recent_logs_are_limited_to_ten(self):
-        logs = [(wave, float(wave)) for wave in range(1, 15)]
+        logs = [(wave, float(wave)) for wave in range(1, 21)]
 
         self.assertEqual(limit_recent_logs(logs), logs[:RECENT_LOG_LIMIT])
 
     def test_written_recent_logs_are_limited(self):
         data = default_save_data()
-        data.recent_logs = [(wave, float(wave)) for wave in range(1, 15)]
+        data.recent_logs = [
+            (wave, float(wave)) for wave in range(1, 11)
+        ] + [(10, 10.0)]
         with tempfile.TemporaryDirectory() as temp_dir:
             write_save_data(data, temp_dir)
 
@@ -365,8 +367,8 @@ class GameStateSaveConversionTests(unittest.TestCase):
             acquired_guns=[False, True, True],
             upgrade_levels=[0, 2, 10],
             coins=700,
-            best_log=BestLog(reached_wave=30, elapsed_time=900.0),
-            recent_logs=[(30, 900.0), (12, 100.0)],
+            best_log=BestLog(reached_wave=10, elapsed_time=900.0),
+            recent_logs=[(10, 900.0), (9, 100.0)],
             training_records=[5, 8],
         )
 
@@ -378,7 +380,7 @@ class GameStateSaveConversionTests(unittest.TestCase):
         self.assertEqual(state.upgrade_level("machine_gun"), 10)
         self.assertEqual(state.coins, 700)
         self.assertEqual(state.selected_gun, "rifle")
-        self.assertEqual([record.reached_wave for record in state.records], [30, 12])
+        self.assertEqual([record.reached_wave for record in state.records], [10, 9])
         self.assertEqual(state.records[0].result, VICTORY)
         self.assertEqual(
             [record.targets_destroyed for record in state.training_records],
@@ -480,8 +482,8 @@ class GameFileStoreTests(unittest.TestCase):
             acquired_guns=[True, True, False],
             upgrade_levels=[0, 3, 10],
             coins=2500,
-            best_log=BestLog(reached_wave=21, elapsed_time=305.25),
-            recent_logs=[(21, 305.25), (12, 110.0)],
+            best_log=BestLog(reached_wave=10, elapsed_time=305.25),
+            recent_logs=[(10, 305.25), (9, 110.0)],
             training_records=[9, 14],
         )
         with tempfile.TemporaryDirectory() as temp_dir:

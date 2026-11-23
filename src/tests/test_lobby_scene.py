@@ -317,7 +317,7 @@ class LobbyLocationTests(unittest.TestCase):
             BattleRecord(result="defeat", reached_wave=3, elapsed_time=60.0)
         )
         self.state.add_record(
-            BattleRecord(result="victory", reached_wave=30, elapsed_time=900.0)
+            BattleRecord(result="victory", reached_wave=10, elapsed_time=900.0)
         )
 
         self.assertEqual(self.state.records[0].result, "victory")
