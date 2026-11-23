@@ -334,13 +334,18 @@ class BattleScenePortalTransitionTests(unittest.TestCase):
     def tearDown(self):
         game_world.clear()
 
-    def test_transition_starts_above_the_spawn_point_with_the_system_cursor(self):
+    def test_transition_starts_at_the_center_with_the_system_cursor(self):
         start_x, start_y = self.scene.portal_transition_start_position
-        end_x, end_y = self.scene.initial_player_position
+        end_x, end_y = self.scene.portal_transition_end_position
 
+        self.assertEqual(
+            self.scene.portal_transition_start_position,
+            self.scene.initial_player_position,
+        )
         self.assertTrue(self.scene.portal_transition_active)
         self.assertEqual((self.scene.player.x, self.scene.player.y), (start_x, start_y))
         self.assertGreater(start_y, end_y)
+        self.assertFalse(self.scene.portal_fade_active)
         self.assertFalse(self.scene.is_counting_down)
         self.assertFalse(self.scene.shows_aim_cursor)
         self.assertTrue(self.scene.shows_system_cursor)
@@ -348,7 +353,7 @@ class BattleScenePortalTransitionTests(unittest.TestCase):
 
     def test_transition_moves_down_and_decelerates_geometrically(self):
         start_y = self.scene.portal_transition_start_position[1]
-        end_y = self.scene.initial_player_position[1]
+        end_y = self.scene.portal_transition_end_position[1]
         total_distance = start_y - end_y
 
         self.scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS / 2)
@@ -360,17 +365,58 @@ class BattleScenePortalTransitionTests(unittest.TestCase):
         self.assertGreater(first_half_distance, second_half_distance * 3.0)
         self.assertGreater(first_half_distance, total_distance * 0.7)
         self.assertGreater(self.scene.portal_transition_angle, 0.0)
-        self.assertFalse(self.scene.portal_transition_active)
+        self.assertTrue(self.scene.portal_fade_active)
+        self.assertTrue(self.scene.portal_transition_active)
+        self.assertFalse(self.scene.is_counting_down)
 
-    def test_transition_starts_the_countdown_only_after_it_finishes(self):
+    def test_portal_fades_out_before_the_countdown_starts(self):
         self.scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS)
 
-        self.assertFalse(self.scene.portal_transition_active)
-        self.assertEqual((self.scene.player.x, self.scene.player.y),
-                         self.scene.initial_player_position)
+        self.assertEqual(
+            (self.scene.player.x, self.scene.player.y),
+            self.scene.portal_transition_end_position,
+        )
         self.assertIsNone(self.scene.player.render_angle)
         self.assertIsNone(self.scene.player.render_opacity)
         self.assertIsNone(self.scene.player.render_scale)
+        self.assertTrue(self.scene.portal_transition_active)
+        self.assertFalse(self.scene.is_counting_down)
+        camera_during_fade = (self.scene.camera.x, self.scene.camera.y)
+
+        self.scene.update(battle_scene.BATTLE_PORTAL_FADE_SECONDS / 2)
+
+        self.assertTrue(self.scene.portal_transition_active)
+        self.assertFalse(self.scene.is_counting_down)
+        self.assertFalse(self.scene.shows_aim_cursor)
+        self.assertTrue(self.scene.shows_system_cursor)
+        self.assertEqual((self.scene.camera.x, self.scene.camera.y), camera_during_fade)
+
+        self.scene.update(battle_scene.BATTLE_PORTAL_FADE_SECONDS / 2)
+
+        end_x, end_y = self.scene.portal_transition_end_position
+        expected_camera_y = min(
+            max(end_y - SCREEN_HEIGHT / 2, 0.0),
+            WORLD_HEIGHT - SCREEN_HEIGHT,
+        )
+        self.assertTrue(self.scene.portal_camera_pan_active)
+        self.assertEqual((self.scene.camera.x, self.scene.camera.y), camera_during_fade)
+        self.assertTrue(self.scene.portal_transition_active)
+        self.assertFalse(self.scene.portal_fade_active)
+        self.assertFalse(self.scene.is_counting_down)
+
+        self.scene.update(battle_scene.BATTLE_PORTAL_CAMERA_PAN_SECONDS / 2)
+
+        self.assertLess(self.scene.camera.y, camera_during_fade[1])
+        self.assertGreater(self.scene.camera.y, expected_camera_y)
+        self.assertTrue(self.scene.portal_camera_pan_active)
+        self.assertFalse(self.scene.is_counting_down)
+
+        self.scene.update(battle_scene.BATTLE_PORTAL_CAMERA_PAN_SECONDS / 2)
+
+        self.assertAlmostEqual(self.scene.camera.y, expected_camera_y)
+        self.assertFalse(self.scene.portal_camera_pan_active)
+        self.assertFalse(self.scene.portal_transition_active)
+        self.assertFalse(self.scene.portal_fade_active)
         self.assertTrue(self.scene.is_counting_down)
         self.assertEqual(self.scene.start_countdown_remaining, 3.0)
         self.assertTrue(self.scene.shows_aim_cursor)
@@ -380,6 +426,32 @@ class BattleScenePortalTransitionTests(unittest.TestCase):
 
         self.assertFalse(self.scene.is_counting_down)
         self.assertEqual(self.scene.wave_banner_text, "WAVE 1")
+
+    def test_fading_portal_image_becomes_transparent_then_is_restored(self):
+        portal_image = mock.MagicMock()
+        scene = make_portal_transition_scene(portal_image)
+        scene.player.image = mock.MagicMock()
+        scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS)
+        scene.update(battle_scene.BATTLE_PORTAL_FADE_SECONDS / 2)
+        portal_image.opacify.reset_mock()
+
+        scene.draw(lambda *args: None)
+
+        self.assertEqual(
+            portal_image.opacify.call_args_list,
+            [mock.call(0.5), mock.call(1.0)],
+        )
+
+    def test_portal_image_is_not_drawn_during_the_camera_pan(self):
+        portal_image = mock.MagicMock()
+        scene = make_portal_transition_scene(portal_image)
+        scene.player.image = mock.MagicMock()
+        scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS)
+        scene.update(battle_scene.BATTLE_PORTAL_FADE_SECONDS)
+
+        scene.draw(lambda *args: None)
+
+        portal_image.draw.assert_not_called()
 
     def test_transition_ignores_gameplay_input(self):
         self.scene.key_down("d")

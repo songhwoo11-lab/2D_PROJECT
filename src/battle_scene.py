@@ -70,6 +70,8 @@ BATTLE_PORTAL_EXIT_SECONDS = 3.0
 BATTLE_PORTAL_EXIT_ROTATIONS = 3.0
 BATTLE_PORTAL_EXIT_MOVE_DISTANCE = 360.0
 BATTLE_PORTAL_EXIT_SPEED_DECAY_RATE = 3.0
+BATTLE_PORTAL_FADE_SECONDS = 1.0
+BATTLE_PORTAL_CAMERA_PAN_SECONDS = 0.8
 BATTLE_PORTAL_IMAGE_WIDTH = 700
 BATTLE_PORTAL_IMAGE_HEIGHT = 660
 
@@ -182,15 +184,22 @@ class BattleScene:
         self.initial_player_position = (player.x, player.y)
         self.portal_transition_active = bool(portal_transition)
         self.portal_transition_elapsed = 0.0
+        self.portal_fade_active = False
+        self.portal_fade_elapsed = 0.0
+        self.portal_camera_pan_active = False
+        self.portal_camera_pan_elapsed = 0.0
+        self.portal_camera_pan_start = (0.0, 0.0)
+        self.portal_camera_pan_end = (0.0, 0.0)
         self.portal_transition_angle = 0.0
         self.portal_transition_opacity = 1.0
         self.portal_transition_scale = 1.0
-        self.portal_transition_start_position = (
+        self.portal_transition_start_position = self.initial_player_position
+        self.portal_transition_end_position = (
             self.initial_player_position[0],
-            min(
-                WORLD_HEIGHT - PLAYER_RADIUS,
+            max(
+                PLAYER_RADIUS,
                 self.initial_player_position[1]
-                + BATTLE_PORTAL_EXIT_MOVE_DISTANCE,
+                - BATTLE_PORTAL_EXIT_MOVE_DISTANCE,
             ),
         )
         self.keys = set()
@@ -639,6 +648,10 @@ class BattleScene:
     def reset_map(self):
         self.portal_transition_active = False
         self.portal_transition_elapsed = 0.0
+        self.portal_fade_active = False
+        self.portal_fade_elapsed = 0.0
+        self.portal_camera_pan_active = False
+        self.portal_camera_pan_elapsed = 0.0
         self.player.reset_render_transform()
         self.player.x, self.player.y = self.initial_player_position
         self.player.hp = self.player.max_hp
@@ -700,27 +713,79 @@ class BattleScene:
         ) / (math.exp(BATTLE_PORTAL_EXIT_SPEED_DECAY_RATE) - 1.0)
         return 1.0 - decay
 
+    def _camera_offset_for_position(self, world_x, world_y):
+        max_x = max(self.camera.world_width - self.camera.screen_width, 0.0)
+        max_y = max(self.camera.world_height - self.camera.screen_height, 0.0)
+        return (
+            min(max(world_x - self.camera.screen_width / 2, 0.0), max_x),
+            min(max(world_y - self.camera.screen_height / 2, 0.0), max_y),
+        )
+
+    def _update_portal_fade(self, delta_time):
+        self.portal_fade_elapsed = min(
+            BATTLE_PORTAL_FADE_SECONDS,
+            self.portal_fade_elapsed + delta_time,
+        )
+        self.camera.follow(*self.portal_transition_start_position)
+        self._update_player_view()
+        if self.portal_fade_elapsed < BATTLE_PORTAL_FADE_SECONDS:
+            return
+        self.portal_fade_active = False
+        self.portal_camera_pan_active = True
+        self.portal_camera_pan_elapsed = 0.0
+        self.portal_camera_pan_start = (self.camera.x, self.camera.y)
+        self.portal_camera_pan_end = self._camera_offset_for_position(
+            *self.portal_transition_end_position
+        )
+
+    def _update_portal_camera_pan(self, delta_time):
+        self.portal_camera_pan_elapsed = min(
+            BATTLE_PORTAL_CAMERA_PAN_SECONDS,
+            self.portal_camera_pan_elapsed + delta_time,
+        )
+        linear_progress = min(
+            max(self.portal_camera_pan_elapsed / BATTLE_PORTAL_CAMERA_PAN_SECONDS, 0.0),
+            1.0,
+        )
+        progress = linear_progress * linear_progress * (3.0 - 2.0 * linear_progress)
+        start_x, start_y = self.portal_camera_pan_start
+        end_x, end_y = self.portal_camera_pan_end
+        self.camera.x = start_x + (end_x - start_x) * progress
+        self.camera.y = start_y + (end_y - start_y) * progress
+        self._update_player_view()
+        if self.portal_camera_pan_elapsed < BATTLE_PORTAL_CAMERA_PAN_SECONDS:
+            return
+        self.camera.follow(*self.portal_transition_end_position)
+        self._update_player_view()
+        self.portal_camera_pan_active = False
+        self.portal_transition_active = False
+        self.start_countdown_remaining = BATTLE_START_COUNTDOWN_SECONDS
+
     def _update_portal_transition(self, delta_time):
+        if self.portal_camera_pan_active:
+            self._update_portal_camera_pan(delta_time)
+            return
+        if self.portal_fade_active:
+            self._update_portal_fade(delta_time)
+            return
         self.portal_transition_elapsed = min(
             BATTLE_PORTAL_EXIT_SECONDS,
             self.portal_transition_elapsed + delta_time,
         )
         progress = self._portal_transition_progress(self.portal_transition_elapsed)
         start_x, start_y = self.portal_transition_start_position
-        end_x, end_y = self.initial_player_position
+        end_x, end_y = self.portal_transition_end_position
         self.player.x = start_x + (end_x - start_x) * progress
         self.player.y = start_y + (end_y - start_y) * progress
         self._set_portal_player_transform(progress)
-        self.camera.follow(*self.initial_player_position)
+        self.camera.follow(*self.portal_transition_start_position)
         self._update_player_view()
         if self.portal_transition_elapsed < BATTLE_PORTAL_EXIT_SECONDS:
             return
-        self.portal_transition_active = False
-        self.player.x, self.player.y = self.initial_player_position
+        self.player.x, self.player.y = self.portal_transition_end_position
         self.player.reset_render_transform()
-        self.start_countdown_remaining = BATTLE_START_COUNTDOWN_SECONDS
-        self.camera.follow(*self.initial_player_position)
-        self._update_player_view()
+        self.portal_fade_active = True
+        self.portal_fade_elapsed = 0.0
 
     def update(self, delta_time):
         if self.finished or self.paused:
@@ -872,13 +937,32 @@ class BattleScene:
             WORLD_HEIGHT,
         )
         if self.portal_transition_active:
-            if self.portal_image is not None:
-                self.portal_image.draw(
-                    SCREEN_WIDTH / 2,
-                    SCREEN_HEIGHT / 2,
-                    BATTLE_PORTAL_IMAGE_WIDTH,
-                    BATTLE_PORTAL_IMAGE_HEIGHT,
-                )
+            if self.portal_image is not None and not self.portal_camera_pan_active:
+                portal_opacity = 1.0
+                if self.portal_fade_active:
+                    portal_opacity = 1.0 - min(
+                        max(self.portal_fade_elapsed / BATTLE_PORTAL_FADE_SECONDS, 0.0),
+                        1.0,
+                    )
+                opacify = getattr(self.portal_image, "opacify", None)
+                if portal_opacity < 1.0 and opacify is not None:
+                    opacify(portal_opacity)
+                    try:
+                        self.portal_image.draw(
+                            SCREEN_WIDTH / 2,
+                            SCREEN_HEIGHT / 2,
+                            BATTLE_PORTAL_IMAGE_WIDTH,
+                            BATTLE_PORTAL_IMAGE_HEIGHT,
+                        )
+                    finally:
+                        opacify(1.0)
+                else:
+                    self.portal_image.draw(
+                        SCREEN_WIDTH / 2,
+                        SCREEN_HEIGHT / 2,
+                        BATTLE_PORTAL_IMAGE_WIDTH,
+                        BATTLE_PORTAL_IMAGE_HEIGHT,
+                    )
             game_world.render(self._is_visible_on_screen)
             return
 
