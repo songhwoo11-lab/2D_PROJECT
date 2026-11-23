@@ -18,8 +18,9 @@ from lobby_scene import (
     GUN_SELECT_LOCK_COLOR,
     GUN_SELECT_LOCK_KEYHOLE_COLOR,
     GUN_SELECT_SELECTED_SLOT_SIZE,
-    GUN_SELECT_STATE_DISABLED_COLOR,
-    GUN_SELECT_STATE_DISABLED_TEXT_COLOR,
+    GUN_SELECT_STATE_FIRST_ROW_OFFSET,
+    GUN_SELECT_STATE_ROW_GAP,
+    GUN_SELECT_STATE_TEXT_COLOR,
     GUN_SELECT_UNSELECTED_SLOT_SIZE,
     LobbyScene,
     PORTAL_ENTRY_SECONDS,
@@ -30,11 +31,13 @@ from lobby_scene import (
     RECORDS_BOOK_PAPER_TOP_IMAGE_Y,
     gun_select_card_rect,
     gun_select_exit_button_rect,
-    gun_select_state_button_rect,
+    gun_select_stat_row_y,
+    gun_select_stat_rows,
     records_exit_button_rect,
 )
 from player import Player
 from shop import GUN_SHOP_ORDER
+from weapon import RIFLE_GUN_ID
 
 
 def make_scene():
@@ -571,7 +574,7 @@ class LobbyGunSelectCardTests(unittest.TestCase):
         left, bottom, right, top = rect
         self.scene.mouse_down("left", (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2)
 
-    def test_draw_shows_three_cards_with_state_buttons(self):
+    def test_draw_shows_state_rows_on_each_card(self):
         rectangles = []
         with patch("lobby_scene.draw_centered_text"), patch(
             "lobby_scene.draw_text_at_center"
@@ -579,11 +582,42 @@ class LobbyGunSelectCardTests(unittest.TestCase):
             self.scene.draw(lambda *args: rectangles.append(args))
 
         labels = [call.args[3] for call in text_draw.call_args_list]
-        self.assertEqual(labels.count("State"), 3)
+        self.assertNotIn("State", labels)
+        for gun_id in self.state.owned_guns:
+            level = self.state.upgrade_level(gun_id)
+            for label, value in gun_select_stat_rows(gun_id, level):
+                self.assertIn("{} {}".format(label, value), labels)
         card_rects = [tuple(gun_select_card_rect(index)) for index in range(3)]
         drawn_rects = {tuple(args[:4]) for args in rectangles}
         for card in card_rects:
             self.assertIn(card, drawn_rects)
+
+    def test_state_rows_omit_the_name_row(self):
+        labels = [label for label, _ in gun_select_stat_rows("pistol", 0)]
+
+        self.assertNotIn("NAME", labels)
+
+    def test_state_rows_layout_uses_offset_70_and_gap_40(self):
+        self.assertEqual(GUN_SELECT_STATE_FIRST_ROW_OFFSET, 70)
+        self.assertEqual(GUN_SELECT_STATE_ROW_GAP, 40)
+
+    def test_all_guns_share_rifle_absolute_y_positions(self):
+        reference_height = GUN_SELECT_IMAGE_SIZES[RIFLE_GUN_ID][1]
+        reference_bottom = GUN_SELECT_IMAGE_Y - reference_height / 2
+
+        self.assertEqual(gun_select_stat_row_y(0), 584)
+        for gun_id in GUN_SHOP_ORDER:
+            row_count = len(gun_select_stat_rows(gun_id, 0))
+            self.assertEqual(
+                reference_bottom - GUN_SELECT_STATE_FIRST_ROW_OFFSET,
+                gun_select_stat_row_y(0),
+            )
+            for row_index in range(1, row_count):
+                self.assertEqual(
+                    gun_select_stat_row_y(row_index - 1)
+                    - gun_select_stat_row_y(row_index),
+                    GUN_SELECT_STATE_ROW_GAP,
+                )
 
     def test_gun_selection_does_not_show_bottom_key_hints(self):
         with patch("lobby_scene.draw_centered_text") as centered_text, patch(
@@ -601,26 +635,39 @@ class LobbyGunSelectCardTests(unittest.TestCase):
             )
         )
 
-    def test_state_button_is_raised_twenty_pixels_and_keeps_its_size(self):
-        left, bottom, right, top = gun_select_state_button_rect(0)
-        card_left = gun_select_card_rect(0)[0]
-
-        self.assertEqual(left, card_left + 28)
-        self.assertEqual((bottom, top), (352, 437))
-        self.assertEqual(right - left, 415)
-        self.assertEqual(top - bottom, 85)
-
+    def test_state_rows_are_drawn_at_rifle_baseline_y_positions(self):
         with patch("lobby_scene.draw_centered_text"), patch(
             "lobby_scene.draw_text_at_center"
         ) as text_draw:
             self.scene.draw(lambda *args: None)
 
-        state_labels = [
-            call for call in text_draw.call_args_list if call.args[3] == "State"
-        ]
-        self.assertEqual(len(state_labels), 3)
-        for label in state_labels:
-            self.assertEqual(label.args[2], 394)
+        calls = text_draw.call_args_list
+        reference_height = GUN_SELECT_IMAGE_SIZES[RIFLE_GUN_ID][1]
+        reference_bottom = GUN_SELECT_IMAGE_Y - reference_height / 2
+        for gun_id in self.state.owned_guns:
+            index = GUN_SHOP_ORDER.index(gun_id)
+            left, _, right, _ = gun_select_card_rect(index)
+            center_x = (left + right) / 2
+            level = self.state.upgrade_level(gun_id)
+            for row_index, (label, value) in enumerate(
+                gun_select_stat_rows(gun_id, level)
+            ):
+                expected_y = gun_select_stat_row_y(row_index)
+                self.assertLess(expected_y, reference_bottom)
+                self.assertEqual(
+                    expected_y,
+                    reference_bottom
+                    - GUN_SELECT_STATE_FIRST_ROW_OFFSET
+                    - row_index * GUN_SELECT_STATE_ROW_GAP,
+                )
+                matching = [
+                    call
+                    for call in calls
+                    if call.args[1] == center_x
+                    and call.args[2] == expected_y
+                    and call.args[3] == "{} {}".format(label, value)
+                ]
+                self.assertEqual(len(matching), 1)
 
     def test_exit_button_is_in_the_bottom_right(self):
         left, bottom, right, top = gun_select_exit_button_rect()
@@ -648,12 +695,9 @@ class LobbyGunSelectCardTests(unittest.TestCase):
         self.assertEqual(self.scene.gun_select_hover_target, ("exit", None))
 
     def test_clicking_exit_button_returns_to_the_lobby(self):
-        self.scene.gun_state_panel_gun_id = "pistol"
-
         self.click_rect(gun_select_exit_button_rect())
 
         self.assertIsNone(self.scene.panel)
-        self.assertIsNone(self.scene.gun_state_panel_gun_id)
         self.assertIsNone(self.scene.pending_action)
         self.assertEqual(self.state.selected_gun, "pistol")
 
@@ -729,53 +773,69 @@ class LobbyGunSelectCardTests(unittest.TestCase):
         self.assertEqual(self.scene.panel, "gun_select")
         self.assertIsNone(self.scene.pending_action)
 
-    def test_state_button_opens_the_state_panel_without_starting_the_battle(self):
-        self.click_rect(gun_select_state_button_rect(GUN_SHOP_ORDER.index("pistol")))
-
-        self.assertEqual(self.scene.gun_state_panel_gun_id, "pistol")
-        self.assertEqual(self.scene.panel, "gun_select")
-        self.assertIsNone(self.scene.pending_action)
-
+    def test_state_rows_are_visible_without_a_state_panel(self):
         with patch("lobby_scene.draw_centered_text"), patch(
             "lobby_scene.draw_text_at_center"
         ) as text_draw:
             self.scene.draw(lambda *args: None)
 
         labels = [call.args[3] for call in text_draw.call_args_list]
-        self.assertIn("STATE - PISTOL", labels)
-        self.assertFalse(
-            any(label.startswith("STARTING AMMO") for label in labels)
-        )
-
-    def test_locked_gun_state_button_does_not_open_the_state_panel(self):
-        self.click_rect(gun_select_state_button_rect(GUN_SHOP_ORDER.index("machine_gun")))
-
-        self.assertIsNone(self.scene.gun_state_panel_gun_id)
+        self.assertFalse(any(label.startswith("STATE - ") for label in labels))
+        self.assertFalse(any(label.startswith("NAME ") for label in labels))
+        self.assertFalse(any(label.startswith("STARTING AMMO") for label in labels))
         self.assertEqual(self.scene.panel, "gun_select")
         self.assertIsNone(self.scene.pending_action)
 
-    def test_locked_gun_state_button_is_drawn_as_disabled(self):
+    def test_locked_gun_state_rows_are_hidden(self):
         index = GUN_SHOP_ORDER.index("machine_gun")
-        button_rect = tuple(gun_select_state_button_rect(index))
-        rectangles = []
+        left, _, right, _ = gun_select_card_rect(index)
+        center_x = (left + right) / 2
+        gun_id = GUN_SHOP_ORDER[index]
+        level = self.state.upgrade_level(gun_id)
+
         with patch("lobby_scene.draw_centered_text"), patch(
             "lobby_scene.draw_text_at_center"
         ) as text_draw:
-            self.scene.draw(lambda *args: rectangles.append(args))
+            self.scene.draw(lambda *args: None)
 
-        disabled_button = button_rect + GUN_SELECT_STATE_DISABLED_COLOR + (255, True)
-        self.assertIn(disabled_button, [tuple(args) for args in rectangles])
+        calls = text_draw.call_args_list
+        for row_index, (label, value) in enumerate(
+            gun_select_stat_rows(gun_id, level)
+        ):
+            matching = [
+                call
+                for call in calls
+                if call.args[1] == center_x
+                and call.args[2] == gun_select_stat_row_y(row_index)
+                and call.args[3] == "{} {}".format(label, value)
+            ]
+            self.assertEqual(len(matching), 0)
 
-        center_x = (button_rect[0] + button_rect[2]) / 2
-        state_labels = [
-            call
-            for call in text_draw.call_args_list
-            if call.args[3] == "State" and call.args[1] == center_x
-        ]
-        self.assertEqual(len(state_labels), 1)
-        self.assertEqual(
-            state_labels[0].args[4], GUN_SELECT_STATE_DISABLED_TEXT_COLOR
-        )
+    def test_owned_gun_state_rows_use_default_text_color(self):
+        index = GUN_SHOP_ORDER.index("pistol")
+        left, _, right, _ = gun_select_card_rect(index)
+        center_x = (left + right) / 2
+        gun_id = GUN_SHOP_ORDER[index]
+        level = self.state.upgrade_level(gun_id)
+
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: None)
+
+        calls = text_draw.call_args_list
+        for row_index, (label, value) in enumerate(
+            gun_select_stat_rows(gun_id, level)
+        ):
+            matching = [
+                call
+                for call in calls
+                if call.args[1] == center_x
+                and call.args[2] == gun_select_stat_row_y(row_index)
+                and call.args[3] == "{} {}".format(label, value)
+            ]
+            self.assertEqual(len(matching), 1)
+            self.assertEqual(matching[0].args[4], GUN_SELECT_STATE_TEXT_COLOR)
 
     def test_locked_gun_image_is_translucent(self):
         image = MagicMock()

@@ -21,7 +21,7 @@ from lobby_map import (
     LOBBY_START_KEY,
 )
 from shop import GUN_SHOP_ORDER
-from weapon import weapon_display_name, weapon_stats_at_level
+from weapon import RIFLE_GUN_ID, weapon_display_name, weapon_stats_at_level
 
 
 PORTAL_ENTRY_SECONDS = 3.0
@@ -48,12 +48,9 @@ GUN_SELECT_CARD_BOTTOM = 320
 GUN_SELECT_CARD_TOP = GUN_SELECT_CARD_BOTTOM + GUN_SELECT_CARD_HEIGHT
 GUN_SELECT_NAME_Y = GUN_SELECT_CARD_TOP - 48
 GUN_SELECT_IMAGE_Y = 710
-GUN_SELECT_STATE_BUTTON_WIDTH = 415
-GUN_SELECT_STATE_BUTTON_BOTTOM = 352
-GUN_SELECT_STATE_BUTTON_TOP = 437
-GUN_SELECT_STATE_BUTTON_TEXT_Y = 394
-GUN_SELECT_STATE_DISABLED_COLOR = (35, 40, 50)
-GUN_SELECT_STATE_DISABLED_TEXT_COLOR = (110, 110, 110)
+GUN_SELECT_STATE_FIRST_ROW_OFFSET = 70
+GUN_SELECT_STATE_ROW_GAP = 40
+GUN_SELECT_STATE_TEXT_COLOR = (255, 255, 255)
 GUN_SELECT_LOCKED_OPACITY = 0.5
 GUN_SELECT_LOCK_COLOR = (85, 85, 90, 255)
 GUN_SELECT_LOCK_KEYHOLE_COLOR = (40, 40, 45, 255)
@@ -83,40 +80,11 @@ GUN_SELECT_IMAGE_SIZES = {
     "machine_gun": (320, 78),
 }
 
-GUN_SELECT_STATE_PANEL_WIDTH = 760
-GUN_SELECT_STATE_PANEL_BOTTOM = 450
-GUN_SELECT_STATE_PANEL_TOP = 900
-GUN_SELECT_STATE_PANEL_TITLE_Y = 850
-GUN_SELECT_STATE_PANEL_ROW_TOP = 790
-GUN_SELECT_STATE_PANEL_ROW_GAP = 50
-
-
 def gun_select_card_rect(index):
     left = GUN_SELECT_CARD_LEFT + index * (
         GUN_SELECT_CARD_WIDTH + GUN_SELECT_CARD_GAP
     )
     return left, GUN_SELECT_CARD_BOTTOM, left + GUN_SELECT_CARD_WIDTH, GUN_SELECT_CARD_TOP
-
-
-def gun_select_state_button_rect(index):
-    card_left = gun_select_card_rect(index)[0]
-    left = card_left + (GUN_SELECT_CARD_WIDTH - GUN_SELECT_STATE_BUTTON_WIDTH) // 2
-    return (
-        left,
-        GUN_SELECT_STATE_BUTTON_BOTTOM,
-        left + GUN_SELECT_STATE_BUTTON_WIDTH,
-        GUN_SELECT_STATE_BUTTON_TOP,
-    )
-
-
-def gun_select_state_panel_rect():
-    left = (SCREEN_WIDTH - GUN_SELECT_STATE_PANEL_WIDTH) // 2
-    return (
-        left,
-        GUN_SELECT_STATE_PANEL_BOTTOM,
-        left + GUN_SELECT_STATE_PANEL_WIDTH,
-        GUN_SELECT_STATE_PANEL_TOP,
-    )
 
 
 def gun_select_exit_button_rect():
@@ -142,13 +110,22 @@ def rect_contains(rect, x, y):
 def gun_select_stat_rows(gun_id, level):
     spec = weapon_stats_at_level(gun_id, level)
     return (
-        ("NAME", spec.name.upper()),
         ("LEVEL", str(level)),
         ("DAMAGE", str(spec.damage)),
         ("FIRE INTERVAL", "{:.3f}s".format(spec.fire_interval_seconds)),
         ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
         ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
         ("MAGAZINE SIZE", str(spec.magazine_size)),
+    )
+
+
+def gun_select_stat_row_y(row_index):
+    reference_height = GUN_SELECT_IMAGE_SIZES[RIFLE_GUN_ID][1]
+    return (
+        GUN_SELECT_IMAGE_Y
+        - reference_height / 2
+        - GUN_SELECT_STATE_FIRST_ROW_OFFSET
+        - row_index * GUN_SELECT_STATE_ROW_GAP
     )
 
 
@@ -201,7 +178,6 @@ class LobbyScene:
         self.panel = None
         self.gun_selection_index = 0
         self.gun_select_pending_gun_id = None
-        self.gun_state_panel_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
         self.records_hover_exit = False
@@ -349,7 +325,6 @@ class LobbyScene:
             self._draw_gun_select_card(
                 draw_rectangle, index, gun_id, selected_gun_id
             )
-        self._draw_gun_state_panel(draw_rectangle)
         self._draw_gun_select_exit_button(draw_rectangle)
 
     def _selected_gun_id(self):
@@ -398,7 +373,7 @@ class LobbyScene:
             self.hud_font, center_x, GUN_SELECT_NAME_Y, weapon_display_name(gun_id), name_color
         )
         self._draw_gun_select_image(draw_rectangle, gun_id, center_x, owned)
-        self._draw_gun_select_state_button(draw_rectangle, index, owned)
+        self._draw_gun_select_stats(gun_id, center_x, owned)
 
     def _draw_gun_select_image(self, draw_rectangle, gun_id, center_x, owned):
         image = self.gun_images.get(gun_id)
@@ -467,47 +442,17 @@ class LobbyScene:
             True,
         )
 
-    def _draw_gun_select_state_button(self, draw_rectangle, index, available):
-        left, bottom, right, top = gun_select_state_button_rect(index)
-        if not available:
-            color = GUN_SELECT_STATE_DISABLED_COLOR
-            text_color = GUN_SELECT_STATE_DISABLED_TEXT_COLOR
-        else:
-            hovered = self.gun_select_hover_target == ("state", index)
-            color = (90, 120, 150) if hovered else (62, 74, 96)
-            text_color = (255, 255, 255)
-        draw_rectangle(left, bottom, right, top, *color, 255, True)
-        draw_text_at_center(
-            self.hud_font,
-            (left + right) / 2,
-            GUN_SELECT_STATE_BUTTON_TEXT_Y,
-            "State",
-            text_color,
-        )
-
-    def _draw_gun_state_panel(self, draw_rectangle):
-        gun_id = self.gun_state_panel_gun_id
-        if gun_id is None:
+    def _draw_gun_select_stats(self, gun_id, center_x, owned):
+        if not owned:
             return
-        left, bottom, right, top = gun_select_state_panel_rect()
-        center_x = (left + right) / 2
-
-        draw_rectangle(left, bottom, right, top, 20, 24, 34, 245, True)
-        draw_rectangle(left, bottom, right, top, 255, 220, 100, 255, False)
-        draw_text_at_center(
-            self.hud_font,
-            center_x,
-            GUN_SELECT_STATE_PANEL_TITLE_Y,
-            "STATE - {}".format(weapon_display_name(gun_id)),
-            (255, 220, 100),
-        )
         level = self.state.upgrade_level(gun_id) if self.state is not None else 0
         for row_index, (label, value) in enumerate(gun_select_stat_rows(gun_id, level)):
             draw_text_at_center(
                 self.hud_font,
                 center_x,
-                GUN_SELECT_STATE_PANEL_ROW_TOP - row_index * GUN_SELECT_STATE_PANEL_ROW_GAP,
+                gun_select_stat_row_y(row_index),
                 "{} {}".format(label, value),
+                GUN_SELECT_STATE_TEXT_COLOR,
             )
 
     def _draw_gun_select_exit_button(self, draw_rectangle):
@@ -835,7 +780,6 @@ class LobbyScene:
         self.panel = "gun_select"
         self.gun_selection_index = 0
         self.gun_select_pending_gun_id = None
-        self.gun_state_panel_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
         if self.state is None:
@@ -882,7 +826,6 @@ class LobbyScene:
         """Close the panel that is currently open."""
         self.panel = None
         self.gun_select_pending_gun_id = None
-        self.gun_state_panel_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
         self.records_hover_exit = False
@@ -894,15 +837,6 @@ class LobbyScene:
         canvas_y = SCREEN_HEIGHT - screen_y
         if rect_contains(gun_select_exit_button_rect(), screen_x, canvas_y):
             return ("exit", None)
-        if self.gun_state_panel_gun_id is not None and rect_contains(
-            gun_select_state_panel_rect(), screen_x, canvas_y
-        ):
-            return ("state_panel", None)
-        for index, gun_id in enumerate(GUN_SHOP_ORDER):
-            if self.state is None or not self.state.owns_gun(gun_id):
-                continue
-            if rect_contains(gun_select_state_button_rect(index), screen_x, canvas_y):
-                return ("state", index)
         for index in range(len(GUN_SHOP_ORDER)):
             if rect_contains(gun_select_card_rect(index), screen_x, canvas_y):
                 return ("gun", index)
@@ -930,7 +864,7 @@ class LobbyScene:
         target = self._gun_select_target_at(screen_x, screen_y)
         self.gun_select_hover_target = target
         self.gun_select_hover_index = (
-            target[1] if target is not None and target[0] in ("gun", "state") else None
+            target[1] if target is not None and target[0] == "gun" else None
         )
         if self.state is None or self.gun_select_hover_index is None:
             return
@@ -954,24 +888,16 @@ class LobbyScene:
         if target is not None and target[0] == "exit":
             self.close_panel()
             return None
-        if self.gun_state_panel_gun_id is not None:
-            self.gun_state_panel_gun_id = None
-            if target is None or target[0] == "state_panel":
-                return None
-        if target is None or target[0] == "state_panel":
+        if target is None:
             return None
-        if target[0] == "state":
-            self.gun_state_panel_gun_id = GUN_SHOP_ORDER[target[1]]
+        gun_id = GUN_SHOP_ORDER[target[1]]
+        if self.state is None or not self.state.owns_gun(gun_id):
             return None
-        if target[0] == "gun":
-            gun_id = GUN_SHOP_ORDER[target[1]]
-            if self.state is None or not self.state.owns_gun(gun_id):
-                return None
-            if self.gun_select_pending_gun_id == gun_id:
-                self._confirm_gun_selection(gun_id)
-            else:
-                self.gun_select_pending_gun_id = gun_id
-                self.gun_selection_index = self.state.owned_guns.index(gun_id)
+        if self.gun_select_pending_gun_id == gun_id:
+            self._confirm_gun_selection(gun_id)
+        else:
+            self.gun_select_pending_gun_id = gun_id
+            self.gun_selection_index = self.state.owned_guns.index(gun_id)
         return None
 
     def mouse_up(self, button):
