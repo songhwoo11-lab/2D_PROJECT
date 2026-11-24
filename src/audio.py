@@ -13,6 +13,12 @@ MIXER_MAX_VOLUME = 128
 
 SOUND_DIRECTORY = Path(__file__).resolve().parent.parent / "sound"
 LOBBY_MUSIC_FILE = "lobby bgm.mp3"
+SHOP_MUSIC_FILE = "shop bgm.mp3"
+
+MUSIC_BY_SCENE = {
+    "lobby": LOBBY_MUSIC_FILE,
+    "shop": SHOP_MUSIC_FILE,
+}
 
 
 def clamp_volume(volume):

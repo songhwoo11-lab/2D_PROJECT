@@ -6,7 +6,7 @@ import pico2d
 
 from audio import (
     AudioManager,
-    LOBBY_MUSIC_FILE,
+    MUSIC_BY_SCENE,
     MAX_VOLUME,
     MIN_VOLUME,
     VOLUME_STEP,
@@ -522,8 +522,9 @@ class GameApp:
         else:
             raise ValueError("unknown scene: {}".format(kind))
         self.scene_kind = kind
-        if kind == "lobby":
-            self.audio.play(LOBBY_MUSIC_FILE)
+        music_file = MUSIC_BY_SCENE.get(kind)
+        if music_file is not None:
+            self.audio.play(music_file)
 
     def create_shop_scene(self):
         return ShopScene(

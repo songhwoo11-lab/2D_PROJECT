@@ -8,6 +8,7 @@ from audio import (
     LOBBY_MUSIC_FILE,
     MAX_VOLUME,
     MIN_VOLUME,
+    SHOP_MUSIC_FILE,
     VOLUME_STEP,
 )
 from battle_record import BattleRecord
@@ -203,10 +204,18 @@ class SceneSwitchTests(unittest.TestCase):
         self.app.audio.stop.assert_called_once_with()
         self.app.audio.play.assert_called_once_with(LOBBY_MUSIC_FILE)
 
-    def test_switching_away_from_the_lobby_stops_music(self):
+    def test_switching_to_the_shop_plays_the_shop_track(self):
         self.app.audio = Mock()
 
         self.app.switch_scene("shop")
+
+        self.app.audio.stop.assert_called_once_with()
+        self.app.audio.play.assert_called_once_with(SHOP_MUSIC_FILE)
+
+    def test_switching_to_a_scene_without_music_only_stops_the_previous_track(self):
+        self.app.audio = Mock()
+
+        self.app.switch_scene("battle")
 
         self.app.audio.stop.assert_called_once_with()
         self.app.audio.play.assert_not_called()

@@ -5,6 +5,7 @@ from audio import (
     DEFAULT_VOLUME,
     LOBBY_MUSIC_FILE,
     MAX_VOLUME,
+    SHOP_MUSIC_FILE,
     MIN_VOLUME,
     clamp_volume,
     to_mixer_volume,
@@ -68,6 +69,13 @@ class AudioManagerTests(unittest.TestCase):
         self.assertEqual(self.music.repeat_count, 1)
         self.assertEqual(self.music.volumes, [64])
 
+    def test_playing_shop_music_loads_the_requested_file(self):
+        self.assertTrue(self.manager.play(SHOP_MUSIC_FILE))
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertTrue(self.paths[0].endswith("sound\\" + SHOP_MUSIC_FILE))
+        self.assertEqual(self.manager.current_music_name, SHOP_MUSIC_FILE)
+
     def test_same_track_is_not_restarted(self):
         self.manager.play(LOBBY_MUSIC_FILE)
         self.manager.play(LOBBY_MUSIC_FILE)
@@ -87,13 +95,13 @@ class AudioManagerTests(unittest.TestCase):
         original_loader = self.manager.loader
 
         def loader(path):
-            if path.endswith("shop.mp3"):
+            if path.endswith(SHOP_MUSIC_FILE):
                 return second_music
             return original_loader(path)
 
         self.manager.set_loader(loader)
         self.manager.play(LOBBY_MUSIC_FILE)
-        self.manager.play("shop.mp3")
+        self.manager.play(SHOP_MUSIC_FILE)
 
         self.manager.set_volume(100)
 
