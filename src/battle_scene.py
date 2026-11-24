@@ -7,6 +7,7 @@ import random
 import pico2d
 
 from arrow import Arrow
+from audio import BATTLE_MUSIC_FILE
 import battle_record
 from bullet import Bullet
 from enemy import (
@@ -160,6 +161,7 @@ class BattleScene:
         gun_images=None,
         portal_image=None,
         portal_transition=False,
+        audio=None,
     ):
         self.player = player
         self.gun = gun
@@ -181,6 +183,8 @@ class BattleScene:
         self.health_image = health_image
         self.cooling_image = cooling_image
         self.portal_image = portal_image
+        self.audio = audio
+        self._wave_music_started = False
         self.initial_player_position = (player.x, player.y)
         self.portal_transition_active = bool(portal_transition)
         self.portal_transition_elapsed = 0.0
@@ -245,6 +249,7 @@ class BattleScene:
         else:
             self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
+        self._start_battle_music()
 
     def close(self):
         game_world.clear()
@@ -273,6 +278,20 @@ class BattleScene:
         )
         game_world.add_object(enemy, depth=1)
         return enemy
+
+    def _start_battle_music(self):
+        if self.audio is None or self._wave_music_started:
+            return
+        if self.finished or self.paused or self.portal_transition_active:
+            return
+        self._wave_music_started = True
+        self.audio.play(BATTLE_MUSIC_FILE)
+
+    def _stop_battle_music(self):
+        if self.audio is None or not self._wave_music_started:
+            return
+        self._wave_music_started = False
+        self.audio.stop()
 
     def _announce_wave(self):
         wave = self.wave_director.current_wave
@@ -462,6 +481,9 @@ class BattleScene:
             self.paused = not self.paused
             if self.paused:
                 self.pause_menu_index = 0
+                self._stop_battle_music()
+            else:
+                self._start_battle_music()
             return
         if self.paused:
             if key in ("w", "up"):
@@ -487,6 +509,7 @@ class BattleScene:
     def _select_pause_menu_item(self):
         if self.pause_menu_index == 0:
             self.paused = False
+            self._start_battle_music()
         else:
             self._finish(BattleResult.QUIT)
 
@@ -496,6 +519,7 @@ class BattleScene:
         self.finished = True
         self.result = result
         self.paused = False
+        self._stop_battle_music()
         if result is BattleResult.VICTORY:
             self.clear_time = self.elapsed_time
 
@@ -646,6 +670,7 @@ class BattleScene:
             game_world.remove_object(enemy)
 
     def reset_map(self):
+        self._stop_battle_music()
         self.portal_transition_active = False
         self.portal_transition_elapsed = 0.0
         self.portal_fade_active = False
@@ -693,6 +718,7 @@ class BattleScene:
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
+        self._start_battle_music()
 
     def _set_portal_player_transform(self, progress):
         self.portal_transition_angle = (
@@ -787,6 +813,7 @@ class BattleScene:
         self.portal_camera_pan_active = False
         self.portal_transition_active = False
         self.start_countdown_remaining = BATTLE_START_COUNTDOWN_SECONDS
+        self._start_battle_music()
 
     def _update_portal_transition(self, delta_time):
         if self.portal_camera_pan_active:
@@ -821,6 +848,7 @@ class BattleScene:
         if self.finished or self.paused:
             return
         if self.portal_transition_active:
+            self._stop_battle_music()
             self._update_portal_transition(delta_time)
             return
         if self.is_counting_down:

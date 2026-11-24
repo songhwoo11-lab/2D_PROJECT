@@ -2,11 +2,13 @@ import unittest
 
 from audio import (
     AudioManager,
+    BATTLE_MUSIC_FILE,
     DEFAULT_VOLUME,
     LOBBY_MUSIC_FILE,
     MAX_VOLUME,
     SHOP_MUSIC_FILE,
     MIN_VOLUME,
+    MUSIC_BY_SCENE,
     clamp_volume,
     to_mixer_volume,
 )
@@ -34,6 +36,9 @@ class VolumeConversionTests(unittest.TestCase):
 
     def test_volume_range_is_zero_to_one_hundred(self):
         self.assertEqual((MIN_VOLUME, MAX_VOLUME), (0, 100))
+
+    def test_battle_music_is_not_started_by_the_scene_mapping(self):
+        self.assertNotIn("battle", MUSIC_BY_SCENE)
 
     def test_clamp_volume_keeps_values_inside_the_range(self):
         self.assertEqual(clamp_volume(-1), 0)
@@ -75,6 +80,13 @@ class AudioManagerTests(unittest.TestCase):
         self.assertEqual(len(self.paths), 1)
         self.assertTrue(self.paths[0].endswith("sound\\" + SHOP_MUSIC_FILE))
         self.assertEqual(self.manager.current_music_name, SHOP_MUSIC_FILE)
+
+    def test_playing_battle_music_loads_the_requested_file(self):
+        self.assertTrue(self.manager.play(BATTLE_MUSIC_FILE))
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertTrue(self.paths[0].endswith("sound\\" + BATTLE_MUSIC_FILE))
+        self.assertEqual(self.manager.current_music_name, BATTLE_MUSIC_FILE)
 
     def test_same_track_is_not_restarted(self):
         self.manager.play(LOBBY_MUSIC_FILE)

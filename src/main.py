@@ -499,6 +499,7 @@ class GameApp:
             portal_transition=portal_transition,
             total_waves=development_total_waves(),
             wave_spawn_rate=development_spawn_rate(),
+            audio=self.audio,
         )
 
     def switch_scene(self, kind, portal_transition=False):

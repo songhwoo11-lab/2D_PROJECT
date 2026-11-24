@@ -3,6 +3,7 @@ import random
 import unittest
 from unittest import mock
 
+from audio import BATTLE_MUSIC_FILE
 from battle_scene import BattleResult, BattleScene
 import battle_scene
 from enemy import Enemy, EnemyType
@@ -64,6 +65,17 @@ class FakeFont:
         pass
 
 
+class RecordingAudio:
+    def __init__(self):
+        self.events = []
+
+    def play(self, name):
+        self.events.append(("play", name))
+
+    def stop(self):
+        self.events.append(("stop",))
+
+
 class StubRandom:
     def __init__(self, coin=1, roll=1.0):
         self.coin = coin
@@ -92,7 +104,7 @@ class SequenceStubRandom(StubRandom):
         return self.roll
 
 
-def make_scene(total_waves, spawn_rate, skip_countdown=True):
+def make_scene(total_waves, spawn_rate, skip_countdown=True, audio=None):
     scene = BattleScene(
         Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
         Gun(),
@@ -102,6 +114,7 @@ def make_scene(total_waves, spawn_rate, skip_countdown=True):
         enemy_draw_rectangle=lambda *args: None,
         enemy_draw_circle=lambda *args: None,
         random_source=random.Random(0),
+        audio=audio,
     )
     scene.wave_director = WaveDirector(
         total_waves=total_waves,
@@ -116,7 +129,7 @@ def make_scene(total_waves, spawn_rate, skip_countdown=True):
     return scene
 
 
-def make_portal_transition_scene(portal_image=None, gun_image=None):
+def make_portal_transition_scene(portal_image=None, gun_image=None, audio=None):
     scene = BattleScene(
         Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
         Gun(),
@@ -129,6 +142,7 @@ def make_portal_transition_scene(portal_image=None, gun_image=None):
         random_source=random.Random(0),
         portal_image=portal_image,
         portal_transition=True,
+        audio=audio,
     )
     return scene
 
@@ -326,6 +340,111 @@ class BattleSceneStartCountdownTests(unittest.TestCase):
             "3",
             (255, 220, 100),
         )
+
+
+class BattleSceneMusicTests(unittest.TestCase):
+    def tearDown(self):
+        game_world.clear()
+
+    def make_audio_scene(self, total_waves=1, skip_countdown=True):
+        audio = RecordingAudio()
+        scene = make_scene(
+            total_waves=total_waves,
+            spawn_rate=1000,
+            skip_countdown=skip_countdown,
+            audio=audio,
+        )
+        return scene, audio
+
+    def test_music_starts_immediately_when_there_is_no_entry_animation(self):
+        _scene, audio = self.make_audio_scene(skip_countdown=False)
+
+        self.assertEqual(audio.events, [("play", BATTLE_MUSIC_FILE)])
+
+    def test_music_starts_when_the_portal_entry_animation_ends(self):
+        audio = RecordingAudio()
+        scene = make_portal_transition_scene(audio=audio)
+
+        scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS)
+        scene.update(battle_scene.BATTLE_PORTAL_FADE_SECONDS)
+
+        self.assertEqual(audio.events, [])
+
+        scene.update(battle_scene.BATTLE_PORTAL_CAMERA_PAN_SECONDS)
+
+        self.assertEqual(audio.events, [("play", BATTLE_MUSIC_FILE)])
+        self.assertTrue(scene.is_counting_down)
+
+        audio.events.clear()
+        scene.update(3.0)
+
+        self.assertEqual(audio.events, [])
+
+    def test_music_continues_through_wave_advances(self):
+        scene, audio = self.make_audio_scene(total_waves=2)
+        audio.events.clear()
+
+        scene.update(0.1)
+        scene.update(0.5)
+        for enemy in alive_enemies():
+            enemy.hp = 0
+        scene.update(0.0)
+
+        self.assertEqual(audio.events, [])
+
+    def test_pause_stops_music_and_resume_starts_it_again(self):
+        scene, audio = self.make_audio_scene()
+        audio.events.clear()
+
+        scene.key_down("escape")
+        self.assertEqual(audio.events, [("stop",)])
+
+        scene.key_up("escape")
+        scene.key_down("escape")
+
+        self.assertEqual(audio.events[-1], ("play", BATTLE_MUSIC_FILE))
+
+    def test_defeat_stops_music(self):
+        scene, audio = self.make_audio_scene()
+        scene.player.hp = 0
+
+        scene.update(0.0)
+
+        self.assertEqual(audio.events[-1], ("stop",))
+
+    def test_victory_stops_music(self):
+        scene, audio = self.make_audio_scene()
+        scene.waves_cleared = True
+
+        scene.update(0.0)
+
+        self.assertEqual(audio.events[-1], ("stop",))
+
+    def test_quit_stops_music(self):
+        scene, audio = self.make_audio_scene()
+        scene.paused = True
+        scene.pause_menu_index = 1
+        audio.events.clear()
+
+        scene.key_down("space")
+
+        self.assertEqual(audio.events, [("stop",)])
+
+    def test_reset_map_restarts_music_without_an_entry_animation(self):
+        scene, audio = self.make_audio_scene()
+        audio.events.clear()
+
+        scene.reset_map()
+
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("play", BATTLE_MUSIC_FILE)],
+        )
+
+        audio.events.clear()
+        scene.update(3.0)
+
+        self.assertEqual(audio.events, [])
 
 
 class BattleScenePortalTransitionTests(unittest.TestCase):

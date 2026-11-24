@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import Mock, call, patch
 
 from audio import (
+    BATTLE_MUSIC_FILE,
     DEFAULT_VOLUME,
     LOBBY_MUSIC_FILE,
     MAX_VOLUME,
@@ -212,10 +213,31 @@ class SceneSwitchTests(unittest.TestCase):
         self.app.audio.stop.assert_called_once_with()
         self.app.audio.play.assert_called_once_with(SHOP_MUSIC_FILE)
 
-    def test_switching_to_a_scene_without_music_only_stops_the_previous_track(self):
+    def test_switching_to_battle_without_an_entry_animation_starts_music(self):
         self.app.audio = Mock()
 
         self.app.switch_scene("battle")
+
+        self.app.audio.stop.assert_called_once_with()
+        self.app.audio.play.assert_called_once_with(BATTLE_MUSIC_FILE)
+
+    def test_switching_to_battle_with_an_entry_animation_waits_for_music(self):
+        self.app.audio = Mock()
+
+        self.app.switch_scene("battle", portal_transition=True)
+
+        self.app.audio.stop.assert_called_once_with()
+        self.app.audio.play.assert_not_called()
+
+    def test_battle_scene_receives_the_audio_manager(self):
+        self.app.switch_scene("battle")
+
+        self.assertIs(self.app.scene.audio, self.app.audio)
+
+    def test_switching_to_a_scene_without_music_only_stops_the_previous_track(self):
+        self.app.audio = Mock()
+
+        self.app.switch_scene("training")
 
         self.app.audio.stop.assert_called_once_with()
         self.app.audio.play.assert_not_called()
