@@ -18,6 +18,7 @@ BATTLE_MUSIC_FILE = "battle.mp3"
 TRAINING_MUSIC_FILE = "training.mp3"
 DEFEAT_MUSIC_FILE = "lose game.mp3"
 VICTORY_MUSIC_FILE = "win game.mp3"
+RECORDS_MUSIC_FILE = "log check bgm.mp3"
 
 MUSIC_BY_SCENE = {
     "lobby": LOBBY_MUSIC_FILE,

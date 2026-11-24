@@ -4,6 +4,7 @@ import math
 
 import pico2d
 
+from audio import LOBBY_MUSIC_FILE, RECORDS_MUSIC_FILE
 from battle_record import result_record_text, training_record_text
 from game_config import (
     LOBBY_WORLD_HEIGHT,
@@ -146,6 +147,7 @@ class LobbyScene:
         records_background=None,
         records_book_image=None,
         notice=None,
+        audio=None,
     ):
         self.player = player
         self.background = background
@@ -158,6 +160,7 @@ class LobbyScene:
         self.records_background = records_background
         self.records_book_image = records_book_image
         self.notice = notice or ""
+        self.audio = audio
         self.keys = set()
         self.mouse_screen_x = SCREEN_WIDTH / 2
         self.mouse_screen_y = SCREEN_HEIGHT / 2
@@ -817,18 +820,32 @@ class LobbyScene:
         self.close_panel()
         self._start_portal_entry()
 
+    def _play_records_music(self):
+        if self.audio is not None:
+            self.audio.play(RECORDS_MUSIC_FILE)
+
+    def _restore_lobby_music(self):
+        if self.audio is not None:
+            self.audio.play(LOBBY_MUSIC_FILE)
+
     def open_records(self):
         """Show the battle record panel."""
+        if self.panel == "records":
+            return
         self.panel = "records"
         self.records_hover_exit = False
+        self._play_records_music()
 
     def close_panel(self):
         """Close the panel that is currently open."""
+        was_records_panel = self.panel == "records"
         self.panel = None
         self.gun_select_pending_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
         self.records_hover_exit = False
+        if was_records_panel:
+            self._restore_lobby_music()
 
     def key_up(self, key):
         self.keys.discard(key.lower())

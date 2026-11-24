@@ -2,6 +2,7 @@ import math
 import unittest
 from unittest.mock import MagicMock, call, patch
 
+from audio import LOBBY_MUSIC_FILE, RECORDS_MUSIC_FILE
 from battle_record import BattleRecord, TrainingRecord
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
@@ -325,6 +326,66 @@ class LobbyLocationTests(unittest.TestCase):
 
         self.assertEqual(self.state.records[0].result, "victory")
         self.assertEqual(len(self.state.records), 2)
+
+
+class LobbySceneMusicTests(unittest.TestCase):
+    def make_scene_with_audio(self):
+        audio = MagicMock()
+        scene = LobbyScene(
+            Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
+            audio=audio,
+        )
+        return scene, audio
+
+    def test_opening_records_plays_the_records_track(self):
+        scene, audio = self.make_scene_with_audio()
+
+        scene.open_records()
+
+        self.assertEqual(scene.panel, "records")
+        audio.play.assert_called_once_with(RECORDS_MUSIC_FILE)
+
+    def test_closing_records_restores_the_lobby_track(self):
+        scene, audio = self.make_scene_with_audio()
+        scene.open_records()
+        audio.play.reset_mock()
+
+        press(scene, "q")
+
+        self.assertIsNone(scene.panel)
+        audio.play.assert_called_once_with(LOBBY_MUSIC_FILE)
+
+    def test_opening_records_again_does_not_restart_the_track(self):
+        scene, audio = self.make_scene_with_audio()
+        scene.open_records()
+        audio.play.reset_mock()
+
+        scene.open_records()
+
+        audio.play.assert_not_called()
+
+    def test_gun_selection_panel_does_not_change_the_music(self):
+        scene, audio = self.make_scene_with_audio()
+
+        scene.open_gun_selection()
+        scene.close_panel()
+
+        audio.play.assert_not_called()
+
+    def test_records_exit_button_restores_the_lobby_track(self):
+        scene, audio = self.make_scene_with_audio()
+        scene.open_records()
+        audio.play.reset_mock()
+        left, bottom, right, top = records_exit_button_rect()
+
+        scene.mouse_down(
+            "left",
+            (left + right) / 2,
+            SCREEN_HEIGHT - (bottom + top) / 2,
+        )
+
+        self.assertIsNone(scene.panel)
+        audio.play.assert_called_once_with(LOBBY_MUSIC_FILE)
 
 
 class LobbyGuiTests(unittest.TestCase):

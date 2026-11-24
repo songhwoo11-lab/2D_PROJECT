@@ -7,6 +7,7 @@ from audio import (
     DEFEAT_MUSIC_FILE,
     LOBBY_MUSIC_FILE,
     MAX_VOLUME,
+    RECORDS_MUSIC_FILE,
     SHOP_MUSIC_FILE,
     MIN_VOLUME,
     TRAINING_MUSIC_FILE,
@@ -127,6 +128,14 @@ class AudioManagerTests(unittest.TestCase):
         self.assertEqual(self.manager.current_music_name, VICTORY_MUSIC_FILE)
         self.assertEqual(self.music.play_counts, [0])
         self.assertEqual(self.music.repeat_count, 0)
+
+    def test_playing_records_music_loads_the_requested_file(self):
+        self.assertTrue(self.manager.play(RECORDS_MUSIC_FILE))
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertTrue(self.paths[0].endswith("sound\\" + RECORDS_MUSIC_FILE))
+        self.assertEqual(self.manager.current_music_name, RECORDS_MUSIC_FILE)
+        self.assertEqual(self.music.repeat_count, 1)
 
     def test_looping_play_does_not_use_one_shot_playback(self):
         self.manager.play(BATTLE_MUSIC_FILE)

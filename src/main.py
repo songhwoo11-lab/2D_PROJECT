@@ -462,6 +462,7 @@ class GameApp:
             records_background=self.assets.get("records_background"),
             records_book_image=self.assets.get("records_book_image"),
             notice=self.save_notice,
+            audio=self.audio,
         )
 
     def create_battle_scene(self, portal_transition=False):
