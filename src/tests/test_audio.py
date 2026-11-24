@@ -10,6 +10,7 @@ from audio import (
     SHOP_MUSIC_FILE,
     MIN_VOLUME,
     TRAINING_MUSIC_FILE,
+    VICTORY_MUSIC_FILE,
     MUSIC_BY_SCENE,
     clamp_volume,
     to_mixer_volume,
@@ -115,6 +116,15 @@ class AudioManagerTests(unittest.TestCase):
         self.assertEqual(len(self.paths), 1)
         self.assertTrue(self.paths[0].endswith("sound\\" + DEFEAT_MUSIC_FILE))
         self.assertEqual(self.manager.current_music_name, DEFEAT_MUSIC_FILE)
+        self.assertEqual(self.music.play_counts, [0])
+        self.assertEqual(self.music.repeat_count, 0)
+
+    def test_playing_victory_music_loads_the_requested_file_once(self):
+        self.assertTrue(self.manager.play_once(VICTORY_MUSIC_FILE))
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertTrue(self.paths[0].endswith("sound\\" + VICTORY_MUSIC_FILE))
+        self.assertEqual(self.manager.current_music_name, VICTORY_MUSIC_FILE)
         self.assertEqual(self.music.play_counts, [0])
         self.assertEqual(self.music.repeat_count, 0)
 
