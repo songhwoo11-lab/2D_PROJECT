@@ -3,7 +3,12 @@ import random
 import unittest
 from unittest import mock
 
-from audio import BATTLE_MUSIC_FILE, DEFEAT_MUSIC_FILE, VICTORY_MUSIC_FILE
+from audio import (
+    BATTLE_MUSIC_FILE,
+    DEFEAT_MUSIC_FILE,
+    PISTOL_SHOT_SOUND_FILE,
+    VICTORY_MUSIC_FILE,
+)
 from battle_scene import BattleResult, BattleScene
 import battle_scene
 from enemy import Enemy, EnemyType
@@ -74,6 +79,9 @@ class RecordingAudio:
 
     def play_once(self, name):
         self.events.append(("play_once", name))
+
+    def play_sound(self, name):
+        self.events.append(("play_sound", name))
 
     def stop(self):
         self.events.append(("stop",))
@@ -481,6 +489,46 @@ class BattleSceneMusicTests(unittest.TestCase):
         audio.events.clear()
         scene.update(3.0)
 
+        self.assertEqual(audio.events, [])
+
+
+class BattleSceneShotSoundTests(unittest.TestCase):
+    def tearDown(self):
+        game_world.clear()
+
+    def make_audio_scene(self, gun_id=DEFAULT_GUN_ID):
+        audio = RecordingAudio()
+        scene = make_scene(total_waves=1, spawn_rate=1000, audio=audio)
+        scene.gun = Gun.from_gun_id(gun_id)
+        audio.events.clear()
+        return scene, audio
+
+    def fire_once(self, scene):
+        scene.mouse_down("left")
+        scene.update(0.0)
+        scene.mouse_up("left")
+        scene.gun.cooldown_remaining = 0.0
+
+    def test_every_pistol_shot_plays_the_sound_once(self):
+        scene, audio = self.make_audio_scene()
+
+        self.fire_once(scene)
+        self.fire_once(scene)
+
+        self.assertEqual(
+            audio.events,
+            [
+                ("play_sound", PISTOL_SHOT_SOUND_FILE),
+                ("play_sound", PISTOL_SHOT_SOUND_FILE),
+            ],
+        )
+
+    def test_other_guns_do_not_play_the_pistol_sound(self):
+        scene, audio = self.make_audio_scene(gun_id=RIFLE_GUN_ID)
+
+        self.fire_once(scene)
+
+        self.assertGreater(scene.gun_recoil_remaining, 0.0)
         self.assertEqual(audio.events, [])
 
 

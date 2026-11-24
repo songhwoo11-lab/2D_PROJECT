@@ -7,7 +7,12 @@ import random
 import pico2d
 
 from arrow import Arrow
-from audio import BATTLE_MUSIC_FILE, DEFEAT_MUSIC_FILE, VICTORY_MUSIC_FILE
+from audio import (
+    BATTLE_MUSIC_FILE,
+    DEFEAT_MUSIC_FILE,
+    PISTOL_SHOT_SOUND_FILE,
+    VICTORY_MUSIC_FILE,
+)
 import battle_record
 from bullet import Bullet
 from enemy import (
@@ -299,6 +304,15 @@ class BattleScene:
         play_once = getattr(self.audio, "play_once", None)
         if play_once is not None:
             play_once(name)
+
+    def _play_pistol_shot_sound(self):
+        if self.audio is None:
+            return
+        if getattr(self.gun, "gun_id", None) != DEFAULT_GUN_ID:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            play_sound(PISTOL_SHOT_SOUND_FILE)
 
     def _announce_wave(self):
         wave = self.wave_director.current_wave
@@ -911,6 +925,7 @@ class BattleScene:
         self._mouse_pressed = False
         if fired:
             self.gun_recoil_remaining = GUN_RECOIL_RECOVERY_SECONDS
+            self._play_pistol_shot_sound()
             if self.bullet_image is not None:
                 muzzle_offset = PLAYER_RADIUS + 28
                 game_world.add_object(

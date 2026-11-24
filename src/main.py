@@ -442,6 +442,7 @@ class GameApp:
             EnemyType.ARCHER: pico2d.load_image(str(directory / "bow_skel.png")),
         }
         self.audio.set_loader(pico2d.load_music)
+        self.audio.set_sound_loader(pico2d.load_wav)
 
     def create_lobby_scene(self):
         player = Player(

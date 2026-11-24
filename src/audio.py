@@ -19,6 +19,7 @@ TRAINING_MUSIC_FILE = "training.mp3"
 DEFEAT_MUSIC_FILE = "lose game.mp3"
 VICTORY_MUSIC_FILE = "win game.mp3"
 RECORDS_MUSIC_FILE = "log check bgm.mp3"
+PISTOL_SHOT_SOUND_FILE = "pistol shot sound.wav"
 
 MUSIC_BY_SCENE = {
     "lobby": LOBBY_MUSIC_FILE,
@@ -44,9 +45,11 @@ class AudioManager:
 
     def __init__(self, loader=None, sound_directory=SOUND_DIRECTORY):
         self.loader = loader
+        self.sound_loader = None
         self.sound_directory = Path(sound_directory)
         self.volume = DEFAULT_VOLUME
         self._music_cache = {}
+        self._sound_cache = {}
         self._current_music = None
         self._current_name = None
         self._paused = False
@@ -69,11 +72,20 @@ class AudioManager:
         self._current_name = None
         self._paused = False
 
+    def set_sound_loader(self, loader):
+        """Set the loader used for short sound effects (pico2d.load_wav)."""
+        if loader is self.sound_loader:
+            return
+        self.sound_loader = loader
+        self._sound_cache.clear()
+
     def set_volume(self, volume):
         """Apply a new 0..100 volume to every loaded and playing track."""
         self.volume = clamp_volume(volume)
         for music in self._music_cache.values():
             self._apply_volume(music)
+        for sound in self._sound_cache.values():
+            self._apply_sound_volume(sound)
         return self.volume
 
     def change_volume(self, amount):
@@ -106,6 +118,17 @@ class AudioManager:
             return False
         self._current_music = music
         self._current_name = name
+        return True
+
+    def play_sound(self, name):
+        """Play a short sound effect once; return False when audio is unavailable."""
+        sound = self._load_sound(name)
+        if sound is None:
+            return False
+        try:
+            sound.play()
+        except (OSError, RuntimeError):
+            return False
         return True
 
     def pause(self):
@@ -156,8 +179,30 @@ class AudioManager:
         self._music_cache[name] = music
         return music
 
+    def _load_sound(self, name):
+        if name in self._sound_cache:
+            return self._sound_cache[name]
+        if self.sound_loader is None:
+            return None
+        try:
+            sound = self.sound_loader(str(self.sound_directory / name))
+        except (OSError, RuntimeError, ValueError):
+            self.sound_loader = None
+            return None
+        if sound is None:
+            return None
+        self._apply_sound_volume(sound)
+        self._sound_cache[name] = sound
+        return sound
+
     def _apply_volume(self, music):
         try:
             music.set_volume(to_mixer_volume(self.volume))
+        except (OSError, RuntimeError):
+            pass
+
+    def _apply_sound_volume(self, sound):
+        try:
+            sound.set_volume(to_mixer_volume(self.volume))
         except (OSError, RuntimeError):
             pass

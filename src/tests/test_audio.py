@@ -10,6 +10,7 @@ from audio import (
     RECORDS_MUSIC_FILE,
     SHOP_MUSIC_FILE,
     MIN_VOLUME,
+    PISTOL_SHOT_SOUND_FILE,
     TRAINING_MUSIC_FILE,
     VICTORY_MUSIC_FILE,
     MUSIC_BY_SCENE,
@@ -46,6 +47,18 @@ class FakeMusic:
         self.resume_count += 1
 
 
+class FakeWav:
+    def __init__(self):
+        self.play_count = 0
+        self.volumes = []
+
+    def play(self):
+        self.play_count += 1
+
+    def set_volume(self, volume):
+        self.volumes.append(volume)
+
+
 class VolumeConversionTests(unittest.TestCase):
     def test_default_volume_is_fifty(self):
         self.assertEqual(DEFAULT_VOLUME, 50)
@@ -70,13 +83,20 @@ class VolumeConversionTests(unittest.TestCase):
 class AudioManagerTests(unittest.TestCase):
     def setUp(self):
         self.music = FakeMusic()
+        self.wav = FakeWav()
         self.paths = []
+        self.sound_paths = []
 
         def loader(path):
             self.paths.append(path)
             return self.music
 
+        def sound_loader(path):
+            self.sound_paths.append(path)
+            return self.wav
+
         self.manager = AudioManager(loader=loader)
+        self.manager.set_sound_loader(sound_loader)
 
     def test_new_manager_uses_the_default_volume(self):
         self.assertEqual(self.manager.volume, DEFAULT_VOLUME)
@@ -136,6 +156,23 @@ class AudioManagerTests(unittest.TestCase):
         self.assertTrue(self.paths[0].endswith("sound\\" + RECORDS_MUSIC_FILE))
         self.assertEqual(self.manager.current_music_name, RECORDS_MUSIC_FILE)
         self.assertEqual(self.music.repeat_count, 1)
+
+    def test_playing_a_sound_loads_the_requested_file_once_per_call(self):
+        self.assertTrue(self.manager.play_sound(PISTOL_SHOT_SOUND_FILE))
+        self.assertTrue(self.manager.play_sound(PISTOL_SHOT_SOUND_FILE))
+
+        self.assertEqual(len(self.sound_paths), 1)
+        self.assertTrue(
+            self.sound_paths[0].endswith("sound\\" + PISTOL_SHOT_SOUND_FILE)
+        )
+        self.assertEqual(self.wav.play_count, 2)
+
+    def test_volume_changes_apply_to_loaded_sounds(self):
+        self.manager.play_sound(PISTOL_SHOT_SOUND_FILE)
+
+        self.assertEqual(self.manager.set_volume(25), 25)
+
+        self.assertEqual(self.wav.volumes, [64, 32])
 
     def test_looping_play_does_not_use_one_shot_playback(self):
         self.manager.play(BATTLE_MUSIC_FILE)
