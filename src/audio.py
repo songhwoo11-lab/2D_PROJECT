@@ -16,6 +16,7 @@ LOBBY_MUSIC_FILE = "lobby bgm.mp3"
 SHOP_MUSIC_FILE = "shop bgm.mp3"
 BATTLE_MUSIC_FILE = "battle.mp3"
 TRAINING_MUSIC_FILE = "training.mp3"
+DEFEAT_MUSIC_FILE = "lose game.mp3"
 
 MUSIC_BY_SCENE = {
     "lobby": LOBBY_MUSIC_FILE,
@@ -78,6 +79,13 @@ class AudioManager:
 
     def play(self, name):
         """Loop the named track; return False when audio is unavailable."""
+        return self._play_track(name, repeat=True)
+
+    def play_once(self, name):
+        """Play the named track once; return False when audio is unavailable."""
+        return self._play_track(name, repeat=False)
+
+    def _play_track(self, name, repeat):
         if self._current_name == name and self._current_music is not None:
             return False
         self.stop()
@@ -85,7 +93,11 @@ class AudioManager:
         if music is None:
             return False
         try:
-            music.repeat_play()
+            if repeat:
+                music.repeat_play()
+            else:
+                # pico2d's default play(1) plays twice; 0 means one playback.
+                music.play(0)
         except (OSError, RuntimeError):
             self._current_music = None
             self._current_name = None

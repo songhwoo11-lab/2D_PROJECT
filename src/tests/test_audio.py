@@ -4,6 +4,7 @@ from audio import (
     AudioManager,
     BATTLE_MUSIC_FILE,
     DEFAULT_VOLUME,
+    DEFEAT_MUSIC_FILE,
     LOBBY_MUSIC_FILE,
     MAX_VOLUME,
     SHOP_MUSIC_FILE,
@@ -19,6 +20,7 @@ class FakeMusic:
     def __init__(self):
         self.volumes = []
         self.repeat_count = 0
+        self.play_counts = []
         self.stop_count = 0
         self.pause_count = 0
         self.resume_count = 0
@@ -28,6 +30,9 @@ class FakeMusic:
 
     def repeat_play(self):
         self.repeat_count += 1
+
+    def play(self, loops=None):
+        self.play_counts.append(loops)
 
     def stop(self):
         self.stop_count += 1
@@ -103,6 +108,21 @@ class AudioManagerTests(unittest.TestCase):
         self.assertEqual(len(self.paths), 1)
         self.assertTrue(self.paths[0].endswith("sound\\" + TRAINING_MUSIC_FILE))
         self.assertEqual(self.manager.current_music_name, TRAINING_MUSIC_FILE)
+
+    def test_playing_defeat_music_loads_the_requested_file_once(self):
+        self.assertTrue(self.manager.play_once(DEFEAT_MUSIC_FILE))
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertTrue(self.paths[0].endswith("sound\\" + DEFEAT_MUSIC_FILE))
+        self.assertEqual(self.manager.current_music_name, DEFEAT_MUSIC_FILE)
+        self.assertEqual(self.music.play_counts, [0])
+        self.assertEqual(self.music.repeat_count, 0)
+
+    def test_looping_play_does_not_use_one_shot_playback(self):
+        self.manager.play(BATTLE_MUSIC_FILE)
+
+        self.assertEqual(self.music.repeat_count, 1)
+        self.assertEqual(self.music.play_counts, [])
 
     def test_same_track_is_not_restarted(self):
         self.manager.play(LOBBY_MUSIC_FILE)

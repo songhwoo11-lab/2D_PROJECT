@@ -3,7 +3,7 @@ import random
 import unittest
 from unittest import mock
 
-from audio import BATTLE_MUSIC_FILE
+from audio import BATTLE_MUSIC_FILE, DEFEAT_MUSIC_FILE
 from battle_scene import BattleResult, BattleScene
 import battle_scene
 from enemy import Enemy, EnemyType
@@ -71,6 +71,9 @@ class RecordingAudio:
 
     def play(self, name):
         self.events.append(("play", name))
+
+    def play_once(self, name):
+        self.events.append(("play_once", name))
 
     def stop(self):
         self.events.append(("stop",))
@@ -404,21 +407,39 @@ class BattleSceneMusicTests(unittest.TestCase):
 
         self.assertEqual(audio.events[-1], ("play", BATTLE_MUSIC_FILE))
 
-    def test_defeat_stops_music(self):
+    def test_defeat_plays_the_lose_track_once(self):
         scene, audio = self.make_audio_scene()
         scene.player.hp = 0
+        audio.events.clear()
 
         scene.update(0.0)
 
-        self.assertEqual(audio.events[-1], ("stop",))
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("play_once", DEFEAT_MUSIC_FILE)],
+        )
 
-    def test_victory_stops_music(self):
+    def test_defeat_does_not_replay_the_lose_track_on_later_updates(self):
+        scene, audio = self.make_audio_scene()
+        scene.player.hp = 0
+        audio.events.clear()
+
+        scene.update(0.0)
+        scene.update(0.5)
+
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("play_once", DEFEAT_MUSIC_FILE)],
+        )
+
+    def test_victory_stops_music_without_playing_the_lose_track(self):
         scene, audio = self.make_audio_scene()
         scene.waves_cleared = True
+        audio.events.clear()
 
         scene.update(0.0)
 
-        self.assertEqual(audio.events[-1], ("stop",))
+        self.assertEqual(audio.events, [("stop",)])
 
     def test_quit_stops_music(self):
         scene, audio = self.make_audio_scene()

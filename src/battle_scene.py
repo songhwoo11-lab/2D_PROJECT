@@ -7,7 +7,7 @@ import random
 import pico2d
 
 from arrow import Arrow
-from audio import BATTLE_MUSIC_FILE
+from audio import BATTLE_MUSIC_FILE, DEFEAT_MUSIC_FILE
 import battle_record
 from bullet import Bullet
 from enemy import (
@@ -293,6 +293,13 @@ class BattleScene:
         self._wave_music_started = False
         self.audio.stop()
 
+    def _play_defeat_music(self):
+        if self.audio is None:
+            return
+        play_once = getattr(self.audio, "play_once", None)
+        if play_once is not None:
+            play_once(DEFEAT_MUSIC_FILE)
+
     def _announce_wave(self):
         wave = self.wave_director.current_wave
         if wave % 10 == 0:
@@ -520,7 +527,9 @@ class BattleScene:
         self.result = result
         self.paused = False
         self._stop_battle_music()
-        if result is BattleResult.VICTORY:
+        if result is BattleResult.DEFEAT:
+            self._play_defeat_music()
+        elif result is BattleResult.VICTORY:
             self.clear_time = self.elapsed_time
 
     def key_up(self, key):
