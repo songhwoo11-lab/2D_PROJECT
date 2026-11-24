@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import call, patch
 
+from audio import TRAINING_MUSIC_FILE
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
 from training_scene import (
@@ -20,6 +21,29 @@ class SequenceRandom:
 
     def uniform(self, low, high):
         return next(self.values)
+
+
+class RecordingAudio:
+    def __init__(self):
+        self.events = []
+        self.paused = False
+
+    def play(self, name):
+        self.events.append(("play", name))
+
+    def pause(self):
+        self.events.append(("pause",))
+        self.paused = True
+        return True
+
+    def resume(self):
+        self.events.append(("resume",))
+        self.paused = False
+        return True
+
+    def stop(self):
+        self.events.append(("stop",))
+        self.paused = False
 
 
 def exit_button_screen_center():
@@ -297,6 +321,68 @@ class TrainingSceneTests(unittest.TestCase):
 
         self.assertEqual(scene.pending_action, "return_to_lobby")
         self.assertEqual(state.training_records, [])
+
+
+class TrainingSceneMusicTests(unittest.TestCase):
+    def make_scene(self):
+        audio = RecordingAudio()
+        return TrainingScene(audio=audio), audio
+
+    def test_music_starts_after_the_three_second_countdown(self):
+        scene, audio = self.make_scene()
+
+        self.assertEqual(audio.events, [])
+        scene.update(2.9)
+        self.assertEqual(audio.events, [])
+
+        scene.update(0.2)
+
+        self.assertEqual(audio.events, [("play", TRAINING_MUSIC_FILE)])
+
+    def test_pause_resumes_music_without_restarting_it(self):
+        scene, audio = self.make_scene()
+        scene.update(3.0)
+        audio.events.clear()
+
+        scene.key_down("escape")
+        self.assertEqual(audio.events, [("pause",)])
+        self.assertTrue(audio.paused)
+
+        scene.key_up("escape")
+        scene.key_down("escape")
+
+        self.assertEqual(audio.events, [("pause",), ("resume",)])
+        self.assertFalse(audio.paused)
+
+    def test_resume_menu_item_resumes_music_without_restarting_it(self):
+        scene, audio = self.make_scene()
+        scene.update(3.0)
+        audio.events.clear()
+
+        scene.key_down("escape")
+        scene.key_down("space")
+
+        self.assertEqual(audio.events, [("pause",), ("resume",)])
+        self.assertFalse(audio.paused)
+
+    def test_finishing_training_stops_music(self):
+        scene, audio = self.make_scene()
+        scene.update(3.0)
+        audio.events.clear()
+
+        scene.time_remaining = 0.0
+        scene.update(0.0)
+
+        self.assertEqual(audio.events, [("stop",)])
+
+    def test_quit_to_lobby_stops_music(self):
+        scene, audio = self.make_scene()
+        scene.update(3.0)
+        audio.events.clear()
+
+        scene.key_down("q")
+
+        self.assertEqual(audio.events, [("stop",)])
 
 
 class TrainingCursorTests(unittest.TestCase):

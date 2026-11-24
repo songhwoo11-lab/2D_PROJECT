@@ -242,6 +242,12 @@ class SceneSwitchTests(unittest.TestCase):
         self.app.audio.stop.assert_called_once_with()
         self.app.audio.play.assert_not_called()
 
+    def test_training_scene_receives_the_audio_manager(self):
+        self.app.switch_scene("training")
+
+        self.assertIs(self.app.scene.audio, self.app.audio)
+        self.assertFalse(self.app.scene._training_music_started)
+
     def test_shop_return_keeps_the_player_at_the_shop(self):
         self.app.scene.key_down("a")
         self.app.scene.key_up("a")

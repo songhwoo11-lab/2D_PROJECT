@@ -553,6 +553,7 @@ class GameApp:
             hud_font=self.assets["hud_font"],
             state=self.state,
             target_image=self.assets.get("training_target_image"),
+            audio=self.audio,
         )
 
     def handle_scene_action(self):

@@ -15,13 +15,15 @@ SOUND_DIRECTORY = Path(__file__).resolve().parent.parent / "sound"
 LOBBY_MUSIC_FILE = "lobby bgm.mp3"
 SHOP_MUSIC_FILE = "shop bgm.mp3"
 BATTLE_MUSIC_FILE = "battle.mp3"
+TRAINING_MUSIC_FILE = "training.mp3"
 
 MUSIC_BY_SCENE = {
     "lobby": LOBBY_MUSIC_FILE,
     "shop": SHOP_MUSIC_FILE,
 }
 
-# Battle music is controlled by BattleScene so it starts after the entry animation.
+# Battle and training music are controlled by their scenes so they start at
+# the right point in each scene's intro.
 
 
 def clamp_volume(volume):
@@ -44,10 +46,15 @@ class AudioManager:
         self._music_cache = {}
         self._current_music = None
         self._current_name = None
+        self._paused = False
 
     @property
     def current_music_name(self):
         return self._current_name
+
+    @property
+    def is_paused(self):
+        return self._paused
 
     def set_loader(self, loader):
         """Set the function used to load music (pico2d.load_music in game)."""
@@ -57,6 +64,7 @@ class AudioManager:
         self._music_cache.clear()
         self._current_music = None
         self._current_name = None
+        self._paused = False
 
     def set_volume(self, volume):
         """Apply a new 0..100 volume to every loaded and playing track."""
@@ -86,6 +94,28 @@ class AudioManager:
         self._current_name = name
         return True
 
+    def pause(self):
+        """Pause the current track without losing its playback position."""
+        if self._current_music is None or self._paused:
+            return False
+        try:
+            self._current_music.pause()
+        except (OSError, RuntimeError):
+            return False
+        self._paused = True
+        return True
+
+    def resume(self):
+        """Resume a paused track from the position where it was paused."""
+        if self._current_music is None or not self._paused:
+            return False
+        try:
+            self._current_music.resume()
+        except (OSError, RuntimeError):
+            return False
+        self._paused = False
+        return True
+
     def stop(self):
         if self._current_music is not None:
             try:
@@ -94,6 +124,7 @@ class AudioManager:
                 pass
         self._current_music = None
         self._current_name = None
+        self._paused = False
 
     def _load(self, name):
         if name in self._music_cache:

@@ -8,6 +8,7 @@ from audio import (
     MAX_VOLUME,
     SHOP_MUSIC_FILE,
     MIN_VOLUME,
+    TRAINING_MUSIC_FILE,
     MUSIC_BY_SCENE,
     clamp_volume,
     to_mixer_volume,
@@ -19,6 +20,8 @@ class FakeMusic:
         self.volumes = []
         self.repeat_count = 0
         self.stop_count = 0
+        self.pause_count = 0
+        self.resume_count = 0
 
     def set_volume(self, volume):
         self.volumes.append(volume)
@@ -28,6 +31,12 @@ class FakeMusic:
 
     def stop(self):
         self.stop_count += 1
+
+    def pause(self):
+        self.pause_count += 1
+
+    def resume(self):
+        self.resume_count += 1
 
 
 class VolumeConversionTests(unittest.TestCase):
@@ -88,6 +97,13 @@ class AudioManagerTests(unittest.TestCase):
         self.assertTrue(self.paths[0].endswith("sound\\" + BATTLE_MUSIC_FILE))
         self.assertEqual(self.manager.current_music_name, BATTLE_MUSIC_FILE)
 
+    def test_playing_training_music_loads_the_requested_file(self):
+        self.assertTrue(self.manager.play(TRAINING_MUSIC_FILE))
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertTrue(self.paths[0].endswith("sound\\" + TRAINING_MUSIC_FILE))
+        self.assertEqual(self.manager.current_music_name, TRAINING_MUSIC_FILE)
+
     def test_same_track_is_not_restarted(self):
         self.manager.play(LOBBY_MUSIC_FILE)
         self.manager.play(LOBBY_MUSIC_FILE)
@@ -132,6 +148,50 @@ class AudioManagerTests(unittest.TestCase):
 
         self.assertEqual(self.music.stop_count, 1)
         self.assertIsNone(self.manager.current_music_name)
+
+    def test_pause_keeps_the_current_track_without_restarting_it(self):
+        self.manager.play(TRAINING_MUSIC_FILE)
+
+        self.assertTrue(self.manager.pause())
+
+        self.assertEqual(self.music.pause_count, 1)
+        self.assertEqual(self.music.stop_count, 0)
+        self.assertEqual(self.music.repeat_count, 1)
+        self.assertEqual(self.manager.current_music_name, TRAINING_MUSIC_FILE)
+        self.assertTrue(self.manager.is_paused)
+
+    def test_resume_continues_the_same_track_without_restarting_it(self):
+        self.manager.play(TRAINING_MUSIC_FILE)
+        self.manager.pause()
+
+        self.assertTrue(self.manager.resume())
+
+        self.assertEqual(self.music.resume_count, 1)
+        self.assertEqual(self.music.repeat_count, 1)
+        self.assertEqual(self.music.stop_count, 0)
+        self.assertEqual(self.manager.current_music_name, TRAINING_MUSIC_FILE)
+        self.assertFalse(self.manager.is_paused)
+
+    def test_repeated_pause_and_resume_are_ignored(self):
+        self.manager.play(TRAINING_MUSIC_FILE)
+
+        self.assertTrue(self.manager.pause())
+        self.assertFalse(self.manager.pause())
+        self.assertTrue(self.manager.resume())
+        self.assertFalse(self.manager.resume())
+
+        self.assertEqual(self.music.pause_count, 1)
+        self.assertEqual(self.music.resume_count, 1)
+
+    def test_stopping_a_paused_track_clears_the_paused_state(self):
+        self.manager.play(TRAINING_MUSIC_FILE)
+        self.manager.pause()
+
+        self.manager.stop()
+
+        self.assertFalse(self.manager.is_paused)
+        self.assertIsNone(self.manager.current_music_name)
+        self.assertFalse(self.manager.resume())
 
     def test_loader_failure_is_handled_without_raising(self):
         def failing_loader(path):

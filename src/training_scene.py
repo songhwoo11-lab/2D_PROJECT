@@ -5,6 +5,7 @@ import random
 
 import pico2d
 
+from audio import TRAINING_MUSIC_FILE
 from battle_record import TrainingRecord
 from game_config import (
     AIM_CURSOR_ALPHA,
@@ -111,6 +112,7 @@ class TrainingScene:
         gun = kwargs.pop("gun", None)
         background = kwargs.pop("background", None)
         target_image = kwargs.pop("target_image", None)
+        audio = kwargs.pop("audio", None)
 
         for arg in args:
             if player is None and isinstance(arg, Player):
@@ -134,6 +136,9 @@ class TrainingScene:
         self.random_source = random_source
         self.background = background
         self.target_image = target_image
+        self.audio = audio
+        self._training_music_started = False
+        self._training_music_paused = False
         self.player = player if player is not None else Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         self.gun = gun if gun is not None else Gun()
         self.gun.infinite_ammo = True
@@ -159,6 +164,44 @@ class TrainingScene:
         self.time_remaining = 60.0
         self.finish_timer = 2.0
 
+    def _start_training_music(self):
+        if self.audio is None or self._training_music_started:
+            return
+        if self.phase in ("countdown", "finished") or self.paused:
+            return
+        self._training_music_started = True
+        self._training_music_paused = False
+        self.audio.play(TRAINING_MUSIC_FILE)
+
+    def _pause_training_music(self):
+        pause = getattr(self.audio, "pause", None)
+        if (
+            pause is None
+            or not self._training_music_started
+            or self._training_music_paused
+        ):
+            return
+        if pause():
+            self._training_music_paused = True
+
+    def _resume_training_music(self):
+        resume = getattr(self.audio, "resume", None)
+        if (
+            resume is None
+            or not self._training_music_started
+            or not self._training_music_paused
+        ):
+            return
+        if resume():
+            self._training_music_paused = False
+
+    def _stop_training_music(self):
+        if self.audio is None or not self._training_music_started:
+            return
+        self._training_music_started = False
+        self._training_music_paused = False
+        self.audio.stop()
+
     def update(self, delta_time):
         if self.paused:
             return
@@ -180,6 +223,7 @@ class TrainingScene:
             if self.countdown_remaining <= 0.0:
                 self.phase = "playing"
                 self.time_remaining = 60.0
+                self._start_training_music()
             return
 
         if self.phase == "finished":
@@ -212,6 +256,7 @@ class TrainingScene:
         if self.time_remaining <= 0.0:
             self.phase = "finished"
             self.finish_timer = 2.0
+            self._stop_training_music()
             self._store_training_record()
 
     def _store_training_record(self):
@@ -342,6 +387,7 @@ class TrainingScene:
         self.pause_menu_index = 0
         self.mouse_held = False
         self._mouse_pressed = False
+        self._pause_training_music()
 
     def _target_overlaps_exit_button(self, x, y, radius):
         left, bottom, right, top = exit_button_rect()
@@ -421,6 +467,7 @@ class TrainingScene:
         if self.paused:
             if key == "escape":
                 self.paused = False
+                self._resume_training_music()
             elif key in ("w", "up"):
                 self.pause_menu_index = (
                     self.pause_menu_index - 1
@@ -449,12 +496,15 @@ class TrainingScene:
         elif key == "r":
             self.gun.start_reload()
         elif key == "q":
+            self._stop_training_music()
             self.pending_action = "return_to_lobby"
 
     def _select_pause_menu_item(self):
         self.paused = False
         if self.pause_menu_index == 0:
+            self._resume_training_music()
             return
+        self._stop_training_music()
         self._training_record_saved = True
         self.pending_action = "return_to_lobby"
 
