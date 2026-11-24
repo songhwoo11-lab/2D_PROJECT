@@ -294,24 +294,26 @@ class TrainingScene:
             self.player.draw()
         if self.shows_aim_cursor:
             self._draw_aim_cursor(draw_rectangle)
-        exit_left, exit_bottom, exit_right, exit_top = exit_button_rect()
-        draw_rectangle(
-            exit_left,
-            exit_bottom,
-            exit_right,
-            exit_top,
-            *EXIT_BUTTON_COLOR,
-            True,
-        )
+        if self.shows_exit_button:
+            exit_left, exit_bottom, exit_right, exit_top = exit_button_rect()
+            draw_rectangle(
+                exit_left,
+                exit_bottom,
+                exit_right,
+                exit_top,
+                *EXIT_BUTTON_COLOR,
+                True,
+            )
+            if self.hud_font is not None:
+                draw_text_at_center(
+                    self.hud_font,
+                    (exit_left + exit_right) / 2,
+                    (exit_bottom + exit_top) / 2,
+                    EXIT_BUTTON_LABEL,
+                    EXIT_BUTTON_TEXT_COLOR,
+                )
         if self.hud_font is None:
             return
-        draw_text_at_center(
-            self.hud_font,
-            (exit_left + exit_right) / 2,
-            (exit_bottom + exit_top) / 2,
-            EXIT_BUTTON_LABEL,
-            EXIT_BUTTON_TEXT_COLOR,
-        )
         if self.phase == "countdown":
             draw_centered_text(
                 self.hud_font,
@@ -377,6 +379,10 @@ class TrainingScene:
                 self.target.x, self.target.y, self.target.radius
             )
         )
+
+    @property
+    def shows_exit_button(self):
+        return self.phase in ("playing", "finished")
 
     @property
     def shows_system_cursor(self):
@@ -587,10 +593,14 @@ class TrainingScene:
     def mouse_down(self, button, screen_x=None, screen_y=None):
         if button != "left":
             return
-        if screen_x is not None and screen_y is not None:
-            if exit_button_contains(screen_x, screen_y):
-                self._open_pause_menu()
-                return
+        if (
+            self.shows_exit_button
+            and screen_x is not None
+            and screen_y is not None
+            and exit_button_contains(screen_x, screen_y)
+        ):
+            self._open_pause_menu()
+            return
         if self.paused:
             if screen_x is not None and screen_y is not None:
                 hovered = self._pause_menu_item_at(screen_x, screen_y)

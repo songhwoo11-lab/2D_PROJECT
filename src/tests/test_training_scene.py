@@ -240,18 +240,16 @@ class TrainingSceneTests(unittest.TestCase):
         self.assertFalse(self.scene.mouse_held)
         self.assertIsNone(self.scene.pending_action)
 
-    def test_exit_button_can_open_the_pause_menu_during_the_countdown(self):
+    def test_hidden_exit_button_is_not_clickable_during_the_countdown(self):
         screen_x, screen_y = exit_button_screen_center()
 
         self.scene.mouse_down("left", screen_x, screen_y)
 
-        self.assertTrue(self.scene.paused)
-
-        self.scene.key_down("escape")
-
         self.assertFalse(self.scene.paused)
+        self.assertTrue(self.scene.mouse_held)
 
     def test_exit_button_is_drawn_in_the_bottom_right(self):
+        self.scene.phase = "playing"
         self.scene.hud_font = object()
         rectangles = []
         left, bottom, right, top = exit_button_rect()
@@ -272,6 +270,22 @@ class TrainingSceneTests(unittest.TestCase):
             EXIT_BUTTON_LABEL,
             EXIT_BUTTON_TEXT_COLOR,
         )
+
+    def test_exit_button_is_not_drawn_before_training_starts(self):
+        self.scene.hud_font = object()
+        rectangles = []
+        left, bottom, right, top = exit_button_rect()
+
+        with patch("training_scene.draw_centered_text"), patch(
+            "training_scene.draw_text_at_center"
+        ) as text_at_center:
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        self.assertNotIn(
+            (left, bottom, right, top, *EXIT_BUTTON_COLOR, True),
+            rectangles,
+        )
+        text_at_center.assert_not_called()
 
     def test_target_does_not_appear_over_the_exit_button(self):
         self.scene.phase = "playing"
@@ -444,7 +458,7 @@ class TrainingCursorTests(unittest.TestCase):
 
         self.scene.draw(lambda *args: self.rectangles.append(args))
 
-        self.assertEqual(len(self.rectangles), 7)
+        self.assertEqual(len(self.rectangles), 6)
 
     def test_aim_cursor_is_visible_immediately_and_only_hidden_while_paused(self):
         self.assertTrue(self.scene.shows_aim_cursor)
