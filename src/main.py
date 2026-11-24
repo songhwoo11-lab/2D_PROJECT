@@ -4,6 +4,13 @@ from pathlib import Path
 
 import pico2d
 
+from audio import (
+    AudioManager,
+    LOBBY_MUSIC_FILE,
+    MAX_VOLUME,
+    MIN_VOLUME,
+    VOLUME_STEP,
+)
 from battle_record import BattleRecord
 from battle_scene import (
     DEBUG_FONT_SIZE,
@@ -78,9 +85,58 @@ EXIT_DIALOG_YES_COLOR = (150, 60, 55, 255)
 EXIT_DIALOG_NO_COLOR = (60, 100, 150, 255)
 EXIT_DIALOG_TEXT_COLOR = (255, 255, 255)
 
+EXIT_DIALOG_SETTINGS_WIDTH = 220
+EXIT_DIALOG_SETTINGS_HEIGHT = 64
+EXIT_DIALOG_SETTINGS_BOTTOM = (
+    EXIT_DIALOG_BUTTON_BOTTOM + EXIT_DIALOG_BUTTON_HEIGHT + 24
+)
+EXIT_DIALOG_SETTINGS_RECT = (
+    SCREEN_WIDTH / 2 - EXIT_DIALOG_SETTINGS_WIDTH / 2,
+    EXIT_DIALOG_SETTINGS_BOTTOM,
+    SCREEN_WIDTH / 2 + EXIT_DIALOG_SETTINGS_WIDTH / 2,
+    EXIT_DIALOG_SETTINGS_BOTTOM + EXIT_DIALOG_SETTINGS_HEIGHT,
+)
+EXIT_DIALOG_SETTINGS_COLOR = (60, 120, 90, 255)
+EXIT_DIALOG_SETTINGS_TEXT = "SETTINGS"
+
+VOLUME_SETTINGS_TITLE = "SETTINGS"
+VOLUME_SETTINGS_TITLE_Y = EXIT_DIALOG_TITLE_Y
+VOLUME_SETTINGS_LABEL_Y = EXIT_DIALOG_BOTTOM + 205
+VOLUME_SETTINGS_LABEL_COLOR = (255, 220, 100)
+VOLUME_SETTINGS_ADJUST_WIDTH = 90
+VOLUME_SETTINGS_ADJUST_HEIGHT = 70
+VOLUME_SETTINGS_ADJUST_BOTTOM = EXIT_DIALOG_BOTTOM + 120
+VOLUME_SETTINGS_MINUS_RECT = (
+    SCREEN_WIDTH / 2 - 190,
+    VOLUME_SETTINGS_ADJUST_BOTTOM,
+    SCREEN_WIDTH / 2 - 190 + VOLUME_SETTINGS_ADJUST_WIDTH,
+    VOLUME_SETTINGS_ADJUST_BOTTOM + VOLUME_SETTINGS_ADJUST_HEIGHT,
+)
+VOLUME_SETTINGS_PLUS_RECT = (
+    SCREEN_WIDTH / 2 + 190 - VOLUME_SETTINGS_ADJUST_WIDTH,
+    VOLUME_SETTINGS_ADJUST_BOTTOM,
+    SCREEN_WIDTH / 2 + 190,
+    VOLUME_SETTINGS_ADJUST_BOTTOM + VOLUME_SETTINGS_ADJUST_HEIGHT,
+)
+VOLUME_SETTINGS_BACK_RECT = (
+    SCREEN_WIDTH / 2 - 90,
+    EXIT_DIALOG_BOTTOM + 30,
+    SCREEN_WIDTH / 2 + 90,
+    EXIT_DIALOG_BOTTOM + 100,
+)
+VOLUME_SETTINGS_ADJUST_COLOR = (90, 90, 110, 255)
+VOLUME_SETTINGS_BACK_COLOR = EXIT_DIALOG_NO_COLOR
+VOLUME_SETTINGS_MINUS_TEXT = "-"
+VOLUME_SETTINGS_PLUS_TEXT = "+"
+VOLUME_SETTINGS_BACK_TEXT = "BACK"
+
 
 def point_in_rect(rect, x, y):
     return rect[0] <= x <= rect[2] and rect[1] <= y <= rect[3]
+
+
+def rect_center(rect):
+    return (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2
 
 
 class GameApp:
@@ -99,6 +155,8 @@ class GameApp:
         self.battle_entry_loading_remaining = 0.0
         self.loading_font = None
         self.exit_confirmation_open = False
+        self.exit_settings_open = False
+        self.audio = AudioManager()
 
     def draw_loading_screen(self, pico2d_module=None, present=True):
         pico2d_module = pico2d_module or pico2d
@@ -135,6 +193,9 @@ class GameApp:
             pico2d_module.update_canvas()
 
     def draw_exit_confirmation(self, pico2d_module=None, present=True):
+        if self.exit_settings_open:
+            self.draw_volume_settings(pico2d_module, present)
+            return
         pico2d_module = pico2d_module or pico2d
         pico2d_module.draw_rectangle(
             0,
@@ -162,6 +223,11 @@ class GameApp:
             *EXIT_DIALOG_NO_COLOR,
             True,
         )
+        pico2d_module.draw_rectangle(
+            *EXIT_DIALOG_SETTINGS_RECT,
+            *EXIT_DIALOG_SETTINGS_COLOR,
+            True,
+        )
         font = self.assets.get("hud_font")
         if font is not None:
             draw_centered_text(
@@ -182,6 +248,90 @@ class GameApp:
                 (EXIT_DIALOG_NO_RECT[0] + EXIT_DIALOG_NO_RECT[2]) / 2,
                 EXIT_DIALOG_BUTTON_TEXT_Y,
                 "NO",
+                EXIT_DIALOG_TEXT_COLOR,
+            )
+            settings_x, settings_y = rect_center(EXIT_DIALOG_SETTINGS_RECT)
+            draw_text_at_center(
+                font,
+                settings_x,
+                settings_y,
+                EXIT_DIALOG_SETTINGS_TEXT,
+                EXIT_DIALOG_TEXT_COLOR,
+            )
+        if present:
+            pico2d_module.update_canvas()
+
+    def draw_volume_settings(self, pico2d_module=None, present=True):
+        pico2d_module = pico2d_module or pico2d
+        pico2d_module.draw_rectangle(
+            0,
+            0,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            *EXIT_DIALOG_DIM_COLOR,
+            True,
+        )
+        pico2d_module.draw_rectangle(
+            EXIT_DIALOG_LEFT,
+            EXIT_DIALOG_BOTTOM,
+            EXIT_DIALOG_RIGHT,
+            EXIT_DIALOG_TOP,
+            *EXIT_DIALOG_PANEL_COLOR,
+            True,
+        )
+        pico2d_module.draw_rectangle(
+            *VOLUME_SETTINGS_MINUS_RECT,
+            *VOLUME_SETTINGS_ADJUST_COLOR,
+            True,
+        )
+        pico2d_module.draw_rectangle(
+            *VOLUME_SETTINGS_PLUS_RECT,
+            *VOLUME_SETTINGS_ADJUST_COLOR,
+            True,
+        )
+        pico2d_module.draw_rectangle(
+            *VOLUME_SETTINGS_BACK_RECT,
+            *VOLUME_SETTINGS_BACK_COLOR,
+            True,
+        )
+        font = self.assets.get("hud_font")
+        if font is not None:
+            draw_centered_text(
+                font,
+                VOLUME_SETTINGS_TITLE_Y,
+                VOLUME_SETTINGS_TITLE,
+                EXIT_DIALOG_TEXT_COLOR,
+            )
+            draw_centered_text(
+                font,
+                VOLUME_SETTINGS_LABEL_Y,
+                "MUSIC VOLUME: {} ({}-{})".format(
+                    self.audio.volume, MIN_VOLUME, MAX_VOLUME
+                ),
+                VOLUME_SETTINGS_LABEL_COLOR,
+            )
+            minus_x, minus_y = rect_center(VOLUME_SETTINGS_MINUS_RECT)
+            plus_x, plus_y = rect_center(VOLUME_SETTINGS_PLUS_RECT)
+            back_x, back_y = rect_center(VOLUME_SETTINGS_BACK_RECT)
+            draw_text_at_center(
+                font,
+                minus_x,
+                minus_y,
+                VOLUME_SETTINGS_MINUS_TEXT,
+                EXIT_DIALOG_TEXT_COLOR,
+            )
+            draw_text_at_center(
+                font,
+                plus_x,
+                plus_y,
+                VOLUME_SETTINGS_PLUS_TEXT,
+                EXIT_DIALOG_TEXT_COLOR,
+            )
+            draw_text_at_center(
+                font,
+                back_x,
+                back_y,
+                VOLUME_SETTINGS_BACK_TEXT,
                 EXIT_DIALOG_TEXT_COLOR,
             )
         if present:
@@ -291,6 +441,7 @@ class GameApp:
             ),
             EnemyType.ARCHER: pico2d.load_image(str(directory / "bow_skel.png")),
         }
+        self.audio.set_loader(pico2d.load_music)
 
     def create_lobby_scene(self):
         player = Player(
@@ -357,6 +508,7 @@ class GameApp:
             )
         if self.scene is not None:
             self.scene.close()
+        self.audio.stop()
         if kind == "lobby":
             self.scene = self.create_lobby_scene()
         elif kind == "battle":
@@ -370,6 +522,8 @@ class GameApp:
         else:
             raise ValueError("unknown scene: {}".format(kind))
         self.scene_kind = kind
+        if kind == "lobby":
+            self.audio.play(LOBBY_MUSIC_FILE)
 
     def create_shop_scene(self):
         return ShopScene(
@@ -439,18 +593,43 @@ class GameApp:
             return
         self.open_exit_confirmation()
 
+    def set_music_volume(self, volume):
+        return self.audio.set_volume(volume)
+
+    def change_music_volume(self, amount):
+        return self.audio.change_volume(amount)
+
     def open_exit_confirmation(self):
         if self.exit_confirmation_open:
             return
         self.exit_confirmation_open = True
+        self.exit_settings_open = False
         if self.scene is not None and getattr(self.scene, "exit_requested", False):
             self.scene.exit_requested = False
 
     def close_exit_confirmation(self):
         self.exit_confirmation_open = False
+        self.exit_settings_open = False
+
+    def open_exit_settings(self):
+        self.exit_settings_open = True
+
+    def close_exit_settings(self):
+        self.exit_settings_open = False
 
     def handle_exit_confirmation_mouse_down(self, screen_x, screen_y):
         canvas_y = SCREEN_HEIGHT - screen_y
+        if self.exit_settings_open:
+            if point_in_rect(VOLUME_SETTINGS_MINUS_RECT, screen_x, canvas_y):
+                self.change_music_volume(-VOLUME_STEP)
+            elif point_in_rect(VOLUME_SETTINGS_PLUS_RECT, screen_x, canvas_y):
+                self.change_music_volume(VOLUME_STEP)
+            elif point_in_rect(VOLUME_SETTINGS_BACK_RECT, screen_x, canvas_y):
+                self.close_exit_settings()
+            return
+        if point_in_rect(EXIT_DIALOG_SETTINGS_RECT, screen_x, canvas_y):
+            self.open_exit_settings()
+            return
         if point_in_rect(EXIT_DIALOG_YES_RECT, screen_x, canvas_y):
             self.running = False
             return
@@ -458,6 +637,9 @@ class GameApp:
             self.close_exit_confirmation()
 
     def handle_escape_key(self):
+        if self.exit_settings_open:
+            self.close_exit_settings()
+            return
         if self.exit_confirmation_open:
             self.close_exit_confirmation()
             return
@@ -535,6 +717,16 @@ class GameApp:
                     elif event.type == pico2d.SDL_KEYDOWN:
                         if event.key == pico2d.SDLK_ESCAPE:
                             self.handle_escape_key()
+                        elif (
+                            self.exit_settings_open
+                            and event.key == pico2d.SDLK_UP
+                        ):
+                            self.change_music_volume(VOLUME_STEP)
+                        elif (
+                            self.exit_settings_open
+                            and event.key == pico2d.SDLK_DOWN
+                        ):
+                            self.change_music_volume(-VOLUME_STEP)
                         elif event.key in key_map and not self.exit_confirmation_open:
                             self.scene.key_down(key_map[event.key])
                     elif event.type == pico2d.SDL_KEYUP:
