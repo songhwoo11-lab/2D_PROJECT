@@ -9,6 +9,7 @@ import pico2d
 from arrow import Arrow
 from audio import (
     BATTLE_MUSIC_FILE,
+    BATTLE_PORTAL_EXIT_SOUND_FILE,
     DEFEAT_MUSIC_FILE,
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
@@ -255,6 +256,8 @@ class BattleScene:
         else:
             self.camera.follow(self.player.x, self.player.y)
         self._update_player_view()
+        if self.portal_transition_active:
+            self._play_portal_exit_sound()
         self._start_battle_music()
 
     def close(self):
@@ -321,6 +324,13 @@ class BattleScene:
         play_sound = getattr(self.audio, "play_sound", None)
         if play_sound is not None:
             play_sound(RELOAD_SOUND_FILE, target_duration=self.gun.reload_seconds)
+
+    def _play_portal_exit_sound(self):
+        if self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            play_sound(BATTLE_PORTAL_EXIT_SOUND_FILE)
 
     def _pause_reload_sound(self):
         self._control_reload_sound("pause_sound")

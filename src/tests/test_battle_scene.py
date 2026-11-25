@@ -5,6 +5,7 @@ from unittest import mock
 
 from audio import (
     BATTLE_MUSIC_FILE,
+    BATTLE_PORTAL_EXIT_SOUND_FILE,
     DEFEAT_MUSIC_FILE,
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
@@ -388,6 +389,7 @@ class BattleSceneMusicTests(unittest.TestCase):
     def test_music_starts_when_the_portal_entry_animation_ends(self):
         audio = RecordingAudio()
         scene = make_portal_transition_scene(audio=audio)
+        audio.events.clear()
 
         scene.update(battle_scene.BATTLE_PORTAL_EXIT_SECONDS)
         scene.update(battle_scene.BATTLE_PORTAL_FADE_SECONDS)
@@ -731,6 +733,21 @@ class BattleScenePortalTransitionTests(unittest.TestCase):
         self.assertFalse(self.scene.shows_aim_cursor)
         self.assertTrue(self.scene.shows_system_cursor)
         self.assertEqual(self.scene.start_countdown_remaining, 3.0)
+
+    def test_transition_plays_the_portal_exit_sound_once(self):
+        audio = RecordingAudio()
+
+        make_portal_transition_scene(audio=audio)
+
+        self.assertEqual(
+            audio.events,
+            [("play_sound", BATTLE_PORTAL_EXIT_SOUND_FILE)],
+        )
+
+    def test_transition_without_audio_is_safe(self):
+        scene = make_portal_transition_scene(audio=None)
+
+        self.assertTrue(scene.portal_transition_active)
 
     def test_transition_moves_down_and_decelerates_geometrically(self):
         start_y = self.scene.portal_transition_start_position[1]

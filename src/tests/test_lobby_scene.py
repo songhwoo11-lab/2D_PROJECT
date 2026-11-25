@@ -2,7 +2,11 @@ import math
 import unittest
 from unittest.mock import MagicMock, call, patch
 
-from audio import LOBBY_MUSIC_FILE, RECORDS_MUSIC_FILE
+from audio import (
+    LOBBY_MUSIC_FILE,
+    LOBBY_PORTAL_ENTRY_SOUND_FILE,
+    RECORDS_MUSIC_FILE,
+)
 from battle_record import BattleRecord, TrainingRecord
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
@@ -495,6 +499,27 @@ class LobbyPortalEntryTests(unittest.TestCase):
         self.assertIsNone(self.scene.panel)
         self.assertTrue(self.scene.portal_entry_active)
         self.assertIsNone(self.scene.pending_action)
+
+    def test_confirming_the_gun_selection_plays_the_portal_sound_once(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.audio = MagicMock()
+        self.scene.open_gun_selection()
+
+        press(self.scene, "space")
+
+        self.scene.audio.play_sound.assert_called_once_with(
+            LOBBY_PORTAL_ENTRY_SOUND_FILE
+        )
+
+    def test_repeated_portal_entry_starts_do_not_replay_the_sound(self):
+        self.scene.audio = MagicMock()
+
+        self.scene._start_portal_entry()
+        self.scene._start_portal_entry()
+
+        self.scene.audio.play_sound.assert_called_once_with(
+            LOBBY_PORTAL_ENTRY_SOUND_FILE
+        )
 
     def test_portal_entry_moves_spins_fades_and_shrinks_the_player_over_three_seconds(self):
         self.state.owned_guns = ["pistol", "rifle"]

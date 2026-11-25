@@ -4,7 +4,11 @@ import math
 
 import pico2d
 
-from audio import LOBBY_MUSIC_FILE, RECORDS_MUSIC_FILE
+from audio import (
+    LOBBY_MUSIC_FILE,
+    LOBBY_PORTAL_ENTRY_SOUND_FILE,
+    RECORDS_MUSIC_FILE,
+)
 from battle_record import result_record_text, training_record_text
 from game_config import (
     LOBBY_WORLD_HEIGHT,
@@ -763,7 +767,16 @@ class LobbyScene:
             return
         self._start_portal_entry()
 
+    def _play_portal_entry_sound(self):
+        if self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            play_sound(LOBBY_PORTAL_ENTRY_SOUND_FILE)
+
     def _start_portal_entry(self):
+        if self.portal_entry_active:
+            return
         portal = LOBBY_NODE_BY_KEY["portal"]
         start_x = self.player.x if self.player is not None else portal.zone_x
         start_y = self.player.y if self.player is not None else portal.zone_y
@@ -777,6 +790,7 @@ class LobbyScene:
         self.portal_entry_angle = 0.0
         self.portal_entry_opacity = 1.0
         self.portal_entry_scale = 1.0
+        self._play_portal_entry_sound()
 
     def open_gun_selection(self):
         """Show the gun selection screen before the battle starts."""

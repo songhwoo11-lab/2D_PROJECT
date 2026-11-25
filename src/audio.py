@@ -28,6 +28,9 @@ VICTORY_MUSIC_FILE = "win game.mp3"
 RECORDS_MUSIC_FILE = "log check bgm.mp3"
 PISTOL_SHOT_SOUND_FILE = "pistol shot sound.wav"
 RELOAD_SOUND_FILE = "gun reload sound.wav"
+LOBBY_PORTAL_ENTRY_SOUND_FILE = "in lobby portal.mp3"
+LOBBY_TO_BATTLE_SOUND_FILE = "lobby to portal.mp3"
+BATTLE_PORTAL_EXIT_SOUND_FILE = "out battle portal.mp3"
 
 MUSIC_BY_SCENE = {
     "lobby": LOBBY_MUSIC_FILE,

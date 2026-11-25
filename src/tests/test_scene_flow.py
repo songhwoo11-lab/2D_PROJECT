@@ -7,6 +7,7 @@ from audio import (
     BATTLE_MUSIC_FILE,
     DEFAULT_VOLUME,
     LOBBY_MUSIC_FILE,
+    LOBBY_TO_BATTLE_SOUND_FILE,
     MAX_VOLUME,
     MIN_VOLUME,
     SHOP_MUSIC_FILE,
@@ -386,6 +387,7 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertTrue(self.app.running)
 
     def test_battle_entry_loading_starts_the_one_second_countdown(self):
+        self.app.audio = Mock()
         self.app.scene.pending_action = "battle_entry_loading"
 
         self.assertTrue(self.app.handle_scene_action())
@@ -394,6 +396,19 @@ class SceneSwitchTests(unittest.TestCase):
             self.app.battle_entry_loading_remaining,
             BATTLE_ENTRY_LOADING_SECONDS,
         )
+        self.app.audio.play_sound.assert_called_once_with(
+            LOBBY_TO_BATTLE_SOUND_FILE
+        )
+
+    def test_battle_entry_loading_sound_is_not_replayed_without_a_new_action(self):
+        self.app.audio = Mock()
+        self.app.scene.pending_action = "battle_entry_loading"
+        self.app.handle_scene_action()
+        self.app.audio.play_sound.reset_mock()
+
+        self.assertFalse(self.app.handle_scene_action())
+
+        self.app.audio.play_sound.assert_not_called()
 
     def test_battle_entry_loading_switches_to_battle_after_one_second(self):
         self.app.battle_entry_loading_remaining = BATTLE_ENTRY_LOADING_SECONDS

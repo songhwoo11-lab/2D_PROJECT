@@ -6,6 +6,7 @@ import pico2d
 
 from audio import (
     AudioManager,
+    LOBBY_TO_BATTLE_SOUND_FILE,
     MUSIC_BY_SCENE,
     MAX_VOLUME,
     MIN_VOLUME,
@@ -575,6 +576,7 @@ class GameApp:
             return True
         if action == "battle_entry_loading":
             self.battle_entry_loading_remaining = BATTLE_ENTRY_LOADING_SECONDS
+            self.audio.play_sound(LOBBY_TO_BATTLE_SOUND_FILE)
             return True
         if action == "return_to_lobby":
             self.switch_scene("lobby")
