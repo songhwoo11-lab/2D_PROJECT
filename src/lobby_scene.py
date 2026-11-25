@@ -767,6 +767,13 @@ class LobbyScene:
             return
         self._start_portal_entry()
 
+    def _stop_lobby_music(self):
+        if self.audio is None:
+            return
+        stop = getattr(self.audio, "stop", None)
+        if stop is not None:
+            stop()
+
     def _play_portal_entry_sound(self):
         if self.audio is None:
             return
@@ -790,6 +797,7 @@ class LobbyScene:
         self.portal_entry_angle = 0.0
         self.portal_entry_opacity = 1.0
         self.portal_entry_scale = 1.0
+        self._stop_lobby_music()
         self._play_portal_entry_sound()
 
     def open_gun_selection(self):

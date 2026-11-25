@@ -511,6 +511,18 @@ class LobbyPortalEntryTests(unittest.TestCase):
             LOBBY_PORTAL_ENTRY_SOUND_FILE
         )
 
+    def test_confirming_the_gun_selection_stops_the_lobby_music(self):
+        self.state.owned_guns = ["pistol", "rifle"]
+        self.scene.audio = MagicMock()
+        self.scene.open_gun_selection()
+
+        press(self.scene, "space")
+
+        self.assertEqual(
+            self.scene.audio.mock_calls,
+            [call.stop(), call.play_sound(LOBBY_PORTAL_ENTRY_SOUND_FILE)],
+        )
+
     def test_repeated_portal_entry_starts_do_not_replay_the_sound(self):
         self.scene.audio = MagicMock()
 
@@ -520,6 +532,7 @@ class LobbyPortalEntryTests(unittest.TestCase):
         self.scene.audio.play_sound.assert_called_once_with(
             LOBBY_PORTAL_ENTRY_SOUND_FILE
         )
+        self.scene.audio.stop.assert_called_once_with()
 
     def test_portal_entry_moves_spins_fades_and_shrinks_the_player_over_three_seconds(self):
         self.state.owned_guns = ["pistol", "rifle"]
