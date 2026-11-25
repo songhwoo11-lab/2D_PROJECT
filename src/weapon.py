@@ -440,7 +440,7 @@ class Gun:
         self.reserve_ammo += added
         return added
 
-    def try_fire(self):
+    def try_fire(self, on_overheated=None):
         if not self.can_fire:
             return False
         if not self.infinite_ammo:
@@ -453,15 +453,17 @@ class Gun:
             self._auto_idle_seconds = 0.0
         self._add_heat(
             AUTO_SHOT_HEAT_BASE
-            + AUTO_SHOT_HEAT_STEP * (self.auto_shot_streak - 1)
+            + AUTO_SHOT_HEAT_STEP * (self.auto_shot_streak - 1),
+            on_overheated=on_overheated,
         )
         self._idle_seconds = 0.0
         self.cooldown_remaining = fire_interval
         return True
 
-    def _add_heat(self, amount):
+    def _add_heat(self, amount, on_overheated=None):
         if not self.heat_enabled:
             return
+        was_overheated = self.overheated
         self.temperature = min(
             self.temperature_limit,
             self.temperature + max(0.0, amount),
@@ -469,6 +471,8 @@ class Gun:
         if self.temperature >= self.temperature_limit:
             self.temperature = self.temperature_limit
             self.overheated = True
+            if not was_overheated and on_overheated is not None:
+                on_overheated()
 
     def toggle_mode(self):
         self.fire_mode = (
@@ -479,7 +483,11 @@ class Gun:
         return self.fire_mode
 
     def handle_fire_input(
-        self, mouse_held, mouse_pressed=False, on_reload_started=None
+        self,
+        mouse_held,
+        mouse_pressed=False,
+        on_reload_started=None,
+        on_overheated=None,
     ):
         should_reload = (
             mouse_pressed
@@ -490,8 +498,14 @@ class Gun:
             self.start_reload(on_reload_started)
             return False
         if self.fire_mode is FireMode.SINGLE:
-            return self.try_fire() if mouse_pressed else False
-        return self.try_fire() if mouse_held else False
+            return (
+                self.try_fire(on_overheated=on_overheated)
+                if mouse_pressed
+                else False
+            )
+        return (
+            self.try_fire(on_overheated=on_overheated) if mouse_held else False
+        )
 
 
 class WeaponStates:

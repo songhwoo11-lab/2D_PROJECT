@@ -104,6 +104,16 @@ class SingleShotHeatTests(unittest.TestCase):
 
         self.assertEqual(gun.temperature, gun.temperature_limit)
 
+    def test_overheat_callback_fires_only_on_the_transition(self):
+        gun = self._ready_gun()
+        gun.temperature = gun.temperature_limit - 0.2
+        callbacks = []
+
+        self.assertTrue(gun.try_fire(on_overheated=lambda: callbacks.append(1)))
+        self.assertFalse(gun.try_fire(on_overheated=lambda: callbacks.append(1)))
+
+        self.assertEqual(len(callbacks), 1)
+
 
 class AutoShotHeatTests(unittest.TestCase):
     def _auto_gun(self):

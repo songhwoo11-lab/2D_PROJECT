@@ -7,6 +7,7 @@ from audio import (
     BATTLE_MUSIC_FILE,
     BATTLE_PORTAL_EXIT_SOUND_FILE,
     DEFEAT_MUSIC_FILE,
+    OVERHEAT_SOUND_FILE,
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
     VICTORY_MUSIC_FILE,
@@ -573,6 +574,49 @@ class BattleSceneShotSoundTests(unittest.TestCase):
         self.fire_once(scene)
 
         self.assertGreater(scene.gun_recoil_remaining, 0.0)
+        self.assertEqual(audio.events, [])
+
+
+class BattleSceneOverheatSoundTests(unittest.TestCase):
+    def tearDown(self):
+        game_world.clear()
+
+    def make_audio_scene(self):
+        audio = RecordingAudio()
+        scene = make_scene(total_waves=1, spawn_rate=1000, audio=audio)
+        audio.events.clear()
+        return scene, audio
+
+    def overheat_with_one_shot(self, scene):
+        scene.gun.temperature = scene.gun.temperature_limit - 0.2
+        scene.gun.cooldown_remaining = 0.0
+        scene.mouse_down("left")
+        scene.update(0.0)
+        scene.mouse_up("left")
+
+    def test_overheat_plays_the_sound_once(self):
+        scene, audio = self.make_audio_scene()
+
+        self.overheat_with_one_shot(scene)
+
+        self.assertTrue(scene.gun.overheated)
+        self.assertEqual(
+            audio.events,
+            [
+                ("play_sound", OVERHEAT_SOUND_FILE),
+                ("play_sound", PISTOL_SHOT_SOUND_FILE),
+            ],
+        )
+
+    def test_blocked_shots_do_not_replay_the_overheat_sound(self):
+        scene, audio = self.make_audio_scene()
+        self.overheat_with_one_shot(scene)
+        audio.events.clear()
+
+        scene.mouse_down("left")
+        scene.update(0.0)
+        scene.mouse_up("left")
+
         self.assertEqual(audio.events, [])
 
 

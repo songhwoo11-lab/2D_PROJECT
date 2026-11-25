@@ -11,6 +11,7 @@ from audio import (
     BATTLE_MUSIC_FILE,
     BATTLE_PORTAL_EXIT_SOUND_FILE,
     DEFEAT_MUSIC_FILE,
+    OVERHEAT_SOUND_FILE,
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
     VICTORY_MUSIC_FILE,
@@ -324,6 +325,13 @@ class BattleScene:
         play_sound = getattr(self.audio, "play_sound", None)
         if play_sound is not None:
             play_sound(RELOAD_SOUND_FILE, target_duration=self.gun.reload_seconds)
+
+    def _play_overheat_sound(self):
+        if self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            play_sound(OVERHEAT_SOUND_FILE)
 
     def _play_portal_exit_sound(self):
         if self.audio is None:
@@ -964,6 +972,7 @@ class BattleScene:
                 mouse_held=self.mouse_held,
                 mouse_pressed=self._mouse_pressed,
                 on_reload_started=self._play_reload_sound,
+                on_overheated=self._play_overheat_sound,
             )
         self._mouse_pressed = False
         if fired:
