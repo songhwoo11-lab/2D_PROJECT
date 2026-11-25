@@ -108,17 +108,17 @@ UPGRADE_EFFECTS = {
     DEFAULT_GUN_ID: WeaponUpgradeEffects(
         damage=(5, 6, 6, 7, 7, 8, 8, 10, 10, 10, 10),
         magazine_size=(10, 10, 12, 12, 14, 14, 16, 16, 20, 20, 20),
-        reload_seconds=(2.0, 2.0, 2.0, 2.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.0, 1.0),
+        reload_seconds=(3.0, 3.0, 3.0, 3.0, 3.0, 2.5, 2.5, 2.5, 2.5, 2.5, 2.0),
     ),
     RIFLE_GUN_ID: WeaponUpgradeEffects(
         damage=(20, 25, 25, 30, 30, 35, 35, 40, 40, 40, 40),
         magazine_size=(30, 30, 35, 35, 40, 40, 45, 45, 50, 50, 50),
-        reload_seconds=(3.0, 3.0, 3.0, 3.0, 2.2, 2.2, 2.2, 2.2, 2.2, 1.6, 1.6),
+        reload_seconds=(4.0, 4.0, 4.0, 4.0, 4.0, 3.5, 3.5, 3.5, 3.5, 3.5, 3.0),
     ),
     MACHINE_GUN_GUN_ID: WeaponUpgradeEffects(
         damage=(12, 14, 14, 16, 16, 20, 20, 24, 24, 24, 24),
         magazine_size=(50, 50, 70, 70, 90, 90, 110, 110, 150, 150, 150),
-        reload_seconds=(5.0, 5.0, 5.0, 5.0, 3.5, 3.5, 3.5, 3.5, 3.5, 2.0, 2.0),
+        reload_seconds=(5.0, 5.0, 5.0, 5.0, 5.0, 4.0, 4.0, 4.0, 4.0, 4.0, 3.0),
     ),
 }
 
@@ -414,7 +414,7 @@ class Gun:
             self._auto_idle_seconds -= AUTO_STREAK_DECAY_SECONDS
             self.auto_shot_streak -= 1
 
-    def start_reload(self):
+    def start_reload(self, on_started=None):
         if self.infinite_ammo or self.reloading:
             return False
         if self.magazine_ammo >= self.magazine_size or self.reserve_ammo <= 0:
@@ -422,6 +422,8 @@ class Gun:
         self.reload_remaining = self.reload_seconds
         if self.reload_remaining <= 0:
             self._finish_reload()
+        if on_started is not None:
+            on_started()
         return True
 
     def _finish_reload(self):
@@ -476,14 +478,16 @@ class Gun:
         )
         return self.fire_mode
 
-    def handle_fire_input(self, mouse_held, mouse_pressed=False):
+    def handle_fire_input(
+        self, mouse_held, mouse_pressed=False, on_reload_started=None
+    ):
         should_reload = (
             mouse_pressed
             if self.fire_mode is FireMode.SINGLE
             else mouse_held
         )
         if should_reload and not self.infinite_ammo and self.magazine_ammo <= 0:
-            self.start_reload()
+            self.start_reload(on_reload_started)
             return False
         if self.fire_mode is FireMode.SINGLE:
             return self.try_fire() if mouse_pressed else False

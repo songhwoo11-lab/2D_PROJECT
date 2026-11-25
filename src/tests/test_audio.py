@@ -1,4 +1,8 @@
+from array import array
+from pathlib import Path
+import tempfile
 import unittest
+import wave
 
 from audio import (
     AudioManager,
@@ -11,6 +15,7 @@ from audio import (
     SHOP_MUSIC_FILE,
     MIN_VOLUME,
     PISTOL_SHOT_SOUND_FILE,
+    RELOAD_SOUND_FILE,
     TRAINING_MUSIC_FILE,
     VICTORY_MUSIC_FILE,
     MUSIC_BY_SCENE,
@@ -59,6 +64,45 @@ class FakeWav:
         self.volumes.append(volume)
 
 
+class FakeChannelWav:
+    def __init__(self):
+        self.wav = object()
+        self.volumes = []
+
+    def set_volume(self, volume):
+        self.volumes.append(volume)
+
+    def play(self):
+        raise AssertionError("channel playback should be used")
+
+
+class FakeChannelControls:
+    def __init__(self):
+        self.events = []
+        self.playing = set()
+        self.next_channel = 3
+
+    def play(self, sound):
+        channel = self.next_channel
+        self.next_channel += 1
+        self.events.append(("play", channel))
+        self.playing.add(channel)
+        return channel
+
+    def pause(self, channel):
+        self.events.append(("pause", channel))
+
+    def resume(self, channel):
+        self.events.append(("resume", channel))
+
+    def is_playing(self, channel):
+        return channel in self.playing
+
+    def stop(self, channel):
+        self.events.append(("stop", channel))
+        self.playing.discard(channel)
+
+
 class VolumeConversionTests(unittest.TestCase):
     def test_default_volume_is_fifty(self):
         self.assertEqual(DEFAULT_VOLUME, 50)
@@ -97,6 +141,9 @@ class AudioManagerTests(unittest.TestCase):
 
         self.manager = AudioManager(loader=loader)
         self.manager.set_sound_loader(sound_loader)
+
+    def tearDown(self):
+        self.manager.close()
 
     def test_new_manager_uses_the_default_volume(self):
         self.assertEqual(self.manager.volume, DEFAULT_VOLUME)
@@ -166,6 +213,14 @@ class AudioManagerTests(unittest.TestCase):
             self.sound_paths[0].endswith("sound\\" + PISTOL_SHOT_SOUND_FILE)
         )
         self.assertEqual(self.wav.play_count, 2)
+
+    def test_playing_the_reload_sound_loads_the_requested_file(self):
+        self.assertTrue(self.manager.play_sound(RELOAD_SOUND_FILE))
+
+        self.assertEqual(len(self.sound_paths), 1)
+        self.assertTrue(
+            self.sound_paths[0].endswith("sound\\" + RELOAD_SOUND_FILE)
+        )
 
     def test_volume_changes_apply_to_loaded_sounds(self):
         self.manager.play_sound(PISTOL_SHOT_SOUND_FILE)
@@ -282,3 +337,147 @@ class AudioManagerTests(unittest.TestCase):
         manager = AudioManager()
 
         self.assertFalse(manager.play(LOBBY_MUSIC_FILE))
+
+
+class SoundChannelTests(unittest.TestCase):
+    def setUp(self):
+        self.controls = FakeChannelControls()
+        self.wav = FakeChannelWav()
+        self.manager = AudioManager(channel_controls=self.controls)
+        self.manager.set_sound_loader(lambda path: self.wav)
+
+    def tearDown(self):
+        self.manager.close()
+
+    def test_play_pause_resume_and_stop_use_the_same_channel(self):
+        self.assertTrue(self.manager.play_sound(RELOAD_SOUND_FILE))
+
+        self.assertEqual(self.controls.events, [("play", 3)])
+
+        self.assertTrue(self.manager.pause_sound(RELOAD_SOUND_FILE))
+
+        self.assertEqual(
+            self.controls.events,
+            [("play", 3), ("pause", 3)],
+        )
+
+        self.assertTrue(self.manager.resume_sound(RELOAD_SOUND_FILE))
+
+        self.assertEqual(
+            self.controls.events,
+            [("play", 3), ("pause", 3), ("resume", 3)],
+        )
+
+        self.assertTrue(self.manager.stop_sound(RELOAD_SOUND_FILE))
+
+        self.assertEqual(
+            self.controls.events,
+            [("play", 3), ("pause", 3), ("resume", 3), ("stop", 3)],
+        )
+
+        self.controls.events.clear()
+
+        self.assertFalse(self.manager.pause_sound(RELOAD_SOUND_FILE))
+        self.assertFalse(self.manager.resume_sound(RELOAD_SOUND_FILE))
+        self.assertFalse(self.manager.stop_sound(RELOAD_SOUND_FILE))
+        self.assertEqual(self.controls.events, [])
+
+    def test_playing_the_sound_twice_tracks_both_channels(self):
+        self.manager.play_sound(RELOAD_SOUND_FILE)
+        self.manager.play_sound(RELOAD_SOUND_FILE)
+
+        self.assertTrue(self.manager.pause_sound(RELOAD_SOUND_FILE))
+
+        self.assertEqual(
+            self.controls.events,
+            [("play", 3), ("play", 4), ("pause", 3), ("pause", 4)],
+        )
+
+    def test_finished_channels_are_dropped(self):
+        self.manager.play_sound(RELOAD_SOUND_FILE)
+        self.controls.playing.clear()
+
+        self.assertFalse(self.manager.pause_sound(RELOAD_SOUND_FILE))
+        self.assertEqual(self.controls.events, [("play", 3)])
+
+    def test_sound_objects_without_a_channel_still_play_normally(self):
+        wav = FakeWav()
+        manager = AudioManager(channel_controls=self.controls)
+        manager.set_sound_loader(lambda path: wav)
+
+        self.assertTrue(manager.play_sound(PISTOL_SHOT_SOUND_FILE))
+
+        self.assertEqual(wav.play_count, 1)
+        self.assertFalse(manager.pause_sound(PISTOL_SHOT_SOUND_FILE))
+        self.assertFalse(manager.resume_sound(PISTOL_SHOT_SOUND_FILE))
+        self.assertEqual(self.controls.events, [])
+        manager.close()
+
+
+class SoundTimingTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.sound_directory = Path(self.directory.name)
+        self.name = "timed.wav"
+        self.framerate = 1000
+        self.frame_count = 2205
+        with wave.open(str(self.sound_directory / self.name), "wb") as wav:
+            wav.setnchannels(2)
+            wav.setsampwidth(2)
+            wav.setframerate(self.framerate)
+            wav.writeframes(
+                array(
+                    "h",
+                    [index % 1000 for index in range(self.frame_count * 2)],
+                ).tobytes()
+            )
+        self.paths = []
+        self.wav = FakeWav()
+
+        def sound_loader(path):
+            self.paths.append(path)
+            return self.wav
+
+        self.manager = AudioManager(sound_directory=self.sound_directory)
+        self.manager.set_sound_loader(sound_loader)
+
+    def tearDown(self):
+        self.manager.close()
+        self.directory.cleanup()
+
+    def loaded_duration(self, path):
+        with wave.open(path, "rb") as wav:
+            return wav.getnframes() / wav.getframerate()
+
+    def test_target_duration_resamples_the_sound(self):
+        target = 1.1025
+
+        self.assertTrue(self.manager.play_sound(self.name, target_duration=target))
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertNotEqual(Path(self.paths[0]), self.sound_directory / self.name)
+        self.assertAlmostEqual(
+            self.loaded_duration(self.paths[0]),
+            target,
+            delta=1 / self.framerate,
+        )
+        self.assertEqual(self.wav.play_count, 1)
+
+    def test_same_target_duration_uses_the_cached_sound(self):
+        self.manager.play_sound(self.name, target_duration=1.0)
+        self.manager.play_sound(self.name, target_duration=1.0)
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertEqual(self.wav.play_count, 2)
+
+    def test_different_target_durations_are_loaded_separately(self):
+        self.manager.play_sound(self.name, target_duration=1.0)
+        self.manager.play_sound(self.name, target_duration=2.0)
+
+        self.assertEqual(len(self.paths), 2)
+
+    def test_default_playback_still_uses_the_original_file(self):
+        self.manager.play_sound(self.name)
+
+        self.assertEqual(len(self.paths), 1)
+        self.assertEqual(Path(self.paths[0]), self.sound_directory / self.name)

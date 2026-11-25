@@ -11,6 +11,7 @@ from audio import (
     BATTLE_MUSIC_FILE,
     DEFEAT_MUSIC_FILE,
     PISTOL_SHOT_SOUND_FILE,
+    RELOAD_SOUND_FILE,
     VICTORY_MUSIC_FILE,
 )
 import battle_record
@@ -314,6 +315,32 @@ class BattleScene:
         if play_sound is not None:
             play_sound(PISTOL_SHOT_SOUND_FILE)
 
+    def _play_reload_sound(self):
+        if self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            play_sound(RELOAD_SOUND_FILE, target_duration=self.gun.reload_seconds)
+
+    def _pause_reload_sound(self):
+        self._control_reload_sound("pause_sound")
+
+    def _resume_reload_sound(self):
+        self._control_reload_sound("resume_sound")
+
+    def _stop_reload_sound(self):
+        self._control_reload_sound("stop_sound")
+
+    def _control_reload_sound(self, method_name):
+        if self.audio is None:
+            return
+        control = getattr(self.audio, method_name, None)
+        if control is not None:
+            control(RELOAD_SOUND_FILE)
+
+    def _start_reload(self):
+        self.gun.start_reload(self._play_reload_sound)
+
     def _announce_wave(self):
         wave = self.wave_director.current_wave
         if wave % 10 == 0:
@@ -503,8 +530,10 @@ class BattleScene:
             if self.paused:
                 self.pause_menu_index = 0
                 self._stop_battle_music()
+                self._pause_reload_sound()
             else:
                 self._start_battle_music()
+                self._resume_reload_sound()
             return
         if self.paused:
             if key in ("w", "up"):
@@ -525,12 +554,13 @@ class BattleScene:
         elif key == "e":
             self.gun.toggle_mode()
         elif key == "r":
-            self.gun.start_reload()
+            self._start_reload()
 
     def _select_pause_menu_item(self):
         if self.pause_menu_index == 0:
             self.paused = False
             self._start_battle_music()
+            self._resume_reload_sound()
         else:
             self._finish(BattleResult.QUIT)
 
@@ -541,6 +571,7 @@ class BattleScene:
         self.result = result
         self.paused = False
         self._stop_battle_music()
+        self._stop_reload_sound()
         if result is BattleResult.DEFEAT:
             self._play_result_music(DEFEAT_MUSIC_FILE)
         elif result is BattleResult.VICTORY:
@@ -695,6 +726,7 @@ class BattleScene:
 
     def reset_map(self):
         self._stop_battle_music()
+        self._stop_reload_sound()
         self.portal_transition_active = False
         self.portal_transition_elapsed = 0.0
         self.portal_fade_active = False
@@ -921,6 +953,7 @@ class BattleScene:
             fired = self.gun.handle_fire_input(
                 mouse_held=self.mouse_held,
                 mouse_pressed=self._mouse_pressed,
+                on_reload_started=self._play_reload_sound,
             )
         self._mouse_pressed = False
         if fired:

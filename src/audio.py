@@ -1,6 +1,13 @@
 """Centralized music playback and volume settings."""
 
+from array import array
 from pathlib import Path
+import math
+import sys
+import tempfile
+import wave
+
+import pico2d
 
 
 DEFAULT_VOLUME = 50
@@ -20,6 +27,7 @@ DEFEAT_MUSIC_FILE = "lose game.mp3"
 VICTORY_MUSIC_FILE = "win game.mp3"
 RECORDS_MUSIC_FILE = "log check bgm.mp3"
 PISTOL_SHOT_SOUND_FILE = "pistol shot sound.wav"
+RELOAD_SOUND_FILE = "gun reload sound.wav"
 
 MUSIC_BY_SCENE = {
     "lobby": LOBBY_MUSIC_FILE,
@@ -28,6 +36,33 @@ MUSIC_BY_SCENE = {
 
 # Battle and training music are controlled by their scenes so they start at
 # the right point in each scene's intro.
+
+
+def resample_wav_frames(frames, channels, speed):
+    samples = array("h")
+    samples.frombytes(frames)
+    if sys.byteorder != "little":
+        samples.byteswap()
+    frame_count = len(samples) // channels
+    if frame_count == 0:
+        return b""
+    output_frames = max(1, int(round(frame_count / speed)))
+    resampled = array("h", [0]) * (output_frames * channels)
+    for index in range(output_frames):
+        position = index * speed
+        left = min(int(position), frame_count - 1)
+        right = min(left + 1, frame_count - 1)
+        weight = position - left
+        left_base = left * channels
+        right_base = right * channels
+        output_base = index * channels
+        for channel in range(channels):
+            value = samples[left_base + channel] * (1.0 - weight)
+            value += samples[right_base + channel] * weight
+            resampled[output_base + channel] = int(round(value))
+    if sys.byteorder != "little":
+        resampled.byteswap()
+    return resampled.tobytes()
 
 
 def clamp_volume(volume):
@@ -40,16 +75,38 @@ def to_mixer_volume(volume):
     return round(clamp_volume(volume) / MAX_VOLUME * MIXER_MAX_VOLUME)
 
 
+class Pico2dSoundChannels:
+    def play(self, sound):
+        return pico2d.Mix_PlayChannel(-1, sound.wav, 0)
+
+    def pause(self, channel):
+        pico2d.Mix_Pause(channel)
+
+    def resume(self, channel):
+        pico2d.Mix_Resume(channel)
+
+    def is_playing(self, channel):
+        return bool(pico2d.Mix_Playing(channel))
+
+    def stop(self, channel):
+        pico2d.Mix_HaltChannel(channel)
+
+
 class AudioManager:
     """Loads and plays music while applying one shared volume setting."""
 
-    def __init__(self, loader=None, sound_directory=SOUND_DIRECTORY):
+    def __init__(
+        self, loader=None, sound_directory=SOUND_DIRECTORY, channel_controls=None
+    ):
         self.loader = loader
         self.sound_loader = None
         self.sound_directory = Path(sound_directory)
+        self.channel_controls = channel_controls or Pico2dSoundChannels()
         self.volume = DEFAULT_VOLUME
         self._music_cache = {}
         self._sound_cache = {}
+        self._sound_channels = {}
+        self._sound_temp_dir = None
         self._current_music = None
         self._current_name = None
         self._paused = False
@@ -78,6 +135,7 @@ class AudioManager:
             return
         self.sound_loader = loader
         self._sound_cache.clear()
+        self._sound_channels.clear()
 
     def set_volume(self, volume):
         """Apply a new 0..100 volume to every loaded and playing track."""
@@ -120,16 +178,38 @@ class AudioManager:
         self._current_name = name
         return True
 
-    def play_sound(self, name):
+    def play_sound(self, name, target_duration=None):
         """Play a short sound effect once; return False when audio is unavailable."""
-        sound = self._load_sound(name)
+        sound = self._load_sound(name, target_duration)
         if sound is None:
             return False
         try:
-            sound.play()
+            if hasattr(sound, "wav"):
+                channel = self.channel_controls.play(sound)
+                if channel is None or channel < 0:
+                    return False
+                self._sound_channels.setdefault(name, []).append(channel)
+            else:
+                sound.play()
         except (OSError, RuntimeError):
             return False
         return True
+
+    def pause_sound(self, name):
+        return self._change_sound_playback(name, "pause")
+
+    def resume_sound(self, name):
+        return self._change_sound_playback(name, "resume")
+
+    def stop_sound(self, name):
+        channels = self._active_sound_channels(name)
+        for channel in channels:
+            try:
+                self.channel_controls.stop(channel)
+            except (OSError, RuntimeError):
+                pass
+        self._sound_channels[name] = []
+        return bool(channels)
 
     def pause(self):
         """Pause the current track without losing its playback position."""
@@ -152,6 +232,14 @@ class AudioManager:
             return False
         self._paused = False
         return True
+
+    def close(self):
+        self.stop()
+        self._stop_all_sound_channels()
+        self._sound_cache.clear()
+        if self._sound_temp_dir is not None:
+            self._sound_temp_dir.cleanup()
+            self._sound_temp_dir = None
 
     def stop(self):
         if self._current_music is not None:
@@ -179,21 +267,92 @@ class AudioManager:
         self._music_cache[name] = music
         return music
 
-    def _load_sound(self, name):
-        if name in self._sound_cache:
-            return self._sound_cache[name]
+    def _change_sound_playback(self, name, action):
+        channels = self._active_sound_channels(name)
+        for channel in channels:
+            try:
+                getattr(self.channel_controls, action)(channel)
+            except (OSError, RuntimeError):
+                pass
+        return bool(channels)
+
+    def _active_sound_channels(self, name):
+        active = []
+        for channel in self._sound_channels.get(name, []):
+            try:
+                if self.channel_controls.is_playing(channel):
+                    active.append(channel)
+            except (OSError, RuntimeError):
+                pass
+        self._sound_channels[name] = active
+        return active
+
+    def _stop_all_sound_channels(self):
+        for name in list(self._sound_channels):
+            self.stop_sound(name)
+
+    @staticmethod
+    def _sound_key(name, target_duration):
+        duration = None
+        if target_duration is not None:
+            duration = round(float(target_duration), 6)
+            if duration <= 0 or not math.isfinite(duration):
+                duration = None
+        return name, duration
+
+    def _load_sound(self, name, target_duration=None):
+        key = self._sound_key(name, target_duration)
+        duration = key[1]
+        if key in self._sound_cache:
+            return self._sound_cache[key]
         if self.sound_loader is None:
             return None
+        path = self.sound_directory / name
+        if duration is not None:
+            path = self._resampled_sound_path(name, duration)
         try:
-            sound = self.sound_loader(str(self.sound_directory / name))
+            sound = self.sound_loader(str(path))
         except (OSError, RuntimeError, ValueError):
             self.sound_loader = None
             return None
         if sound is None:
             return None
         self._apply_sound_volume(sound)
-        self._sound_cache[name] = sound
+        self._sound_cache[key] = sound
         return sound
+
+    def _resampled_sound_path(self, name, duration):
+        source_path = self.sound_directory / name
+        try:
+            with wave.open(str(source_path), "rb") as source:
+                if source.getcomptype() != "NONE" or source.getsampwidth() != 2:
+                    return source_path
+                channels = source.getnchannels()
+                framerate = source.getframerate()
+                frame_count = source.getnframes()
+                frames = source.readframes(frame_count)
+        except (OSError, EOFError, wave.Error):
+            return source_path
+        if frame_count <= 0 or framerate <= 0 or channels <= 0:
+            return source_path
+        speed = frame_count / framerate / duration
+        if speed <= 0 or not math.isfinite(speed):
+            return source_path
+        if self._sound_temp_dir is None:
+            self._sound_temp_dir = tempfile.TemporaryDirectory(
+                prefix="challenging-gunner-"
+            )
+        target_path = Path(self._sound_temp_dir.name) / "{}-{}.wav".format(
+            Path(name).stem.replace(" ", "_"),
+            str(duration).replace(".", "_"),
+        )
+        resampled = resample_wav_frames(frames, channels, speed)
+        with wave.open(str(target_path), "wb") as target:
+            target.setnchannels(channels)
+            target.setsampwidth(2)
+            target.setframerate(framerate)
+            target.writeframes(resampled)
+        return target_path
 
     def _apply_volume(self, music):
         try:

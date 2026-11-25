@@ -7,6 +7,7 @@ from audio import (
     BATTLE_MUSIC_FILE,
     DEFEAT_MUSIC_FILE,
     PISTOL_SHOT_SOUND_FILE,
+    RELOAD_SOUND_FILE,
     VICTORY_MUSIC_FILE,
 )
 from battle_scene import BattleResult, BattleScene
@@ -80,8 +81,20 @@ class RecordingAudio:
     def play_once(self, name):
         self.events.append(("play_once", name))
 
-    def play_sound(self, name):
-        self.events.append(("play_sound", name))
+    def play_sound(self, name, target_duration=None):
+        if target_duration is None:
+            self.events.append(("play_sound", name))
+        else:
+            self.events.append(("play_sound", name, target_duration))
+
+    def pause_sound(self, name):
+        self.events.append(("pause_sound", name))
+
+    def resume_sound(self, name):
+        self.events.append(("resume_sound", name))
+
+    def stop_sound(self, name):
+        self.events.append(("stop_sound", name))
 
     def stop(self):
         self.events.append(("stop",))
@@ -408,12 +421,18 @@ class BattleSceneMusicTests(unittest.TestCase):
         audio.events.clear()
 
         scene.key_down("escape")
-        self.assertEqual(audio.events, [("stop",)])
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("pause_sound", RELOAD_SOUND_FILE)],
+        )
 
         scene.key_up("escape")
         scene.key_down("escape")
 
-        self.assertEqual(audio.events[-1], ("play", BATTLE_MUSIC_FILE))
+        self.assertEqual(
+            audio.events[2:],
+            [("play", BATTLE_MUSIC_FILE), ("resume_sound", RELOAD_SOUND_FILE)],
+        )
 
     def test_defeat_plays_the_lose_track_once(self):
         scene, audio = self.make_audio_scene()
@@ -424,7 +443,11 @@ class BattleSceneMusicTests(unittest.TestCase):
 
         self.assertEqual(
             audio.events,
-            [("stop",), ("play_once", DEFEAT_MUSIC_FILE)],
+            [
+                ("stop",),
+                ("stop_sound", RELOAD_SOUND_FILE),
+                ("play_once", DEFEAT_MUSIC_FILE),
+            ],
         )
 
     def test_defeat_does_not_replay_the_lose_track_on_later_updates(self):
@@ -437,7 +460,11 @@ class BattleSceneMusicTests(unittest.TestCase):
 
         self.assertEqual(
             audio.events,
-            [("stop",), ("play_once", DEFEAT_MUSIC_FILE)],
+            [
+                ("stop",),
+                ("stop_sound", RELOAD_SOUND_FILE),
+                ("play_once", DEFEAT_MUSIC_FILE),
+            ],
         )
 
     def test_victory_plays_the_win_track_once(self):
@@ -449,7 +476,11 @@ class BattleSceneMusicTests(unittest.TestCase):
 
         self.assertEqual(
             audio.events,
-            [("stop",), ("play_once", VICTORY_MUSIC_FILE)],
+            [
+                ("stop",),
+                ("stop_sound", RELOAD_SOUND_FILE),
+                ("play_once", VICTORY_MUSIC_FILE),
+            ],
         )
 
     def test_victory_does_not_replay_the_win_track_on_later_updates(self):
@@ -462,7 +493,11 @@ class BattleSceneMusicTests(unittest.TestCase):
 
         self.assertEqual(
             audio.events,
-            [("stop",), ("play_once", VICTORY_MUSIC_FILE)],
+            [
+                ("stop",),
+                ("stop_sound", RELOAD_SOUND_FILE),
+                ("play_once", VICTORY_MUSIC_FILE),
+            ],
         )
 
     def test_quit_stops_music(self):
@@ -473,7 +508,10 @@ class BattleSceneMusicTests(unittest.TestCase):
 
         scene.key_down("space")
 
-        self.assertEqual(audio.events, [("stop",)])
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("stop_sound", RELOAD_SOUND_FILE)],
+        )
 
     def test_reset_map_restarts_music_without_an_entry_animation(self):
         scene, audio = self.make_audio_scene()
@@ -483,7 +521,11 @@ class BattleSceneMusicTests(unittest.TestCase):
 
         self.assertEqual(
             audio.events,
-            [("stop",), ("play", BATTLE_MUSIC_FILE)],
+            [
+                ("stop",),
+                ("stop_sound", RELOAD_SOUND_FILE),
+                ("play", BATTLE_MUSIC_FILE),
+            ],
         )
 
         audio.events.clear()
@@ -530,6 +572,140 @@ class BattleSceneShotSoundTests(unittest.TestCase):
 
         self.assertGreater(scene.gun_recoil_remaining, 0.0)
         self.assertEqual(audio.events, [])
+
+
+class BattleSceneReloadSoundTests(unittest.TestCase):
+    def tearDown(self):
+        game_world.clear()
+
+    def make_audio_scene(self, gun_id=DEFAULT_GUN_ID):
+        audio = RecordingAudio()
+        scene = make_scene(total_waves=1, spawn_rate=1000, audio=audio)
+        scene.gun = Gun.from_gun_id(gun_id)
+        audio.events.clear()
+        return scene, audio
+
+    def test_pressing_r_plays_the_reload_sound_once(self):
+        scene, audio = self.make_audio_scene()
+        scene.gun.magazine_ammo = 0
+
+        scene.key_down("r")
+
+        self.assertTrue(scene.gun.reloading)
+        self.assertEqual(
+            audio.events,
+            [("play_sound", RELOAD_SOUND_FILE, scene.gun.reload_seconds)],
+        )
+
+    def test_repeated_r_while_reloading_does_not_replay_the_sound(self):
+        scene, audio = self.make_audio_scene()
+        scene.gun.magazine_ammo = 0
+
+        scene.key_down("r")
+        scene.key_up("r")
+        scene.key_down("r")
+
+        self.assertEqual(
+            audio.events,
+            [("play_sound", RELOAD_SOUND_FILE, scene.gun.reload_seconds)],
+        )
+
+    def test_reload_without_needed_ammo_plays_no_sound(self):
+        scene, audio = self.make_audio_scene()
+
+        scene.key_down("r")
+
+        self.assertFalse(scene.gun.reloading)
+        self.assertEqual(audio.events, [])
+
+    def test_automatic_reload_plays_the_sound_once(self):
+        scene, audio = self.make_audio_scene(gun_id=RIFLE_GUN_ID)
+        scene.gun.magazine_ammo = 0
+
+        scene.mouse_down("left")
+        scene.update(0.0)
+        scene.mouse_up("left")
+
+        self.assertTrue(scene.gun.reloading)
+        self.assertEqual(
+            audio.events,
+            [("play_sound", RELOAD_SOUND_FILE, scene.gun.reload_seconds)],
+        )
+
+    def test_firing_with_ammo_plays_no_reload_sound(self):
+        scene, audio = self.make_audio_scene()
+
+        scene.mouse_down("left")
+        scene.update(0.0)
+        scene.mouse_up("left")
+
+        self.assertEqual(
+            audio.events,
+            [("play_sound", PISTOL_SHOT_SOUND_FILE)],
+        )
+
+    def test_each_gun_uses_its_own_reload_duration(self):
+        for gun_id in (DEFAULT_GUN_ID, RIFLE_GUN_ID, MACHINE_GUN_GUN_ID):
+            with self.subTest(gun_id=gun_id):
+                game_world.clear()
+                scene, audio = self.make_audio_scene(gun_id=gun_id)
+                scene.gun.magazine_ammo = 0
+
+                scene.key_down("r")
+
+                self.assertEqual(
+                    audio.events,
+                    [("play_sound", RELOAD_SOUND_FILE, scene.gun.reload_seconds)],
+                )
+
+    def test_reload_without_audio_is_safe(self):
+        scene = make_scene(total_waves=1, spawn_rate=1000)
+        scene.gun.magazine_ammo = 0
+
+        scene.key_down("r")
+
+        self.assertTrue(scene.gun.reloading)
+
+    def test_pausing_pauses_the_reload_sound(self):
+        scene, audio = self.make_audio_scene()
+        scene.gun.magazine_ammo = 0
+        scene.key_down("r")
+        audio.events.clear()
+
+        scene.key_down("escape")
+
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("pause_sound", RELOAD_SOUND_FILE)],
+        )
+
+    def test_resuming_resumes_the_reload_sound(self):
+        scene, audio = self.make_audio_scene()
+        scene.gun.magazine_ammo = 0
+        scene.key_down("r")
+        scene.key_down("escape")
+        scene.key_up("escape")
+        audio.events.clear()
+
+        scene.key_down("escape")
+
+        self.assertEqual(
+            audio.events,
+            [("play", BATTLE_MUSIC_FILE), ("resume_sound", RELOAD_SOUND_FILE)],
+        )
+
+    def test_resuming_from_the_pause_menu_resumes_the_reload_sound(self):
+        scene, audio = self.make_audio_scene()
+        scene.key_down("escape")
+        scene.key_up("escape")
+        audio.events.clear()
+
+        scene.key_down("space")
+
+        self.assertEqual(
+            audio.events,
+            [("play", BATTLE_MUSIC_FILE), ("resume_sound", RELOAD_SOUND_FILE)],
+        )
 
 
 class BattleScenePortalTransitionTests(unittest.TestCase):

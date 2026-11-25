@@ -216,7 +216,7 @@ class WeaponSpecModelTests(unittest.TestCase):
         )
         self.assertEqual(
             weapon_stats_at_level(RIFLE_GUN_ID, 5).reload_seconds,
-            2.2,
+            3.5,
         )
         self.assertEqual(
             weapon_stats_at_level(MACHINE_GUN_GUN_ID, 8).damage,
@@ -228,8 +228,26 @@ class WeaponSpecModelTests(unittest.TestCase):
         )
         self.assertEqual(
             weapon_stats_at_level(DEFAULT_GUN_ID, 10).reload_seconds,
-            1.0,
+            2.0,
         )
+
+    def test_reload_seconds_match_each_upgrade_level(self):
+        expected = {
+            DEFAULT_GUN_ID: (3.0, 3.0, 3.0, 3.0, 3.0, 2.5, 2.5, 2.5, 2.5, 2.5, 2.0),
+            RIFLE_GUN_ID: (4.0, 4.0, 4.0, 4.0, 4.0, 3.5, 3.5, 3.5, 3.5, 3.5, 3.0),
+            MACHINE_GUN_GUN_ID: (
+                5.0, 5.0, 5.0, 5.0, 5.0, 4.0, 4.0, 4.0, 4.0, 4.0, 3.0
+            ),
+        }
+        for gun_id, seconds in expected.items():
+            with self.subTest(gun_id=gun_id):
+                self.assertEqual(
+                    tuple(
+                        weapon_stats_at_level(gun_id, level).reload_seconds
+                        for level in range(MAX_UPGRADE_LEVEL + 1)
+                    ),
+                    seconds,
+                )
 
     def test_gun_can_be_created_at_an_upgrade_level(self):
         gun = Gun.from_gun_id(RIFLE_GUN_ID, 1)

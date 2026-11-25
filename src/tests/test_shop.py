@@ -99,7 +99,7 @@ class UpgradeEffectDataTests(unittest.TestCase):
 
         self.assertEqual(upgraded.damage, 25)
         self.assertEqual(upgraded.magazine_size, 30)
-        self.assertEqual(upgraded.reload_seconds, 3.0)
+        self.assertEqual(upgraded.reload_seconds, 4.0)
         self.assertEqual(upgraded.fire_interval_seconds, base.fire_interval_seconds)
 
 
