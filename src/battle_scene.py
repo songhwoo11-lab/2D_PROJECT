@@ -114,7 +114,7 @@ SHOT_SOUND_BY_GUN_ID = {
     MACHINE_GUN_GUN_ID: MACHINE_GUN_SHOT_SOUND_FILE,
 }
 
-PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
+PAUSE_MENU_ITEMS = ("RESUME", "SETTINGS", "QUIT TO LOBBY")
 RESULT_TITLES = {
     "victory": "VICTORY",
     "defeat": "DEFEAT",
@@ -253,6 +253,7 @@ class BattleScene:
         self.finished = False
         self.result = None
         self.exit_requested = False
+        self.settings_requested = False
 
         if self.portal_transition_active:
             self.player.x, self.player.y = self.portal_transition_start_position
@@ -313,9 +314,10 @@ class BattleScene:
     def _play_result_music(self, name):
         if self.audio is None:
             return
-        play_once = getattr(self.audio, "play_once", None)
-        if play_once is not None:
-            play_once(name)
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            # Result stingers are effects, so they follow the SFX volume.
+            play_sound(name)
 
     def _play_shot_sound(self):
         if self.audio is None:
@@ -587,6 +589,8 @@ class BattleScene:
             self.paused = False
             self._start_battle_music()
             self._resume_reload_sound()
+        elif self.pause_menu_index == 1:
+            self.settings_requested = True
         else:
             self._finish(BattleResult.QUIT)
 
@@ -796,6 +800,7 @@ class BattleScene:
         self.finished = False
         self.result = None
         self.exit_requested = False
+        self.settings_requested = False
         game_world.clear()
         game_world.add_object(self.player, depth=1)
         self.camera.follow(self.player.x, self.player.y)

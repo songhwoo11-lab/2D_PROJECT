@@ -27,7 +27,7 @@ TRAINING_CURSOR_ALPHA = AIM_CURSOR_ALPHA
 TRAINING_NOTICE_Y = SCREEN_HEIGHT - 300
 TRAINING_HINT_Y = 120
 
-PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
+PAUSE_MENU_ITEMS = ("RESUME", "SETTINGS", "QUIT TO LOBBY")
 
 EXIT_BUTTON_LABEL = "EXIT"
 EXIT_BUTTON_WIDTH = 160
@@ -153,6 +153,7 @@ class TrainingScene:
         self.mouse_held = False
         self._mouse_pressed = False
         self.exit_requested = False
+        self.settings_requested = False
         self.pending_action = None
         self.paused = False
         self.pause_menu_index = 0
@@ -506,10 +507,14 @@ class TrainingScene:
             self.pending_action = "return_to_lobby"
 
     def _select_pause_menu_item(self):
-        self.paused = False
         if self.pause_menu_index == 0:
+            self.paused = False
             self._resume_training_music()
             return
+        if self.pause_menu_index == 1:
+            self.settings_requested = True
+            return
+        self.paused = False
         self._stop_training_music()
         self._training_record_saved = True
         self.pending_action = "return_to_lobby"

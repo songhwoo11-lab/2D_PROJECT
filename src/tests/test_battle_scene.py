@@ -451,7 +451,7 @@ class BattleSceneMusicTests(unittest.TestCase):
             [
                 ("stop",),
                 ("stop_sound", RELOAD_SOUND_FILE),
-                ("play_once", DEFEAT_MUSIC_FILE),
+                ("play_sound", DEFEAT_MUSIC_FILE),
             ],
         )
 
@@ -468,7 +468,7 @@ class BattleSceneMusicTests(unittest.TestCase):
             [
                 ("stop",),
                 ("stop_sound", RELOAD_SOUND_FILE),
-                ("play_once", DEFEAT_MUSIC_FILE),
+                ("play_sound", DEFEAT_MUSIC_FILE),
             ],
         )
 
@@ -484,7 +484,7 @@ class BattleSceneMusicTests(unittest.TestCase):
             [
                 ("stop",),
                 ("stop_sound", RELOAD_SOUND_FILE),
-                ("play_once", VICTORY_MUSIC_FILE),
+                ("play_sound", VICTORY_MUSIC_FILE),
             ],
         )
 
@@ -501,14 +501,14 @@ class BattleSceneMusicTests(unittest.TestCase):
             [
                 ("stop",),
                 ("stop_sound", RELOAD_SOUND_FILE),
-                ("play_once", VICTORY_MUSIC_FILE),
+                ("play_sound", VICTORY_MUSIC_FILE),
             ],
         )
 
     def test_quit_stops_music(self):
         scene, audio = self.make_audio_scene()
         scene.paused = True
-        scene.pause_menu_index = 1
+        scene.pause_menu_index = 2
         audio.events.clear()
 
         scene.key_down("space")
@@ -1481,10 +1481,23 @@ class BattleSceneFlowTests(unittest.TestCase):
         self.assertEqual(self.scene.pause_menu_index, 1)
         self.scene.key_up("s")
         self.scene.key_down("s")
+        self.assertEqual(self.scene.pause_menu_index, 2)
+        self.scene.key_up("s")
+        self.scene.key_down("s")
         self.assertEqual(self.scene.pause_menu_index, 0)
         self.scene.key_up("s")
         self.scene.key_down("w")
-        self.assertEqual(self.scene.pause_menu_index, 1)
+        self.assertEqual(self.scene.pause_menu_index, 2)
+
+    def test_settings_option_requests_the_settings_panel(self):
+        self.scene.key_down("escape")
+        self.scene.key_down("s")
+
+        self.scene.key_down("space")
+
+        self.assertTrue(self.scene.settings_requested)
+        self.assertTrue(self.scene.paused)
+        self.assertFalse(self.scene.finished)
 
     def test_resume_option_closes_the_pause_menu(self):
         self.scene.key_down("escape")
@@ -1496,6 +1509,8 @@ class BattleSceneFlowTests(unittest.TestCase):
 
     def test_quit_option_finishes_the_battle(self):
         self.scene.key_down("escape")
+        self.scene.key_down("s")
+        self.scene.key_up("s")
         self.scene.key_down("s")
         self.scene.key_up("s")
 
@@ -2167,6 +2182,8 @@ class BattleSceneRecordTests(unittest.TestCase):
         self.scene.reached_wave = 4
 
         self.scene.key_down("escape")
+        self.scene.key_down("s")
+        self.scene.key_up("s")
         self.scene.key_down("s")
         self.scene.key_up("s")
         self.scene.key_down("space")

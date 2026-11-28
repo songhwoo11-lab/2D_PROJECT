@@ -40,6 +40,34 @@ MUSIC_BY_SCENE = {
     "shop": SHOP_MUSIC_FILE,
 }
 
+# Volume groups exposed by the settings panel. Battle music is also listed
+# under effects because it can be reused as a one-shot, but while it is used
+# as the looping battle track it follows the music volume.
+BGM_VOLUME_FILES = frozenset(
+    {
+        BATTLE_MUSIC_FILE,
+        LOBBY_MUSIC_FILE,
+        RECORDS_MUSIC_FILE,
+        SHOP_MUSIC_FILE,
+        TRAINING_MUSIC_FILE,
+    }
+)
+SFX_VOLUME_FILES = frozenset(
+    {
+        RELOAD_SOUND_FILE,
+        LOBBY_PORTAL_ENTRY_SOUND_FILE,
+        LOBBY_TO_BATTLE_SOUND_FILE,
+        BATTLE_MUSIC_FILE,
+        DEFEAT_MUSIC_FILE,
+        MACHINE_GUN_SHOT_SOUND_FILE,
+        BATTLE_PORTAL_EXIT_SOUND_FILE,
+        OVERHEAT_SOUND_FILE,
+        PISTOL_SHOT_SOUND_FILE,
+        RIFLE_SHOT_SOUND_FILE,
+        VICTORY_MUSIC_FILE,
+    }
+)
+
 # Battle and training music are controlled by their scenes so they start at
 # the right point in each scene's intro.
 
@@ -99,7 +127,7 @@ class Pico2dSoundChannels:
 
 
 class AudioManager:
-    """Loads and plays music while applying one shared volume setting."""
+    """Loads and plays audio with separate music and effect volume settings."""
 
     def __init__(
         self, loader=None, sound_directory=SOUND_DIRECTORY, channel_controls=None
@@ -108,7 +136,8 @@ class AudioManager:
         self.sound_loader = None
         self.sound_directory = Path(sound_directory)
         self.channel_controls = channel_controls or Pico2dSoundChannels()
-        self.volume = DEFAULT_VOLUME
+        self.music_volume = DEFAULT_VOLUME
+        self.sound_volume = DEFAULT_VOLUME
         self._music_cache = {}
         self._sound_cache = {}
         self._sound_channels = {}
@@ -125,6 +154,15 @@ class AudioManager:
     @property
     def is_paused(self):
         return self._paused
+
+    @property
+    def volume(self):
+        """Backward-compatible alias for the music volume."""
+        return self.music_volume
+
+    @volume.setter
+    def volume(self, value):
+        self.music_volume = clamp_volume(value)
 
     def set_loader(self, loader):
         """Set the function used to load music (pico2d.load_music in game)."""
@@ -146,17 +184,33 @@ class AudioManager:
         self._sound_channels.clear()
         self._channel_owners.clear()
 
-    def set_volume(self, volume):
-        """Apply a new 0..100 volume to every loaded and playing track."""
-        self.volume = clamp_volume(volume)
+    def set_music_volume(self, volume):
+        """Apply a new 0..100 volume to background music."""
+        self.music_volume = clamp_volume(volume)
         for music in self._music_cache.values():
             self._apply_volume(music)
+        return self.music_volume
+
+    def set_sound_volume(self, volume):
+        """Apply a new 0..100 volume to sound effects."""
+        self.sound_volume = clamp_volume(volume)
         for sound in self._sound_cache.values():
             self._apply_sound_volume(sound)
-        return self.volume
+        return self.sound_volume
+
+    def set_volume(self, volume):
+        """Backward-compatible alias for set_music_volume()."""
+        return self.set_music_volume(volume)
+
+    def change_music_volume(self, amount):
+        return self.set_music_volume(self.music_volume + amount)
+
+    def change_sound_volume(self, amount):
+        return self.set_sound_volume(self.sound_volume + amount)
 
     def change_volume(self, amount):
-        return self.set_volume(self.volume + amount)
+        """Backward-compatible alias for change_music_volume()."""
+        return self.change_music_volume(amount)
 
     def play(self, name):
         """Loop the named track; return False when audio is unavailable."""
@@ -394,12 +448,12 @@ class AudioManager:
 
     def _apply_volume(self, music):
         try:
-            music.set_volume(to_mixer_volume(self.volume))
+            music.set_volume(to_mixer_volume(self.music_volume))
         except (OSError, RuntimeError):
             pass
 
     def _apply_sound_volume(self, sound):
         try:
-            sound.set_volume(to_mixer_volume(self.volume))
+            sound.set_volume(to_mixer_volume(self.sound_volume))
         except (OSError, RuntimeError):
             pass

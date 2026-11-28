@@ -101,29 +101,43 @@ EXIT_DIALOG_SETTINGS_COLOR = (60, 120, 90, 255)
 EXIT_DIALOG_SETTINGS_TEXT = "SETTINGS"
 
 VOLUME_SETTINGS_TITLE = "SETTINGS"
-VOLUME_SETTINGS_TITLE_Y = EXIT_DIALOG_TITLE_Y
-VOLUME_SETTINGS_LABEL_Y = EXIT_DIALOG_BOTTOM + 205
+VOLUME_SETTINGS_TITLE_Y = EXIT_DIALOG_TOP - 50
+VOLUME_SETTINGS_LABEL_Y = EXIT_DIALOG_BOTTOM + 240
+VOLUME_SETTINGS_SFX_LABEL_Y = EXIT_DIALOG_BOTTOM + 135
 VOLUME_SETTINGS_LABEL_COLOR = (255, 220, 100)
 VOLUME_SETTINGS_ADJUST_WIDTH = 90
-VOLUME_SETTINGS_ADJUST_HEIGHT = 70
-VOLUME_SETTINGS_ADJUST_BOTTOM = EXIT_DIALOG_BOTTOM + 120
+VOLUME_SETTINGS_ADJUST_HEIGHT = 55
+VOLUME_SETTINGS_MUSIC_ADJUST_BOTTOM = EXIT_DIALOG_BOTTOM + 165
+VOLUME_SETTINGS_SFX_ADJUST_BOTTOM = EXIT_DIALOG_BOTTOM + 60
 VOLUME_SETTINGS_MINUS_RECT = (
     SCREEN_WIDTH / 2 - 190,
-    VOLUME_SETTINGS_ADJUST_BOTTOM,
+    VOLUME_SETTINGS_MUSIC_ADJUST_BOTTOM,
     SCREEN_WIDTH / 2 - 190 + VOLUME_SETTINGS_ADJUST_WIDTH,
-    VOLUME_SETTINGS_ADJUST_BOTTOM + VOLUME_SETTINGS_ADJUST_HEIGHT,
+    VOLUME_SETTINGS_MUSIC_ADJUST_BOTTOM + VOLUME_SETTINGS_ADJUST_HEIGHT,
 )
 VOLUME_SETTINGS_PLUS_RECT = (
     SCREEN_WIDTH / 2 + 190 - VOLUME_SETTINGS_ADJUST_WIDTH,
-    VOLUME_SETTINGS_ADJUST_BOTTOM,
+    VOLUME_SETTINGS_MUSIC_ADJUST_BOTTOM,
     SCREEN_WIDTH / 2 + 190,
-    VOLUME_SETTINGS_ADJUST_BOTTOM + VOLUME_SETTINGS_ADJUST_HEIGHT,
+    VOLUME_SETTINGS_MUSIC_ADJUST_BOTTOM + VOLUME_SETTINGS_ADJUST_HEIGHT,
+)
+VOLUME_SETTINGS_SFX_MINUS_RECT = (
+    SCREEN_WIDTH / 2 - 190,
+    VOLUME_SETTINGS_SFX_ADJUST_BOTTOM,
+    SCREEN_WIDTH / 2 - 190 + VOLUME_SETTINGS_ADJUST_WIDTH,
+    VOLUME_SETTINGS_SFX_ADJUST_BOTTOM + VOLUME_SETTINGS_ADJUST_HEIGHT,
+)
+VOLUME_SETTINGS_SFX_PLUS_RECT = (
+    SCREEN_WIDTH / 2 + 190 - VOLUME_SETTINGS_ADJUST_WIDTH,
+    VOLUME_SETTINGS_SFX_ADJUST_BOTTOM,
+    SCREEN_WIDTH / 2 + 190,
+    VOLUME_SETTINGS_SFX_ADJUST_BOTTOM + VOLUME_SETTINGS_ADJUST_HEIGHT,
 )
 VOLUME_SETTINGS_BACK_RECT = (
     SCREEN_WIDTH / 2 - 90,
-    EXIT_DIALOG_BOTTOM + 30,
+    EXIT_DIALOG_BOTTOM + 10,
     SCREEN_WIDTH / 2 + 90,
-    EXIT_DIALOG_BOTTOM + 100,
+    EXIT_DIALOG_BOTTOM + 50,
 )
 VOLUME_SETTINGS_ADJUST_COLOR = (90, 90, 110, 255)
 VOLUME_SETTINGS_BACK_COLOR = EXIT_DIALOG_NO_COLOR
@@ -157,6 +171,7 @@ class GameApp:
         self.loading_font = None
         self.exit_confirmation_open = False
         self.exit_settings_open = False
+        self.settings_from_pause = False
         self.audio = AudioManager()
 
     def draw_loading_screen(self, pico2d_module=None, present=True):
@@ -280,16 +295,17 @@ class GameApp:
             *EXIT_DIALOG_PANEL_COLOR,
             True,
         )
-        pico2d_module.draw_rectangle(
-            *VOLUME_SETTINGS_MINUS_RECT,
-            *VOLUME_SETTINGS_ADJUST_COLOR,
-            True,
-        )
-        pico2d_module.draw_rectangle(
-            *VOLUME_SETTINGS_PLUS_RECT,
-            *VOLUME_SETTINGS_ADJUST_COLOR,
-            True,
-        )
+        for rect in (
+            VOLUME_SETTINGS_MINUS_RECT,
+            VOLUME_SETTINGS_PLUS_RECT,
+            VOLUME_SETTINGS_SFX_MINUS_RECT,
+            VOLUME_SETTINGS_SFX_PLUS_RECT,
+        ):
+            pico2d_module.draw_rectangle(
+                *rect,
+                *VOLUME_SETTINGS_ADJUST_COLOR,
+                True,
+            )
         pico2d_module.draw_rectangle(
             *VOLUME_SETTINGS_BACK_RECT,
             *VOLUME_SETTINGS_BACK_COLOR,
@@ -307,34 +323,28 @@ class GameApp:
                 font,
                 VOLUME_SETTINGS_LABEL_Y,
                 "MUSIC VOLUME: {} ({}-{})".format(
-                    self.audio.volume, MIN_VOLUME, MAX_VOLUME
+                    self.audio.music_volume, MIN_VOLUME, MAX_VOLUME
                 ),
                 VOLUME_SETTINGS_LABEL_COLOR,
             )
-            minus_x, minus_y = rect_center(VOLUME_SETTINGS_MINUS_RECT)
-            plus_x, plus_y = rect_center(VOLUME_SETTINGS_PLUS_RECT)
-            back_x, back_y = rect_center(VOLUME_SETTINGS_BACK_RECT)
-            draw_text_at_center(
+            draw_centered_text(
                 font,
-                minus_x,
-                minus_y,
-                VOLUME_SETTINGS_MINUS_TEXT,
-                EXIT_DIALOG_TEXT_COLOR,
+                VOLUME_SETTINGS_SFX_LABEL_Y,
+                "SFX VOLUME: {} ({}-{})".format(
+                    self.audio.sound_volume, MIN_VOLUME, MAX_VOLUME
+                ),
+                VOLUME_SETTINGS_LABEL_COLOR,
             )
-            draw_text_at_center(
-                font,
-                plus_x,
-                plus_y,
-                VOLUME_SETTINGS_PLUS_TEXT,
-                EXIT_DIALOG_TEXT_COLOR,
+            adjust_rects = (
+                (VOLUME_SETTINGS_MINUS_RECT, VOLUME_SETTINGS_MINUS_TEXT),
+                (VOLUME_SETTINGS_PLUS_RECT, VOLUME_SETTINGS_PLUS_TEXT),
+                (VOLUME_SETTINGS_SFX_MINUS_RECT, VOLUME_SETTINGS_MINUS_TEXT),
+                (VOLUME_SETTINGS_SFX_PLUS_RECT, VOLUME_SETTINGS_PLUS_TEXT),
+                (VOLUME_SETTINGS_BACK_RECT, VOLUME_SETTINGS_BACK_TEXT),
             )
-            draw_text_at_center(
-                font,
-                back_x,
-                back_y,
-                VOLUME_SETTINGS_BACK_TEXT,
-                EXIT_DIALOG_TEXT_COLOR,
-            )
+            for rect, text in adjust_rects:
+                x, y = rect_center(rect)
+                draw_text_at_center(font, x, y, text, EXIT_DIALOG_TEXT_COLOR)
         if present:
             pico2d_module.update_canvas()
 
@@ -601,28 +611,51 @@ class GameApp:
         self.open_exit_confirmation()
 
     def set_music_volume(self, volume):
-        return self.audio.set_volume(volume)
+        return self.audio.set_music_volume(volume)
+
+    def set_sound_volume(self, volume):
+        return self.audio.set_sound_volume(volume)
 
     def change_music_volume(self, amount):
-        return self.audio.change_volume(amount)
+        return self.audio.change_music_volume(amount)
+
+    def change_sound_volume(self, amount):
+        return self.audio.change_sound_volume(amount)
 
     def open_exit_confirmation(self):
         if self.exit_confirmation_open:
             return
         self.exit_confirmation_open = True
         self.exit_settings_open = False
+        self.settings_from_pause = False
         if self.scene is not None and getattr(self.scene, "exit_requested", False):
             self.scene.exit_requested = False
 
     def close_exit_confirmation(self):
         self.exit_confirmation_open = False
         self.exit_settings_open = False
+        self.settings_from_pause = False
 
-    def open_exit_settings(self):
+    def open_exit_settings(self, from_pause=False):
+        self.settings_from_pause = from_pause
         self.exit_settings_open = True
+        if from_pause:
+            self.exit_confirmation_open = True
 
     def close_exit_settings(self):
         self.exit_settings_open = False
+        if self.settings_from_pause:
+            self.exit_confirmation_open = False
+            self.settings_from_pause = False
+
+    def consume_settings_request(self):
+        if self.exit_confirmation_open:
+            return False
+        if not getattr(self.scene, "settings_requested", False):
+            return False
+        self.scene.settings_requested = False
+        self.open_exit_settings(from_pause=True)
+        return True
 
     def handle_exit_confirmation_mouse_down(self, screen_x, screen_y):
         canvas_y = SCREEN_HEIGHT - screen_y
@@ -631,6 +664,10 @@ class GameApp:
                 self.change_music_volume(-VOLUME_STEP)
             elif point_in_rect(VOLUME_SETTINGS_PLUS_RECT, screen_x, canvas_y):
                 self.change_music_volume(VOLUME_STEP)
+            elif point_in_rect(VOLUME_SETTINGS_SFX_MINUS_RECT, screen_x, canvas_y):
+                self.change_sound_volume(-VOLUME_STEP)
+            elif point_in_rect(VOLUME_SETTINGS_SFX_PLUS_RECT, screen_x, canvas_y):
+                self.change_sound_volume(VOLUME_STEP)
             elif point_in_rect(VOLUME_SETTINGS_BACK_RECT, screen_x, canvas_y):
                 self.close_exit_settings()
             return
@@ -710,6 +747,8 @@ class GameApp:
                 pico2d.SDLK_q: "q",
                 pico2d.SDLK_UP: "up",
                 pico2d.SDLK_DOWN: "down",
+                pico2d.SDLK_LEFT: "left",
+                pico2d.SDLK_RIGHT: "right",
                 pico2d.SDLK_RETURN: "return",
                 pico2d.SDLK_ESCAPE: "escape",
             }
@@ -734,6 +773,16 @@ class GameApp:
                             and event.key == pico2d.SDLK_DOWN
                         ):
                             self.change_music_volume(-VOLUME_STEP)
+                        elif (
+                            self.exit_settings_open
+                            and event.key == pico2d.SDLK_RIGHT
+                        ):
+                            self.change_sound_volume(VOLUME_STEP)
+                        elif (
+                            self.exit_settings_open
+                            and event.key == pico2d.SDLK_LEFT
+                        ):
+                            self.change_sound_volume(-VOLUME_STEP)
                         elif event.key in key_map and not self.exit_confirmation_open:
                             self.scene.key_down(key_map[event.key])
                     elif event.type == pico2d.SDL_KEYUP:
@@ -760,8 +809,11 @@ class GameApp:
                 showing_battle_loading = False
                 if not self.exit_confirmation_open:
                     self.scene.update(delta_time)
-                    self.handle_scene_action()
-                    showing_battle_loading = self.tick_battle_entry_loading(delta_time)
+                    if not self.consume_settings_request():
+                        self.handle_scene_action()
+                        showing_battle_loading = self.tick_battle_entry_loading(
+                            delta_time
+                        )
                 pico2d.clear_canvas()
                 if showing_battle_loading:
                     self.draw_loading_screen(pico2d, present=False)

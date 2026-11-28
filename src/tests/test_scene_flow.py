@@ -49,7 +49,11 @@ from main import (
     VOLUME_SETTINGS_MINUS_TEXT,
     VOLUME_SETTINGS_PLUS_RECT,
     VOLUME_SETTINGS_PLUS_TEXT,
+    VOLUME_SETTINGS_SFX_LABEL_Y,
+    VOLUME_SETTINGS_SFX_MINUS_RECT,
+    VOLUME_SETTINGS_SFX_PLUS_RECT,
     VOLUME_SETTINGS_TITLE,
+    VOLUME_SETTINGS_TITLE_Y,
 )
 from save_data import BestLog, SaveData, default_save_data
 from save_io import SaveDataError, load_save_data, write_save_data
@@ -358,6 +362,8 @@ class SceneSwitchTests(unittest.TestCase):
         self.app.scene.phase = "playing"
         self.app.scene._hits = 3
         self.app.handle_escape_key()
+        self.app.scene.key_down("s")
+        self.app.scene.key_up("s")
         self.app.scene.key_down("s")
         self.app.scene.key_down("space")
 
@@ -930,25 +936,48 @@ class ExitConfirmationTests(unittest.TestCase):
 
         self.assertTrue(self.app.exit_confirmation_open)
         self.assertTrue(self.app.exit_settings_open)
-        self.assertEqual(self.app.audio.volume, DEFAULT_VOLUME)
+        self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME)
+        self.assertEqual(self.app.audio.sound_volume, DEFAULT_VOLUME)
 
-    def test_volume_buttons_adjust_the_shared_setting(self):
+    def test_music_volume_buttons_adjust_only_music(self):
         self.app.open_exit_confirmation()
         click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
 
         click_exit_dialog_button(self.app, VOLUME_SETTINGS_PLUS_RECT)
-        self.assertEqual(self.app.audio.volume, DEFAULT_VOLUME + VOLUME_STEP)
+        self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME + VOLUME_STEP)
+        self.assertEqual(self.app.audio.sound_volume, DEFAULT_VOLUME)
 
         click_exit_dialog_button(self.app, VOLUME_SETTINGS_MINUS_RECT)
-        self.assertEqual(self.app.audio.volume, DEFAULT_VOLUME)
+        self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME)
 
         self.app.set_music_volume(MIN_VOLUME)
         click_exit_dialog_button(self.app, VOLUME_SETTINGS_MINUS_RECT)
-        self.assertEqual(self.app.audio.volume, MIN_VOLUME)
+        self.assertEqual(self.app.audio.music_volume, MIN_VOLUME)
 
         self.app.set_music_volume(MAX_VOLUME)
         click_exit_dialog_button(self.app, VOLUME_SETTINGS_PLUS_RECT)
-        self.assertEqual(self.app.audio.volume, MAX_VOLUME)
+        self.assertEqual(self.app.audio.music_volume, MAX_VOLUME)
+        self.assertEqual(self.app.audio.sound_volume, DEFAULT_VOLUME)
+
+    def test_sfx_volume_buttons_adjust_only_effects(self):
+        self.app.open_exit_confirmation()
+        click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
+
+        click_exit_dialog_button(self.app, VOLUME_SETTINGS_SFX_PLUS_RECT)
+        self.assertEqual(self.app.audio.sound_volume, DEFAULT_VOLUME + VOLUME_STEP)
+        self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME)
+
+        click_exit_dialog_button(self.app, VOLUME_SETTINGS_SFX_MINUS_RECT)
+        self.assertEqual(self.app.audio.sound_volume, DEFAULT_VOLUME)
+
+        self.app.set_sound_volume(MIN_VOLUME)
+        click_exit_dialog_button(self.app, VOLUME_SETTINGS_SFX_MINUS_RECT)
+        self.assertEqual(self.app.audio.sound_volume, MIN_VOLUME)
+
+        self.app.set_sound_volume(MAX_VOLUME)
+        click_exit_dialog_button(self.app, VOLUME_SETTINGS_SFX_PLUS_RECT)
+        self.assertEqual(self.app.audio.sound_volume, MAX_VOLUME)
+        self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME)
 
     def test_back_button_returns_to_the_exit_dialog(self):
         self.app.open_exit_confirmation()
@@ -957,6 +986,40 @@ class ExitConfirmationTests(unittest.TestCase):
         click_exit_dialog_button(self.app, VOLUME_SETTINGS_BACK_RECT)
 
         self.assertTrue(self.app.exit_confirmation_open)
+        self.assertFalse(self.app.exit_settings_open)
+        self.assertFalse(self.app.settings_from_pause)
+
+    def test_scene_settings_request_opens_the_panel(self):
+        scene = Mock()
+        scene.settings_requested = True
+        self.app.scene = scene
+
+        self.assertTrue(self.app.consume_settings_request())
+
+        self.assertFalse(scene.settings_requested)
+        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertTrue(self.app.exit_settings_open)
+        self.assertTrue(self.app.settings_from_pause)
+
+    def test_settings_can_be_opened_from_a_paused_scene(self):
+        self.app.open_exit_settings(from_pause=True)
+
+        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertTrue(self.app.exit_settings_open)
+        self.assertTrue(self.app.settings_from_pause)
+
+        self.app.close_exit_settings()
+
+        self.assertFalse(self.app.exit_confirmation_open)
+        self.assertFalse(self.app.exit_settings_open)
+        self.assertFalse(self.app.settings_from_pause)
+
+    def test_escape_closes_pause_settings_without_opening_the_exit_dialog(self):
+        self.app.open_exit_settings(from_pause=True)
+
+        self.app.handle_escape_key()
+
+        self.assertFalse(self.app.exit_confirmation_open)
         self.assertFalse(self.app.exit_settings_open)
 
     def test_escape_closes_settings_before_closing_the_dialog(self):
@@ -970,17 +1033,23 @@ class ExitConfirmationTests(unittest.TestCase):
         self.app.handle_escape_key()
         self.assertFalse(self.app.exit_confirmation_open)
 
-    def test_draw_settings_shows_the_current_volume_and_controls(self):
+    def test_draw_settings_shows_both_volume_rows_and_controls(self):
         self.app.assets["hud_font"] = object()
         self.app.open_exit_confirmation()
         click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
         pico2d_module = Mock()
-        minus_x = (VOLUME_SETTINGS_MINUS_RECT[0] + VOLUME_SETTINGS_MINUS_RECT[2]) / 2
-        minus_y = (VOLUME_SETTINGS_MINUS_RECT[1] + VOLUME_SETTINGS_MINUS_RECT[3]) / 2
-        plus_x = (VOLUME_SETTINGS_PLUS_RECT[0] + VOLUME_SETTINGS_PLUS_RECT[2]) / 2
-        plus_y = (VOLUME_SETTINGS_PLUS_RECT[1] + VOLUME_SETTINGS_PLUS_RECT[3]) / 2
-        back_x = (VOLUME_SETTINGS_BACK_RECT[0] + VOLUME_SETTINGS_BACK_RECT[2]) / 2
-        back_y = (VOLUME_SETTINGS_BACK_RECT[1] + VOLUME_SETTINGS_BACK_RECT[3]) / 2
+
+        def center(rect):
+            return (
+                (rect[0] + rect[2]) / 2,
+                (rect[1] + rect[3]) / 2,
+            )
+
+        music_minus_x, music_minus_y = center(VOLUME_SETTINGS_MINUS_RECT)
+        music_plus_x, music_plus_y = center(VOLUME_SETTINGS_PLUS_RECT)
+        sfx_minus_x, sfx_minus_y = center(VOLUME_SETTINGS_SFX_MINUS_RECT)
+        sfx_plus_x, sfx_plus_y = center(VOLUME_SETTINGS_SFX_PLUS_RECT)
+        back_x, back_y = center(VOLUME_SETTINGS_BACK_RECT)
 
         with patch("main.draw_centered_text") as centered_text, patch(
             "main.draw_text_at_center"
@@ -992,7 +1061,7 @@ class ExitConfirmationTests(unittest.TestCase):
             [
                 call(
                     self.app.assets["hud_font"],
-                    EXIT_DIALOG_TITLE_Y,
+                    VOLUME_SETTINGS_TITLE_Y,
                     VOLUME_SETTINGS_TITLE,
                     EXIT_DIALOG_TEXT_COLOR,
                 ),
@@ -1002,6 +1071,12 @@ class ExitConfirmationTests(unittest.TestCase):
                     "MUSIC VOLUME: 50 (0-100)",
                     VOLUME_SETTINGS_LABEL_COLOR,
                 ),
+                call(
+                    self.app.assets["hud_font"],
+                    VOLUME_SETTINGS_SFX_LABEL_Y,
+                    "SFX VOLUME: 50 (0-100)",
+                    VOLUME_SETTINGS_LABEL_COLOR,
+                ),
             ],
         )
         self.assertEqual(
@@ -1009,15 +1084,29 @@ class ExitConfirmationTests(unittest.TestCase):
             [
                 call(
                     self.app.assets["hud_font"],
-                    minus_x,
-                    minus_y,
+                    music_minus_x,
+                    music_minus_y,
                     VOLUME_SETTINGS_MINUS_TEXT,
                     EXIT_DIALOG_TEXT_COLOR,
                 ),
                 call(
                     self.app.assets["hud_font"],
-                    plus_x,
-                    plus_y,
+                    music_plus_x,
+                    music_plus_y,
+                    VOLUME_SETTINGS_PLUS_TEXT,
+                    EXIT_DIALOG_TEXT_COLOR,
+                ),
+                call(
+                    self.app.assets["hud_font"],
+                    sfx_minus_x,
+                    sfx_minus_y,
+                    VOLUME_SETTINGS_MINUS_TEXT,
+                    EXIT_DIALOG_TEXT_COLOR,
+                ),
+                call(
+                    self.app.assets["hud_font"],
+                    sfx_plus_x,
+                    sfx_plus_y,
                     VOLUME_SETTINGS_PLUS_TEXT,
                     EXIT_DIALOG_TEXT_COLOR,
                 ),
@@ -1030,5 +1119,5 @@ class ExitConfirmationTests(unittest.TestCase):
                 ),
             ],
         )
-        self.assertEqual(pico2d_module.draw_rectangle.call_count, 5)
+        self.assertEqual(pico2d_module.draw_rectangle.call_count, 7)
         pico2d_module.update_canvas.assert_called_once_with()

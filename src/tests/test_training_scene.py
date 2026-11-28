@@ -166,18 +166,32 @@ class TrainingSceneTests(unittest.TestCase):
         self.assertEqual(self.scene.pause_menu_index, 1)
         self.scene.key_up("s")
         self.scene.key_down("s")
+        self.assertEqual(self.scene.pause_menu_index, 2)
+        self.scene.key_up("s")
+        self.scene.key_down("s")
         self.assertEqual(self.scene.pause_menu_index, 0)
         self.scene.key_up("s")
         self.scene.key_down("w")
-        self.assertEqual(self.scene.pause_menu_index, 1)
+        self.assertEqual(self.scene.pause_menu_index, 2)
+
+    def test_settings_option_requests_the_settings_panel(self):
+        self.scene.phase = "playing"
+        self.scene.key_down("escape")
+        self.scene.key_down("s")
+
+        self.scene.key_down("space")
+
+        self.assertTrue(self.scene.settings_requested)
+        self.assertTrue(self.scene.paused)
+        self.assertIsNone(self.scene.pending_action)
 
     def test_mouse_hover_and_click_select_pause_menu_items(self):
         self.scene.phase = "playing"
         self.scene.key_down("escape")
-        quit_y = SCREEN_HEIGHT / 2 + 44
+        quit_y = SCREEN_HEIGHT / 2 + 112
 
         self.scene.mouse_move(SCREEN_WIDTH / 2, quit_y)
-        self.assertEqual(self.scene.pause_menu_index, 1)
+        self.assertEqual(self.scene.pause_menu_index, 2)
         self.scene.mouse_down("left", SCREEN_WIDTH / 2, quit_y)
 
         self.assertEqual(self.scene.pending_action, "return_to_lobby")
@@ -198,6 +212,8 @@ class TrainingSceneTests(unittest.TestCase):
         scene.phase = "playing"
         scene._hits = 6
         scene.key_down("escape")
+        scene.key_down("s")
+        scene.key_up("s")
         scene.key_down("s")
 
         scene.key_down("space")
@@ -220,6 +236,7 @@ class TrainingSceneTests(unittest.TestCase):
         labels = [call.args[2] for call in draw_text.call_args_list]
         self.assertIn("PAUSED", labels)
         self.assertIn("RESUME", labels)
+        self.assertIn("SETTINGS", labels)
         self.assertIn("QUIT TO LOBBY", labels)
         self.assertTrue(
             any(
@@ -328,6 +345,8 @@ class TrainingSceneTests(unittest.TestCase):
         scene._hits = 6
         scene.phase = "playing"
         scene.key_down("escape")
+        scene.key_down("s")
+        scene.key_up("s")
         scene.key_down("s")
 
         scene.key_down("space")

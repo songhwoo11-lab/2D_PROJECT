@@ -7,12 +7,18 @@ import wave
 from audio import (
     AudioManager,
     BATTLE_MUSIC_FILE,
+    BATTLE_PORTAL_EXIT_SOUND_FILE,
+    BGM_VOLUME_FILES,
     DEFAULT_VOLUME,
     DEFEAT_MUSIC_FILE,
     LOBBY_MUSIC_FILE,
+    LOBBY_PORTAL_ENTRY_SOUND_FILE,
+    LOBBY_TO_BATTLE_SOUND_FILE,
     MACHINE_GUN_SHOT_SOUND_FILE,
     MAX_VOLUME,
+    OVERHEAT_SOUND_FILE,
     RECORDS_MUSIC_FILE,
+    SFX_VOLUME_FILES,
     SHOP_MUSIC_FILE,
     MIN_VOLUME,
     PISTOL_SHOT_SOUND_FILE,
@@ -129,6 +135,33 @@ class VolumeConversionTests(unittest.TestCase):
         self.assertEqual(to_mixer_volume(50), 64)
         self.assertEqual(to_mixer_volume(100), 128)
 
+    def test_volume_groups_cover_the_requested_files(self):
+        self.assertEqual(
+            BGM_VOLUME_FILES,
+            {
+                BATTLE_MUSIC_FILE,
+                LOBBY_MUSIC_FILE,
+                RECORDS_MUSIC_FILE,
+                SHOP_MUSIC_FILE,
+                TRAINING_MUSIC_FILE,
+            },
+        )
+        self.assertTrue(
+            {
+                RELOAD_SOUND_FILE,
+                LOBBY_PORTAL_ENTRY_SOUND_FILE,
+                LOBBY_TO_BATTLE_SOUND_FILE,
+                BATTLE_MUSIC_FILE,
+                DEFEAT_MUSIC_FILE,
+                MACHINE_GUN_SHOT_SOUND_FILE,
+                BATTLE_PORTAL_EXIT_SOUND_FILE,
+                OVERHEAT_SOUND_FILE,
+                PISTOL_SHOT_SOUND_FILE,
+                RIFLE_SHOT_SOUND_FILE,
+                VICTORY_MUSIC_FILE,
+            }.issubset(SFX_VOLUME_FILES)
+        )
+
 
 class AudioManagerTests(unittest.TestCase):
     def setUp(self):
@@ -151,7 +184,9 @@ class AudioManagerTests(unittest.TestCase):
     def tearDown(self):
         self.manager.close()
 
-    def test_new_manager_uses_the_default_volume(self):
+    def test_new_manager_uses_the_default_volumes(self):
+        self.assertEqual(self.manager.music_volume, DEFAULT_VOLUME)
+        self.assertEqual(self.manager.sound_volume, DEFAULT_VOLUME)
         self.assertEqual(self.manager.volume, DEFAULT_VOLUME)
 
     def test_playing_lobby_music_loads_the_requested_file(self):
@@ -246,10 +281,21 @@ class AudioManagerTests(unittest.TestCase):
             self.sound_paths[0].endswith("sound\\" + RELOAD_SOUND_FILE)
         )
 
-    def test_volume_changes_apply_to_loaded_sounds(self):
+    def test_music_and_sound_volumes_are_independent(self):
+        self.manager.play(BATTLE_MUSIC_FILE)
         self.manager.play_sound(PISTOL_SHOT_SOUND_FILE)
 
-        self.assertEqual(self.manager.set_volume(25), 25)
+        self.assertEqual(self.manager.set_music_volume(25), 25)
+        self.assertEqual(self.wav.volumes, [64])
+
+        self.assertEqual(self.manager.set_sound_volume(75), 75)
+        self.assertEqual(self.music.volumes, [64, 32])
+        self.assertEqual(self.wav.volumes, [64, 96])
+
+    def test_sound_volume_changes_apply_to_loaded_sounds(self):
+        self.manager.play_sound(PISTOL_SHOT_SOUND_FILE)
+
+        self.assertEqual(self.manager.set_sound_volume(25), 25)
 
         self.assertEqual(self.wav.volumes, [64, 32])
 
@@ -266,10 +312,10 @@ class AudioManagerTests(unittest.TestCase):
         self.assertEqual(len(self.paths), 1)
         self.assertEqual(self.music.repeat_count, 1)
 
-    def test_changing_volume_applies_to_the_playing_track(self):
+    def test_changing_music_volume_applies_to_the_playing_track(self):
         self.manager.play(LOBBY_MUSIC_FILE)
 
-        self.assertEqual(self.manager.set_volume(25), 25)
+        self.assertEqual(self.manager.set_music_volume(25), 25)
 
         self.assertEqual(self.music.volumes, [64, 32])
 
@@ -286,15 +332,18 @@ class AudioManagerTests(unittest.TestCase):
         self.manager.play(LOBBY_MUSIC_FILE)
         self.manager.play(SHOP_MUSIC_FILE)
 
-        self.manager.set_volume(100)
+        self.manager.set_music_volume(100)
 
         self.assertEqual(self.music.volumes[-1], 128)
         self.assertEqual(second_music.volumes[-1], 128)
 
     def test_volume_changes_are_clamped(self):
-        self.assertEqual(self.manager.change_volume(10), 60)
-        self.assertEqual(self.manager.set_volume(1000), 100)
-        self.assertEqual(self.manager.set_volume(-1000), 0)
+        self.assertEqual(self.manager.change_music_volume(10), 60)
+        self.assertEqual(self.manager.set_music_volume(1000), 100)
+        self.assertEqual(self.manager.set_music_volume(-1000), 0)
+        self.assertEqual(self.manager.change_sound_volume(10), 60)
+        self.assertEqual(self.manager.set_sound_volume(1000), 100)
+        self.assertEqual(self.manager.set_sound_volume(-1000), 0)
 
     def test_stop_halts_the_playing_track(self):
         self.manager.play(LOBBY_MUSIC_FILE)
