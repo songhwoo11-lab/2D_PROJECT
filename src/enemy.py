@@ -143,6 +143,10 @@ class Enemy:
         distance = math.hypot(other.x - self.x, other.y - self.y)
         return distance <= self.radius + other.radius
 
+    def shares_collision_type(self, other):
+        """Only enemies of the same archetype block each other's movement."""
+        return isinstance(other, Enemy) and self.stats.name == other.stats.name
+
     def move_towards(self, target_x, target_y, max_distance):
         direction_x = target_x - self.x
         direction_y = target_y - self.y
@@ -150,11 +154,16 @@ class Enemy:
         if max_distance <= 0:
             return False
 
-        enemies = (
+        nearby_enemies = (
             game_world.nearby_spatial_objects(self, max_distance + self.radius)
             if self._checks_enemy_collisions
             else []
         )
+        enemies = [
+            other
+            for other in nearby_enemies
+            if self.shares_collision_type(other)
+        ]
         if distance == 0 and not enemies:
             return False
 

@@ -376,6 +376,39 @@ class EnemyCollisionTests(unittest.TestCase):
         self.assertAlmostEqual(position[0], 100.0)
         self.assertAlmostEqual(position[1], 0.0)
 
+    def assert_avoided(self, mover, blocker):
+        moved, position = self.move_past(mover, blocker)
+
+        self.assertTrue(moved)
+        self.assertLess(position[0], 0.0)
+
+    def test_same_type_filter_uses_enemy_archetype(self):
+        basic = BasicEnemy(0, 0, player=FakePlayer())
+        explosive = ExplosiveEnemy(0, 0, player=FakePlayer())
+
+        self.assertTrue(basic.shares_collision_type(BasicEnemy(0, 0)))
+        self.assertTrue(explosive.shares_collision_type(ExplosiveEnemy(0, 0)))
+        self.assertFalse(basic.shares_collision_type(explosive))
+        self.assertFalse(explosive.shares_collision_type(basic))
+
+    def test_explosive_enemies_avoid_each_other(self):
+        self.assert_avoided(
+            ExplosiveEnemy(0, 0, player=FakePlayer()),
+            ExplosiveEnemy(50, 0, player=FakePlayer()),
+        )
+
+    def test_explosive_enemies_ignore_other_enemy_types_when_moving(self):
+        self.assert_passed_through(
+            ExplosiveEnemy(0, 0, player=FakePlayer()),
+            BasicEnemy(50, 0, player=FakePlayer()),
+        )
+
+    def test_other_enemies_ignore_explosive_enemies_when_moving(self):
+        self.assert_passed_through(
+            BasicEnemy(0, 0, player=FakePlayer()),
+            ExplosiveEnemy(50, 0, player=FakePlayer()),
+        )
+
     def test_assassin_ignores_other_enemies_when_moving(self):
         self.assert_passed_through(
             AssassinEnemy(0, 0, player=FakePlayer()),
