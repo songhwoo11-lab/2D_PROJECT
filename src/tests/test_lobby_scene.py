@@ -8,7 +8,14 @@ from audio import (
     RECORDS_MUSIC_FILE,
 )
 from battle_record import BattleRecord, TrainingRecord
-from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
+from game_config import (
+    DIFFICULTY_EASY,
+    DIFFICULTY_HARD,
+    DIFFICULTY_NORMAL,
+    DEFAULT_DIFFICULTY,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 from game_state import GameState
 from lobby_map import (
     LOBBY_LOCATIONS,
@@ -16,6 +23,11 @@ from lobby_map import (
     LOBBY_START_KEY,
 )
 from lobby_scene import (
+    GUN_SELECT_DIFFICULTY_LABEL_COLOR,
+    GUN_SELECT_DIFFICULTY_LABEL_Y,
+    GUN_SELECT_DIFFICULTY_SELECTED_COLOR,
+    GUN_SELECT_DIFFICULTY_TEXT_COLORS,
+    GUN_SELECT_DIFFICULTY_UNSELECTED_COLOR,
     GUN_SELECT_HOVER_OUTLINE_COLOR,
     GUN_SELECT_IMAGE_SIZES,
     GUN_SELECT_IMAGE_Y,
@@ -35,6 +47,7 @@ from lobby_scene import (
     RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y,
     RECORDS_BOOK_PAPER_TOP_IMAGE_Y,
     gun_select_card_rect,
+    gun_select_difficulty_button_rect,
     gun_select_exit_button_rect,
     gun_select_stat_row_y,
     gun_select_stat_rows,
@@ -981,6 +994,186 @@ class LobbyGunSelectCardTests(unittest.TestCase):
             GUN_SHOP_ORDER.index("machine_gun")
         )
         return (left + right) / 2
+
+
+class LobbyGunSelectDifficultyTests(unittest.TestCase):
+    def setUp(self):
+        self.state = GameState(owned_guns=["pistol", "rifle"])
+        self.scene = make_scene()
+        self.scene.state = self.state
+        self.scene.hud_font = MagicMock()
+        self.scene.open_gun_selection()
+
+    def tearDown(self):
+        self.scene.close()
+
+    def hover_rect(self, rect):
+        left, bottom, right, top = rect
+        self.scene.mouse_move(
+            (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2
+        )
+
+    def click_rect(self, rect):
+        self.hover_rect(rect)
+        left, bottom, right, top = rect
+        self.scene.mouse_down("left", (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2)
+
+    def draw_scene(self):
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: rectangles.append(args))
+        return (
+            rectangles,
+            [call.args[3] for call in text_draw.call_args_list],
+            text_draw.call_args_list,
+        )
+
+    def test_buttons_are_in_the_lower_left(self):
+        rects = [gun_select_difficulty_button_rect(index) for index in range(3)]
+
+        self.assertEqual(len(rects), 3)
+        for rect in rects:
+            self.assertLess(rect[2], SCREEN_WIDTH / 2)
+            self.assertLess(rect[3], SCREEN_HEIGHT / 4)
+            self.assertGreater(rect[1], 0)
+        for index in range(1, len(rects)):
+            self.assertEqual(
+                rects[index][0] - rects[index - 1][2], 20
+            )
+
+    def test_first_entry_uses_normal_and_draws_three_buttons(self):
+        rectangles, labels, text_calls = self.draw_scene()
+
+        self.assertEqual(self.scene.gun_select_difficulty, DEFAULT_DIFFICULTY)
+        self.assertEqual(self.scene.gun_select_difficulty, DIFFICULTY_NORMAL)
+        self.assertIn("DIFFICULTY: NORMAL", labels)
+        self.assertIn(
+            GUN_SELECT_DIFFICULTY_LABEL_Y,
+            [
+                call.args[2]
+                for call in text_calls
+                if call.args[3] == "DIFFICULTY: NORMAL"
+            ],
+        )
+        for difficulty in (DIFFICULTY_EASY, DIFFICULTY_NORMAL, DIFFICULTY_HARD):
+            self.assertIn(difficulty, labels)
+        drawn_rects = {tuple(args[:4]) for args in rectangles}
+        for index in range(3):
+            self.assertIn(
+                tuple(gun_select_difficulty_button_rect(index)), drawn_rects
+            )
+
+    def test_difficulty_colors_are_green_normal_and_red(self):
+        easy_color = GUN_SELECT_DIFFICULTY_TEXT_COLORS[DIFFICULTY_EASY]
+        normal_color = GUN_SELECT_DIFFICULTY_TEXT_COLORS[DIFFICULTY_NORMAL]
+        hard_color = GUN_SELECT_DIFFICULTY_TEXT_COLORS[DIFFICULTY_HARD]
+
+        self.assertEqual(easy_color, (80, 220, 120))
+        self.assertEqual(normal_color, GUN_SELECT_DIFFICULTY_LABEL_COLOR)
+        self.assertEqual(hard_color, (240, 90, 90))
+        self.assertEqual(easy_color[1], max(easy_color))
+        self.assertEqual(hard_color[0], max(hard_color))
+
+    def test_current_difficulty_label_uses_its_text_color(self):
+        for difficulty in (DIFFICULTY_EASY, DIFFICULTY_NORMAL, DIFFICULTY_HARD):
+            with self.subTest(difficulty=difficulty):
+                self.scene.gun_select_difficulty = difficulty
+
+                _, _, text_calls = self.draw_scene()
+
+                label_calls = [
+                    call
+                    for call in text_calls
+                    if call.args[3] == "DIFFICULTY: {}".format(difficulty)
+                ]
+                self.assertEqual(len(label_calls), 1)
+                self.assertEqual(
+                    label_calls[0].args[4],
+                    GUN_SELECT_DIFFICULTY_TEXT_COLORS[difficulty],
+                )
+
+    def test_each_difficulty_button_label_uses_its_text_color(self):
+        _, _, text_calls = self.draw_scene()
+
+        for difficulty in (DIFFICULTY_EASY, DIFFICULTY_NORMAL, DIFFICULTY_HARD):
+            with self.subTest(difficulty=difficulty):
+                matching = [
+                    call for call in text_calls if call.args[3] == difficulty
+                ]
+                self.assertEqual(len(matching), 1)
+                self.assertEqual(
+                    matching[0].args[4],
+                    GUN_SELECT_DIFFICULTY_TEXT_COLORS[difficulty],
+                )
+
+    def test_selected_button_uses_the_highlight_color(self):
+        rectangles, _, _ = self.draw_scene()
+
+        highlighted = [
+            tuple(args)
+            for args in rectangles
+            if tuple(args[4:8]) == GUN_SELECT_DIFFICULTY_SELECTED_COLOR
+        ]
+        self.assertEqual(
+            highlighted,
+            [
+                tuple(gun_select_difficulty_button_rect(1))
+                + GUN_SELECT_DIFFICULTY_SELECTED_COLOR
+                + (True,)
+            ],
+        )
+        unselected = [
+            tuple(args)
+            for args in rectangles
+            if tuple(args[4:8]) == GUN_SELECT_DIFFICULTY_UNSELECTED_COLOR
+        ]
+        self.assertEqual(len(unselected), 2)
+
+    def test_clicking_a_difficulty_selects_and_highlights_it(self):
+        self.click_rect(gun_select_difficulty_button_rect(2))
+
+        self.assertEqual(self.scene.gun_select_difficulty, DIFFICULTY_HARD)
+        self.assertEqual(self.state.difficulty, DIFFICULTY_NORMAL)
+        self.assertEqual(self.scene.panel, "gun_select")
+        self.assertIsNone(self.scene.gun_select_pending_gun_id)
+
+        rectangles, labels, _ = self.draw_scene()
+        highlighted = [
+            tuple(args[:4])
+            for args in rectangles
+            if tuple(args[4:8]) == GUN_SELECT_DIFFICULTY_SELECTED_COLOR
+        ]
+        self.assertEqual(highlighted, [gun_select_difficulty_button_rect(2)])
+        self.assertIn("DIFFICULTY: HARD", labels)
+
+    def test_hovering_a_difficulty_shows_an_outline(self):
+        self.hover_rect(gun_select_difficulty_button_rect(0))
+
+        self.assertEqual(self.scene.gun_select_difficulty_hover_index, 0)
+        rectangles, _, _ = self.draw_scene()
+        outline = (
+            tuple(gun_select_difficulty_button_rect(0))
+            + GUN_SELECT_HOVER_OUTLINE_COLOR
+            + (False,)
+        )
+        self.assertIn(outline, [tuple(args) for args in rectangles])
+
+    def test_reopening_the_panel_restores_the_last_played_difficulty(self):
+        self.state.set_difficulty(DIFFICULTY_EASY)
+
+        self.scene.open_gun_selection()
+
+        self.assertEqual(self.scene.gun_select_difficulty, DIFFICULTY_EASY)
+
+    def test_confirming_a_gun_commits_the_selected_difficulty(self):
+        self.click_rect(gun_select_difficulty_button_rect(2))
+
+        press(self.scene, "space")
+
+        self.assertEqual(self.state.difficulty, DIFFICULTY_HARD)
+        self.assertTrue(self.scene.portal_entry_active)
 
 
 class LobbyGunSelectImageTests(unittest.TestCase):

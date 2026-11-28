@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
+from game_config import DEFAULT_DIFFICULTY
 from shop import GUN_SHOP_ORDER
 
 
@@ -27,6 +28,7 @@ class SaveData:
     best_log: Optional[BestLog] = None
     recent_logs: List[Tuple[int, float]] = field(default_factory=list)
     training_records: List[int] = field(default_factory=list)
+    difficulty: str = DEFAULT_DIFFICULTY
 
 
 def _as_log_pair(entry):
@@ -77,4 +79,5 @@ def default_save_data():
         best_log=None,
         recent_logs=[],
         training_records=[],
+        difficulty=DEFAULT_DIFFICULTY,
     )

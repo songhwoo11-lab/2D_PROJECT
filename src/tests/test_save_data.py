@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from battle_record import BattleRecord, VICTORY
+from game_config import DIFFICULTY_EASY, DIFFICULTY_HARD, DIFFICULTY_NORMAL
 from game_state import GameState
 from save_data import (
     RECENT_LOG_LIMIT,
@@ -18,6 +19,7 @@ from save_io import (
     SaveDataError,
     read_best_log,
     read_coins,
+    read_difficulty,
     read_guns,
     read_recent_logs,
     read_training_records,
@@ -26,6 +28,7 @@ from save_io import (
     load_save_data_with_report,
     write_best_log,
     write_coins,
+    write_difficulty,
     write_guns,
     write_recent_logs,
     write_save_data,
@@ -36,6 +39,7 @@ from save_io import (
 from save_paths import (
     BEST_LOG_PATH,
     COINS_PATH,
+    DIFFICULTY_PATH,
     GAMEFILE_DIR,
     GUNS_PATH,
     RECENT_LOG_PATH,
@@ -67,6 +71,9 @@ class DefaultSaveDataTests(unittest.TestCase):
         self.assertIsNone(data.best_log)
         self.assertEqual(data.recent_logs, [])
         self.assertEqual(data.training_records, [])
+
+    def test_default_difficulty_is_normal(self):
+        self.assertEqual(default_save_data().difficulty, DIFFICULTY_NORMAL)
 
     def test_each_call_returns_independent_lists(self):
         first = default_save_data()
@@ -176,6 +183,41 @@ class CoinFileTests(unittest.TestCase):
 
             with self.assertRaises(SaveDataError):
                 read_coins(path)
+
+
+class DifficultyFileTests(unittest.TestCase):
+    def test_round_trip(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "difficulty.txt"
+            write_difficulty(DIFFICULTY_HARD, path)
+
+            self.assertEqual(read_difficulty(path), DIFFICULTY_HARD)
+            self.assertEqual(
+                path.read_text(encoding="utf-8").strip(), "difficulty = HARD"
+            )
+
+    def test_lower_case_input_is_normalized(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "difficulty.txt"
+            write_difficulty("easy", path)
+
+            self.assertEqual(read_difficulty(path), DIFFICULTY_EASY)
+
+    def test_unknown_value_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "difficulty.txt"
+            path.write_text("difficulty = NIGHTMARE\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_difficulty(path)
+
+    def test_invalid_format_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "difficulty.txt"
+            path.write_text("difficulty HARD\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_difficulty(path)
 
 
 class BestLogFileTests(unittest.TestCase):
@@ -297,6 +339,13 @@ class SaveDataValidationTests(unittest.TestCase):
     def test_out_of_range_best_log_is_detected(self):
         data = default_save_data()
         data.best_log = BestLog(reached_wave=99, elapsed_time=10.0)
+
+        with self.assertRaises(SaveDataError):
+            validate_save_data(data)
+
+    def test_invalid_difficulty_is_detected(self):
+        data = default_save_data()
+        data.difficulty = "NIGHTMARE"
 
         with self.assertRaises(SaveDataError):
             validate_save_data(data)
@@ -581,6 +630,7 @@ class SavePathsTests(unittest.TestCase):
                 "best_log",
                 "recent_logs",
                 "training_records",
+                "difficulty",
             },
         )
 

@@ -7,6 +7,23 @@ FPS = 60
 FRAME_TIME = 1.0 / FPS
 DISTANCE_EPSILON = 1e-6
 
+# 총기 선택 화면의 난이도 옵션.
+DIFFICULTY_EASY = "EASY"
+DIFFICULTY_NORMAL = "NORMAL"
+DIFFICULTY_HARD = "HARD"
+DIFFICULTIES = (DIFFICULTY_EASY, DIFFICULTY_NORMAL, DIFFICULTY_HARD)
+DEFAULT_DIFFICULTY = DIFFICULTY_NORMAL
+
+
+def normalize_difficulty(value):
+    """Return a canonical difficulty name or reject unknown values."""
+    if not isinstance(value, str):
+        raise ValueError("difficulty must be a string: {!r}".format(value))
+    normalized = value.strip().upper()
+    if normalized not in DIFFICULTIES:
+        raise ValueError("unknown difficulty: {!r}".format(value))
+    return normalized
+
 # 거리 단위: 1 m = 60 px
 PIXELS_PER_METER = 60
 # km/h를 px/초로 환산: (1000 m / 3600 s) × 60 px/m

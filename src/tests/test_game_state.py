@@ -3,7 +3,9 @@ import unittest
 from unittest.mock import patch
 
 from dev_settings import COINS_ENV
+from game_config import DIFFICULTY_EASY, DIFFICULTY_HARD, DIFFICULTY_NORMAL
 from game_state import GameState
+from save_data import default_save_data
 
 
 class GameStateDevGunTests(unittest.TestCase):
@@ -56,6 +58,37 @@ class GameStateDevGunTests(unittest.TestCase):
             [record.targets_destroyed for record in state.training_records],
             [9, 3],
         )
+
+
+class GameStateDifficultyTests(unittest.TestCase):
+    def test_new_state_starts_on_normal(self):
+        self.assertEqual(GameState().difficulty, DIFFICULTY_NORMAL)
+
+    def test_set_difficulty_normalizes_and_updates_the_state(self):
+        state = GameState()
+
+        self.assertEqual(state.set_difficulty(" hard "), DIFFICULTY_HARD)
+        self.assertEqual(state.difficulty, DIFFICULTY_HARD)
+
+    def test_unknown_difficulty_is_rejected(self):
+        state = GameState()
+
+        with self.assertRaises(ValueError):
+            state.set_difficulty("NIGHTMARE")
+
+    def test_difficulty_round_trips_through_save_data(self):
+        state = GameState()
+        state.set_difficulty(DIFFICULTY_EASY)
+
+        self.assertEqual(state.to_save_data().difficulty, DIFFICULTY_EASY)
+        restored = GameState.from_save_data(state.to_save_data())
+        self.assertEqual(restored.difficulty, DIFFICULTY_EASY)
+
+    def test_from_save_data_uses_the_stored_difficulty(self):
+        data = default_save_data()
+        data.difficulty = DIFFICULTY_HARD
+
+        self.assertEqual(GameState.from_save_data(data).difficulty, DIFFICULTY_HARD)
 
 
 if __name__ == "__main__":

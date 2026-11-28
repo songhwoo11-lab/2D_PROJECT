@@ -3,7 +3,7 @@
 import math
 import re
 
-from game_config import TOTAL_WAVES
+from game_config import TOTAL_WAVES, normalize_difficulty
 from save_data import (
     BestLog,
     SaveData,
@@ -14,6 +14,7 @@ from save_data import (
 from save_paths import (
     BEST_LOG_PATH,
     COINS_PATH,
+    DIFFICULTY_PATH,
     GUNS_PATH,
     RECENT_LOG_PATH,
     TRAINING_LOG_PATH,
@@ -290,6 +291,27 @@ def read_training_records(path=None):
     return records
 
 
+def write_difficulty(difficulty, path=None):
+    """Write the last played difficulty to difficulty.txt."""
+    try:
+        value = normalize_difficulty(difficulty)
+    except ValueError as error:
+        raise SaveDataError(str(error)) from error
+    _write_text(path or DIFFICULTY_PATH, "difficulty = {}".format(value))
+
+
+def read_difficulty(path=None):
+    """Read the last played difficulty from difficulty.txt."""
+    text = _read_text(path or DIFFICULTY_PATH)
+    match = re.fullmatch(r"\s*difficulty\s*=\s*([A-Za-z]+)\s*", text)
+    if match is None:
+        raise SaveDataError("invalid difficulty format")
+    try:
+        return normalize_difficulty(match.group(1))
+    except ValueError as error:
+        raise SaveDataError(str(error)) from error
+
+
 def _require_fields(data, field_names):
     values = getattr(data, "__dict__", None)
     for name in field_names:
@@ -337,6 +359,7 @@ def validate_save_data(data):
         "best_log",
         "recent_logs",
         "training_records",
+        "difficulty",
     )
     _require_fields(data, field_names)
     expected_count = len(GUN_SHOP_ORDER)
@@ -370,6 +393,11 @@ def validate_save_data(data):
     _require_list(data.training_records, "training_records")
     for count in data.training_records:
         _require_int(count, "destroyed targets", 0)
+
+    try:
+        normalize_difficulty(data.difficulty)
+    except ValueError as error:
+        raise SaveDataError(str(error)) from error
     return True
 
 
@@ -380,6 +408,7 @@ _SAVE_FIELDS = (
     ("best_log", "best_log", read_best_log),
     ("recent_logs", "recent_logs", read_recent_logs),
     ("training_records", "training_records", read_training_records),
+    ("difficulty", "difficulty", read_difficulty),
 )
 
 
@@ -394,6 +423,7 @@ def write_save_data(data, root=None):
     write_best_log(data.best_log, paths["best_log"])
     write_recent_logs(limit_recent_logs(data.recent_logs), paths["recent_logs"])
     write_training_records(data.training_records, paths["training_records"])
+    write_difficulty(data.difficulty, paths["difficulty"])
 
 
 def _new_default_data():
@@ -406,6 +436,7 @@ def _new_default_data():
         best_log=defaults.best_log,
         recent_logs=list(defaults.recent_logs),
         training_records=list(defaults.training_records),
+        difficulty=defaults.difficulty,
     )
 
 
@@ -420,6 +451,7 @@ def _write_missing_files(data, paths, missing_paths):
         "training_records": lambda path: write_training_records(
             data.training_records, path
         ),
+        "difficulty": lambda path: write_difficulty(data.difficulty, path),
     }
     for key in paths:
         if paths[key] in missing_paths:

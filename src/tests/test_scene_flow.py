@@ -17,6 +17,7 @@ from audio import (
 from battle_record import BattleRecord
 from battle_scene import BattleResult
 from game_config import (
+    DIFFICULTY_HARD,
     HUD_FONT_SIZE,
     LOBBY_PLAYER_START_X,
     LOBBY_PLAYER_START_Y,
@@ -25,6 +26,7 @@ from game_config import (
 )
 from game_state import GameState
 from lobby_map import LOBBY_NODE_BY_KEY, LOBBY_START_KEY
+from lobby_scene import PORTAL_ENTRY_SECONDS, gun_select_difficulty_button_rect
 from main import (
     ASSET_DIRECTORY,
     BATTLE_ENTRY_LOADING_SECONDS,
@@ -816,6 +818,41 @@ class SaveStartupIntegrationTests(unittest.TestCase):
             self.assertIs(app.scene.state, app.state)
             self.assertEqual(app.scene.notice, "")
             app.scene.close()
+
+    def test_last_played_difficulty_is_restored_on_the_next_gun_screen(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = make_app(save_root=temp_dir)
+            with patch.dict(os.environ, {}, clear=True):
+                app.load_progress()
+            app.switch_scene("lobby")
+            app.scene.open_gun_selection()
+
+            rect = gun_select_difficulty_button_rect(2)
+            center_x = (rect[0] + rect[2]) / 2
+            screen_y = SCREEN_HEIGHT - (rect[1] + rect[3]) / 2
+            app.scene.mouse_move(center_x, screen_y)
+            app.scene.mouse_down("left", center_x, screen_y)
+            self.assertEqual(app.scene.gun_select_difficulty, DIFFICULTY_HARD)
+
+            app.scene.key_down("space")
+            app.scene.key_up("space")
+            self.assertEqual(app.state.difficulty, DIFFICULTY_HARD)
+
+            app.scene.update(PORTAL_ENTRY_SECONDS)
+            self.assertTrue(app.handle_scene_action())
+            self.assertEqual(load_save_data(temp_dir).difficulty, DIFFICULTY_HARD)
+            app.scene.close()
+
+            restarted = make_app(save_root=temp_dir)
+            with patch.dict(os.environ, {}, clear=True):
+                restarted.load_progress()
+            restarted.switch_scene("lobby")
+            restarted.scene.open_gun_selection()
+
+            self.assertEqual(
+                restarted.scene.gun_select_difficulty, DIFFICULTY_HARD
+            )
+            restarted.scene.close()
 
     def test_recovery_notice_is_kept_for_the_lobby(self):
         with tempfile.TemporaryDirectory() as temp_dir:

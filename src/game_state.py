@@ -2,7 +2,7 @@
 
 from battle_record import BattleRecord, TrainingRecord, VICTORY
 from dev_settings import development_coins, development_gun
-from game_config import TOTAL_WAVES
+from game_config import DEFAULT_DIFFICULTY, TOTAL_WAVES, normalize_difficulty
 from save_data import SaveData, limit_recent_logs, select_best_log
 from shop import GUN_SHOP_ORDER
 from weapon import WEAPON_SPECS
@@ -33,6 +33,7 @@ class GameState:
         best_log=None,
         dev_gun=None,
         upgrade_levels=None,
+        difficulty=DEFAULT_DIFFICULTY,
     ):
         self.owned_guns = list(owned_guns)
         self.upgrade_levels = {
@@ -49,6 +50,7 @@ class GameState:
         self.selected_gun = self.dev_gun or (
             self.owned_guns[0] if self.owned_guns else None
         )
+        self.difficulty = normalize_difficulty(difficulty)
 
     @classmethod
     def from_save_data(cls, data, dev_gun=None, coins=None):
@@ -79,6 +81,7 @@ class GameState:
             best_log=data.best_log,
             dev_gun=dev_gun if dev_gun is not None else development_gun(),
             upgrade_levels=upgrade_levels,
+            difficulty=data.difficulty,
         )
 
     def to_save_data(self):
@@ -102,6 +105,7 @@ class GameState:
             training_records=[
                 record.targets_destroyed for record in self.training_records
             ],
+            difficulty=self.difficulty,
         )
 
     def add_record(self, record):
@@ -131,3 +135,8 @@ class GameState:
             raise ValueError("gun is not owned: {}".format(gun_id))
         self.selected_gun = gun_id
         return self.selected_gun
+
+    def set_difficulty(self, difficulty):
+        """Remember the difficulty chosen for the next battle."""
+        self.difficulty = normalize_difficulty(difficulty)
+        return self.difficulty

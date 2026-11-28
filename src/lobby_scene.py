@@ -11,11 +11,17 @@ from audio import (
 )
 from battle_record import result_record_text, training_record_text
 from game_config import (
+    DIFFICULTIES,
+    DIFFICULTY_EASY,
+    DIFFICULTY_HARD,
+    DIFFICULTY_NORMAL,
+    DEFAULT_DIFFICULTY,
     LOBBY_WORLD_HEIGHT,
     LOBBY_WORLD_WIDTH,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     TOTAL_WAVES,
+    normalize_difficulty,
 )
 from hud import draw_centered_text, draw_text_at_center
 from lobby_map import (
@@ -66,6 +72,27 @@ GUN_SELECT_EXIT_BUTTON_BOTTOM = 60
 GUN_SELECT_EXIT_BUTTON_COLOR = (130, 60, 55)
 GUN_SELECT_EXIT_BUTTON_HOVER_COLOR = (190, 80, 70)
 
+# 총기 선택 화면 좌측 하단의 난이도 버튼.
+GUN_SELECT_DIFFICULTY_BUTTON_WIDTH = 150
+GUN_SELECT_DIFFICULTY_BUTTON_HEIGHT = 90
+GUN_SELECT_DIFFICULTY_BUTTON_GAP = 20
+GUN_SELECT_DIFFICULTY_BUTTON_LEFT = 60
+GUN_SELECT_DIFFICULTY_BUTTON_BOTTOM = 60
+GUN_SELECT_DIFFICULTY_LABEL_Y = (
+    GUN_SELECT_DIFFICULTY_BUTTON_BOTTOM
+    + GUN_SELECT_DIFFICULTY_BUTTON_HEIGHT
+    + 45
+)
+GUN_SELECT_DIFFICULTY_SELECTED_COLOR = (180, 180, 180, 255)
+GUN_SELECT_DIFFICULTY_UNSELECTED_COLOR = (55, 65, 80, 255)
+# NORMAL은 기존 색을 유지하고 EASY/HARD는 각 버튼과 표시 문구에 사용한다.
+GUN_SELECT_DIFFICULTY_LABEL_COLOR = (255, 220, 100)
+GUN_SELECT_DIFFICULTY_TEXT_COLORS = {
+    DIFFICULTY_EASY: (80, 220, 120),
+    DIFFICULTY_NORMAL: GUN_SELECT_DIFFICULTY_LABEL_COLOR,
+    DIFFICULTY_HARD: (240, 90, 90),
+}
+
 # 기록 확인 화면: table 배경 위에 book 이미지를 출력한다.
 RECORDS_BOOK_WIDTH = 1402
 RECORDS_BOOK_HEIGHT = 1122
@@ -98,6 +125,20 @@ def gun_select_exit_button_rect():
         GUN_SELECT_EXIT_BUTTON_BOTTOM,
         GUN_SELECT_EXIT_BUTTON_RIGHT,
         GUN_SELECT_EXIT_BUTTON_BOTTOM + GUN_SELECT_EXIT_BUTTON_HEIGHT,
+    )
+
+
+def gun_select_difficulty_button_rect(index):
+    left = GUN_SELECT_DIFFICULTY_BUTTON_LEFT + index * (
+        GUN_SELECT_DIFFICULTY_BUTTON_WIDTH
+        + GUN_SELECT_DIFFICULTY_BUTTON_GAP
+    )
+    return (
+        left,
+        GUN_SELECT_DIFFICULTY_BUTTON_BOTTOM,
+        left + GUN_SELECT_DIFFICULTY_BUTTON_WIDTH,
+        GUN_SELECT_DIFFICULTY_BUTTON_BOTTOM
+        + GUN_SELECT_DIFFICULTY_BUTTON_HEIGHT,
     )
 
 
@@ -187,6 +228,8 @@ class LobbyScene:
         self.gun_select_pending_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
+        self.gun_select_difficulty = DEFAULT_DIFFICULTY
+        self.gun_select_difficulty_hover_index = None
         self.records_hover_exit = False
         self._place_player_at_current_node()
 
@@ -332,7 +375,45 @@ class LobbyScene:
             self._draw_gun_select_card(
                 draw_rectangle, index, gun_id, selected_gun_id
             )
+        self._draw_gun_select_difficulty_buttons(draw_rectangle)
         self._draw_gun_select_exit_button(draw_rectangle)
+
+    def _draw_gun_select_difficulty_buttons(self, draw_rectangle):
+        """Draw the three difficulty buttons in the lower-left corner."""
+        first_rect = gun_select_difficulty_button_rect(0)
+        last_rect = gun_select_difficulty_button_rect(len(DIFFICULTIES) - 1)
+        draw_text_at_center(
+            self.hud_font,
+            (first_rect[0] + last_rect[2]) / 2,
+            GUN_SELECT_DIFFICULTY_LABEL_Y,
+            "DIFFICULTY: {}".format(self.gun_select_difficulty),
+            GUN_SELECT_DIFFICULTY_TEXT_COLORS[self.gun_select_difficulty],
+        )
+        for index, difficulty in enumerate(DIFFICULTIES):
+            left, bottom, right, top = gun_select_difficulty_button_rect(index)
+            selected = difficulty == self.gun_select_difficulty
+            color = (
+                GUN_SELECT_DIFFICULTY_SELECTED_COLOR
+                if selected
+                else GUN_SELECT_DIFFICULTY_UNSELECTED_COLOR
+            )
+            draw_rectangle(left, bottom, right, top, *color, True)
+            if index == self.gun_select_difficulty_hover_index:
+                draw_rectangle(
+                    left,
+                    bottom,
+                    right,
+                    top,
+                    *GUN_SELECT_HOVER_OUTLINE_COLOR,
+                    False,
+                )
+            draw_text_at_center(
+                self.hud_font,
+                (left + right) / 2,
+                (bottom + top) / 2,
+                difficulty,
+                GUN_SELECT_DIFFICULTY_TEXT_COLORS[difficulty],
+            )
 
     def _selected_gun_id(self):
         if self.gun_select_pending_gun_id is not None:
@@ -807,6 +888,12 @@ class LobbyScene:
         self.gun_select_pending_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
+        self.gun_select_difficulty_hover_index = None
+        self.gun_select_difficulty = (
+            normalize_difficulty(self.state.difficulty)
+            if self.state is not None
+            else DEFAULT_DIFFICULTY
+        )
         if self.state is None:
             return
         if self.state.selected_gun in self.state.owned_guns:
@@ -838,6 +925,7 @@ class LobbyScene:
             gun_id = self.state.owned_guns[self.gun_selection_index]
         if not self.state.owns_gun(gun_id):
             return
+        self.state.set_difficulty(self.gun_select_difficulty)
         self.state.select_gun(gun_id)
         self.close_panel()
         self._start_portal_entry()
@@ -865,6 +953,7 @@ class LobbyScene:
         self.gun_select_pending_gun_id = None
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
+        self.gun_select_difficulty_hover_index = None
         self.records_hover_exit = False
         if was_records_panel:
             self._restore_lobby_music()
@@ -874,6 +963,11 @@ class LobbyScene:
 
     def _gun_select_target_at(self, screen_x, screen_y):
         canvas_y = SCREEN_HEIGHT - screen_y
+        for index in range(len(DIFFICULTIES)):
+            if rect_contains(
+                gun_select_difficulty_button_rect(index), screen_x, canvas_y
+            ):
+                return ("difficulty", index)
         if rect_contains(gun_select_exit_button_rect(), screen_x, canvas_y):
             return ("exit", None)
         for index in range(len(GUN_SHOP_ORDER)):
@@ -890,6 +984,7 @@ class LobbyScene:
         if self.panel == "records":
             self.gun_select_hover_target = None
             self.gun_select_hover_index = None
+            self.gun_select_difficulty_hover_index = None
             self.records_hover_exit = rect_contains(
                 records_exit_button_rect(), screen_x, canvas_y
             )
@@ -897,6 +992,7 @@ class LobbyScene:
         if self.panel != "gun_select":
             self.gun_select_hover_target = None
             self.gun_select_hover_index = None
+            self.gun_select_difficulty_hover_index = None
             self.records_hover_exit = False
             return
         self.records_hover_exit = False
@@ -904,6 +1000,11 @@ class LobbyScene:
         self.gun_select_hover_target = target
         self.gun_select_hover_index = (
             target[1] if target is not None and target[0] == "gun" else None
+        )
+        self.gun_select_difficulty_hover_index = (
+            target[1]
+            if target is not None and target[0] == "difficulty"
+            else None
         )
         if self.state is None or self.gun_select_hover_index is None:
             return
@@ -926,6 +1027,9 @@ class LobbyScene:
         target = self._gun_select_target_at(screen_x, screen_y)
         if target is not None and target[0] == "exit":
             self.close_panel()
+            return None
+        if target is not None and target[0] == "difficulty":
+            self.gun_select_difficulty = DIFFICULTIES[target[1]]
             return None
         if target is None:
             return None

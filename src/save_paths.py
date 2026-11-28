@@ -14,6 +14,7 @@ COINS_PATH = COIN_DIR / "coins.txt"
 BEST_LOG_PATH = PLAYLOG_DIR / "BestLog.txt"
 RECENT_LOG_PATH = PLAYLOG_DIR / "latelyLog.txt"
 TRAINING_LOG_PATH = PLAYLOG_DIR / "trainingLog.txt"
+DIFFICULTY_PATH = PLAYLOG_DIR / "difficulty.txt"
 
 
 def ensure_gamefile_directories(root=None):
@@ -34,4 +35,5 @@ def gamefile_paths(root=None):
         "best_log": base / "playlog" / "BestLog.txt",
         "recent_logs": base / "playlog" / "latelyLog.txt",
         "training_records": base / "playlog" / "trainingLog.txt",
+        "difficulty": base / "playlog" / "difficulty.txt",
     }

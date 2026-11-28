@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from battle_record import BattleRecord, TrainingRecord, VICTORY
+from game_config import DIFFICULTY_HARD
 from game_state import GameState
 from save_data import BestLog, RECENT_LOG_LIMIT, SaveData, default_save_data
 from save_io import load_save_data, load_save_data_with_report, write_save_data
@@ -34,6 +35,7 @@ class SaveIntegrationTests(unittest.TestCase):
             best_log=BestLog(reached_wave=10, elapsed_time=1000.0),
             recent_logs=[(10, 1000.0), (9, 200.0)],
             training_records=[7, 9],
+            difficulty=DIFFICULTY_HARD,
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             write_save_data(data, temp_dir)

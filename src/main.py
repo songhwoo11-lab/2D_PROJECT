@@ -627,6 +627,8 @@ class GameApp:
             self.game_start_loading_remaining = 0.0
             self.title_return_loading_remaining = 0.0
             self.battle_entry_loading_remaining = BATTLE_ENTRY_LOADING_SECONDS
+            # 전투를 시작할 때 선택한 난이도를 최근 플레이 난이도로 저장한다.
+            self.save_progress()
             self.audio.play_sound(LOBBY_TO_BATTLE_SOUND_FILE)
             return True
         if action == "return_to_lobby":
