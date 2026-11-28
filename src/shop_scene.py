@@ -1,10 +1,12 @@
 """Shop screen with horizontally arranged gun cards."""
 
+from audio import BUY_GUN_SOUND_FILE
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import _measure_text_width as measure_text_width, draw_centered_text
 from shop import (
     GUN_SHOP_ORDER,
     MAX_UPGRADE_LEVEL,
+    PurchaseResult,
     gun_price,
     purchase_gun,
     purchase_result_message,
@@ -200,8 +202,10 @@ class ShopScene:
         background=None,
         selected_slot_image=None,
         unselected_slot_image=None,
+        audio=None,
     ):
         self.state = state
+        self.audio = audio
         self.hud_font = hud_font
         self.gun_images = gun_images or {}
         self.background = background
@@ -559,6 +563,14 @@ class ShopScene:
                 label,
             )
 
+    def _play_buy_sound(self):
+        if self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            # Purchases are effects, so they follow the SFX volume.
+            play_sound(BUY_GUN_SOUND_FILE)
+
     def _execute_action(self):
         if self.state is None or self.action_index == NO_ACTION:
             return
@@ -568,6 +580,8 @@ class ShopScene:
         gun_id = GUN_SHOP_ORDER[self.gun_index]
         if self.action_index == BUY_ACTION:
             self.last_result = purchase_gun(self.state, gun_id)
+            if self.last_result.result is PurchaseResult.PURCHASED:
+                self._play_buy_sound()
             self._hide_state_panel()
             self._select_first_available_action()
         elif self.action_index == UPGRADE_ACTION:

@@ -548,6 +548,7 @@ class GameApp:
             background=self.assets.get("shop_background"),
             selected_slot_image=self.assets.get("shop_selected_slot_image"),
             unselected_slot_image=self.assets.get("shop_unselected_slot_image"),
+            audio=self.audio,
         )
 
     def create_training_scene(self):

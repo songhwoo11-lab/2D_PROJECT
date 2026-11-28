@@ -244,6 +244,11 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertIs(self.app.scene.audio, self.app.audio)
 
+    def test_shop_scene_receives_the_audio_manager(self):
+        self.app.switch_scene("shop")
+
+        self.assertIs(self.app.scene.audio, self.app.audio)
+
     def test_switching_to_a_scene_without_music_only_stops_the_previous_track(self):
         self.app.audio = Mock()
 

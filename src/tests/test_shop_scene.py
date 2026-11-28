@@ -1,6 +1,7 @@
 import unittest
 from unittest import mock
 
+from audio import BUY_GUN_SOUND_FILE
 from game_config import HUD_FONT_SIZE, SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
 import shop_scene
@@ -987,6 +988,50 @@ class GunPurchaseTests(unittest.TestCase):
 
         self.assertEqual(state.upgrade_level("pistol"), 1)
         self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
+
+
+class ShopPurchaseSoundTests(unittest.TestCase):
+    def make_scene(self, coins=150000, audio=None):
+        state = GameState(owned_guns=["pistol"], coins=coins)
+        scene = ShopScene(
+            state=state,
+            audio=audio if audio is not None else mock.Mock(),
+        )
+        return state, scene, scene.audio
+
+    def test_successful_purchase_plays_the_buy_sound_once(self):
+        state, scene, audio = self.make_scene()
+
+        click_rect(scene, button_rect(1, BUY_ACTION))
+
+        self.assertEqual(scene.last_result.result, PurchaseResult.PURCHASED)
+        audio.play_sound.assert_called_once_with(BUY_GUN_SOUND_FILE)
+
+    def test_failed_purchase_does_not_play_the_buy_sound(self):
+        state, scene, audio = self.make_scene(coins=99)
+
+        click_rect(scene, button_rect(1, BUY_ACTION))
+
+        self.assertEqual(scene.last_result.result, PurchaseResult.INSUFFICIENT_COINS)
+        audio.play_sound.assert_not_called()
+
+    def test_upgrade_does_not_play_the_buy_sound(self):
+        state, scene, audio = self.make_scene()
+
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+        with mock.patch("shop.random.randint", return_value=1):
+            click_rect(scene, upgrade_confirm_rect())
+
+        self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
+        audio.play_sound.assert_not_called()
+
+    def test_purchase_without_audio_is_safe(self):
+        state = GameState(owned_guns=["pistol"], coins=150000)
+        scene = ShopScene(state=state)
+
+        click_rect(scene, button_rect(1, BUY_ACTION))
+
+        self.assertEqual(scene.last_result.result, PurchaseResult.PURCHASED)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from audio import (
     BATTLE_PORTAL_EXIT_SOUND_FILE,
     BGM_VOLUME_FILES,
     BOOM_SOUND_FILE,
+    BUY_GUN_SOUND_FILE,
     DEFAULT_VOLUME,
     DEFEAT_MUSIC_FILE,
     LOBBY_MUSIC_FILE,
@@ -161,6 +162,7 @@ class VolumeConversionTests(unittest.TestCase):
                 RIFLE_SHOT_SOUND_FILE,
                 VICTORY_MUSIC_FILE,
                 BOOM_SOUND_FILE,
+                BUY_GUN_SOUND_FILE,
             }.issubset(SFX_VOLUME_FILES)
         )
 
