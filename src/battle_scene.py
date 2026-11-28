@@ -1046,7 +1046,6 @@ class BattleScene:
         result_labels = {
             HitResult.HIT: "HIT",
             HitResult.HEADSHOT: "HEADSHOT",
-            HitResult.MISS: "MISS",
         }
         for bullet in bullets:
             if bullet.hit_target is None or bullet.hit_result is None:
