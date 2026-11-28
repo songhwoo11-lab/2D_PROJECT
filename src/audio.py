@@ -24,6 +24,8 @@ LOBBY_MUSIC_FILE = "lobby bgm.mp3"
 SHOP_MUSIC_FILE = "shop bgm.mp3"
 BATTLE_MUSIC_FILE = "battle.mp3"
 TRAINING_MUSIC_FILE = "training.mp3"
+TRAINING_END_SOUND_FILE = "training end.mp3"
+TARGET_CORRECT_SOUND_FILE = "target correct.wav"
 DEFEAT_MUSIC_FILE = "lose game.mp3"
 VICTORY_MUSIC_FILE = "win game.mp3"
 RECORDS_MUSIC_FILE = "log check bgm.mp3"
@@ -76,6 +78,8 @@ SFX_VOLUME_FILES = frozenset(
         RIFLE_SHOT_SOUND_FILE,
         VICTORY_MUSIC_FILE,
         BOOM_SOUND_FILE,
+        TRAINING_END_SOUND_FILE,
+        TARGET_CORRECT_SOUND_FILE,
         BUY_GUN_SOUND_FILE,
         GUN_LEVEL_UP_SOUND_FILE,
         GUN_LEVEL_DOWN_SOUND_FILE,

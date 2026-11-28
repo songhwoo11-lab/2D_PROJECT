@@ -1,7 +1,11 @@
 import unittest
 from unittest.mock import call, patch
 
-from audio import TRAINING_MUSIC_FILE
+from audio import (
+    TARGET_CORRECT_SOUND_FILE,
+    TRAINING_END_SOUND_FILE,
+    TRAINING_MUSIC_FILE,
+)
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
 from training_scene import (
@@ -30,6 +34,9 @@ class RecordingAudio:
 
     def play(self, name):
         self.events.append(("play", name))
+
+    def play_sound(self, name):
+        self.events.append(("play_sound", name))
 
     def pause(self):
         self.events.append(("pause",))
@@ -406,7 +413,25 @@ class TrainingSceneMusicTests(unittest.TestCase):
         scene.time_remaining = 0.0
         scene.update(0.0)
 
-        self.assertEqual(audio.events, [("stop",)])
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("play_sound", TRAINING_END_SOUND_FILE)],
+        )
+
+    def test_finish_sound_does_not_repeat_on_later_updates(self):
+        scene, audio = self.make_scene()
+        scene.update(3.0)
+        audio.events.clear()
+
+        scene.time_remaining = 0.0
+        scene.update(0.0)
+        scene.update(1.0)
+        scene.update(1.0)
+
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("play_sound", TRAINING_END_SOUND_FILE)],
+        )
 
     def test_quit_to_lobby_stops_music(self):
         scene, audio = self.make_scene()
@@ -415,7 +440,51 @@ class TrainingSceneMusicTests(unittest.TestCase):
 
         scene.key_down("q")
 
-        self.assertEqual(audio.events, [("stop",)])
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("play_sound", TRAINING_END_SOUND_FILE)],
+        )
+
+    def test_pause_quit_to_lobby_plays_the_finish_sound(self):
+        scene, audio = self.make_scene()
+        scene.update(3.0)
+        audio.events.clear()
+
+        scene.key_down("escape")
+        audio.events.clear()
+        scene.pause_menu_index = 2
+        scene.key_down("space")
+
+        self.assertEqual(
+            audio.events,
+            [("stop",), ("play_sound", TRAINING_END_SOUND_FILE)],
+        )
+
+    def test_each_target_hit_plays_the_target_sound(self):
+        scene, audio = self.make_scene()
+        scene.phase = "playing"
+
+        with patch.object(
+            scene.gun, "handle_fire_input", return_value=True
+        ), patch.object(scene, "_shot_hits_target", return_value=True):
+            scene.update(0.01)
+            scene.update(0.01)
+
+        self.assertEqual(
+            audio.events,
+            [("play_sound", TARGET_CORRECT_SOUND_FILE)] * 2,
+        )
+
+    def test_a_missed_shot_does_not_play_the_target_sound(self):
+        scene, audio = self.make_scene()
+        scene.phase = "playing"
+
+        with patch.object(
+            scene.gun, "handle_fire_input", return_value=True
+        ), patch.object(scene, "_shot_hits_target", return_value=False):
+            scene.update(0.01)
+
+        self.assertEqual(audio.events, [])
 
 
 class TrainingCursorTests(unittest.TestCase):

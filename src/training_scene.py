@@ -5,7 +5,11 @@ import random
 
 import pico2d
 
-from audio import TRAINING_MUSIC_FILE
+from audio import (
+    TARGET_CORRECT_SOUND_FILE,
+    TRAINING_END_SOUND_FILE,
+    TRAINING_MUSIC_FILE,
+)
 from battle_record import TrainingRecord
 from game_config import (
     AIM_CURSOR_ALPHA,
@@ -165,6 +169,13 @@ class TrainingScene:
         self.time_remaining = 60.0
         self.finish_timer = 2.0
 
+    def _play_sound(self, name):
+        if self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            play_sound(name)
+
     def _start_training_music(self):
         if self.audio is None or self._training_music_started:
             return
@@ -202,6 +213,7 @@ class TrainingScene:
         self._training_music_started = False
         self._training_music_paused = False
         self.audio.stop()
+        self._play_sound(TRAINING_END_SOUND_FILE)
 
     def update(self, delta_time):
         if self.paused:
@@ -245,6 +257,7 @@ class TrainingScene:
             self._shots_fired += 1
             if self._shot_hits_target(canvas_x, canvas_y):
                 self._hits += 1
+                self._play_sound(TARGET_CORRECT_SOUND_FILE)
                 if self.target is not None:
                     self.target.hit_timer = 0.3
                     self._respawn_target()

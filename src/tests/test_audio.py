@@ -31,7 +31,9 @@ from audio import (
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
     RIFLE_SHOT_SOUND_FILE,
+    TARGET_CORRECT_SOUND_FILE,
     TITLE_MUSIC_FILE,
+    TRAINING_END_SOUND_FILE,
     TRAINING_MUSIC_FILE,
     VICTORY_MUSIC_FILE,
     MUSIC_BY_SCENE,
@@ -136,6 +138,10 @@ class VolumeConversionTests(unittest.TestCase):
     def test_title_music_is_started_by_the_scene_mapping(self):
         self.assertEqual(MUSIC_BY_SCENE["title"], TITLE_MUSIC_FILE)
 
+    def test_training_effects_are_not_in_the_music_group(self):
+        self.assertNotIn(TRAINING_END_SOUND_FILE, BGM_VOLUME_FILES)
+        self.assertNotIn(TARGET_CORRECT_SOUND_FILE, BGM_VOLUME_FILES)
+
     def test_clamp_volume_keeps_values_inside_the_range(self):
         self.assertEqual(clamp_volume(-1), 0)
         self.assertEqual(clamp_volume(50), 50)
@@ -178,6 +184,8 @@ class VolumeConversionTests(unittest.TestCase):
                 GUN_LEVEL_DOWN_SOUND_FILE,
                 GUN_LEVEL_FAIL_SOUND_FILE,
                 GUN_LEVEL_EXPLOSION_SOUND_FILE,
+                TRAINING_END_SOUND_FILE,
+                TARGET_CORRECT_SOUND_FILE,
             }.issubset(SFX_VOLUME_FILES)
         )
 
