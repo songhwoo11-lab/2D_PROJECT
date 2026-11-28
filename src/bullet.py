@@ -56,7 +56,7 @@ class Bullet:
 
     def collides_with(self, enemy):
         return math.hypot(enemy.x - self.x, enemy.y - self.y) <= (
-            enemy.radius + self.radius
+            enemy.hitbox_radius + self.radius
         )
 
     def draw(self):

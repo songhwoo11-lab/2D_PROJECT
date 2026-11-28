@@ -1824,6 +1824,25 @@ class BattleSceneDebugTests(unittest.TestCase):
 
         self.assertEqual(circles, [])
 
+    def test_hitbox_circle_uses_the_small_enemy_hitbox_radius(self):
+        for enemy_class in (BasicEnemy, ExplosiveEnemy):
+            with self.subTest(enemy_class=enemy_class.__name__):
+                game_world.clear()
+                enemy = enemy_class(0.0, 0.0)
+                enemy._screen_position = (500.0, 600.0)
+                game_world.add_object(enemy)
+                circles = []
+                self.scene.enemy_draw_circle = lambda *args: circles.append(args)
+                self.scene.show_hitboxes = True
+
+                self.scene._draw_enemy_debug_circles()
+
+                enemy_circles = [
+                    circle for circle in circles if circle[0:2] == (500.0, 600.0)
+                ]
+                self.assertEqual([circle[2] for circle in enemy_circles], [40])
+                self.assertEqual(enemy_circles[0][3:7], (0, 0, 255, 255))
+
 
 class BattleSceneAimCursorTests(unittest.TestCase):
     def setUp(self):

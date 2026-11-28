@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from enum import Enum
 import math
+from typing import Optional
 
 import game_world
 from game_config import DISTANCE_EPSILON, KMH_TO_PIXELS_PER_SECOND
@@ -10,6 +11,9 @@ from hp_trail import HpTrail
 
 
 ENEMY_DEFAULT_RADIUS = 48.0
+# 기본/폭발 적의 히트 판정 지름 80px를 반경으로 환산한 값.
+# 적의 표시 크기/이동 충돌 반경은 ENEMY_DEFAULT_RADIUS를 그대로 사용한다.
+SMALL_ENEMY_HITBOX_RADIUS = 80.0 / 2
 ENEMY_HP_TRAIL_COLOR = (255, 170, 70)
 # 폭발로 인한 피해처럼 플레이어가 직접 가하지 않은 피해의 출처.
 # 이 출처로 쓰러진 적은 드롭 아이템을 남기지 않는다.
@@ -33,6 +37,7 @@ class EnemyStats:
     move_speed: float
     radius: float = ENEMY_DEFAULT_RADIUS
     attack_range: float = 0.0
+    hitbox_radius: Optional[float] = None
 
 
 ENEMY_STATS = {
@@ -43,6 +48,7 @@ ENEMY_STATS = {
         0.8,
         10 * KMH_TO_PIXELS_PER_SECOND,  # 10 km/h
         ENEMY_DEFAULT_RADIUS,
+        hitbox_radius=SMALL_ENEMY_HITBOX_RADIUS,
     ),
     EnemyType.EXPLOSIVE: EnemyStats(
         "explosive",
@@ -52,6 +58,7 @@ ENEMY_STATS = {
         12 * KMH_TO_PIXELS_PER_SECOND,  # 12 km/h
         ENEMY_DEFAULT_RADIUS,
         attack_range=100,
+        hitbox_radius=SMALL_ENEMY_HITBOX_RADIUS,
     ),
     EnemyType.TANKER: EnemyStats(
         "tanker",
@@ -89,6 +96,11 @@ class Enemy:
             raise ValueError("enemy attack_interval must be positive")
         if stats.radius <= 0:
             raise ValueError("enemy radius must be positive")
+        hitbox_radius = (
+            stats.radius if stats.hitbox_radius is None else stats.hitbox_radius
+        )
+        if hitbox_radius <= 0:
+            raise ValueError("enemy hitbox radius must be positive")
         self.x = float(x)
         self.y = float(y)
         self.stats = stats
@@ -99,6 +111,7 @@ class Enemy:
         self.attack_interval = float(stats.attack_interval)
         self.move_speed = float(stats.move_speed)
         self.radius = float(stats.radius)
+        self.hitbox_radius = float(hitbox_radius)
         self.player = player
         self.image = image
         self.draw_rectangle = draw_rectangle

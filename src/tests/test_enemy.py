@@ -2,13 +2,17 @@ import unittest
 from unittest.mock import call, patch
 
 import game_world
+from bullet import Bullet
 from enemy import (
     DAMAGE_SOURCE_EXPLOSION,
+    ENEMY_DEFAULT_RADIUS,
     ENEMY_STATS,
+    SMALL_ENEMY_HITBOX_RADIUS,
     Enemy,
     EnemyType,
 )
 from enemy_types import AssassinEnemy, BasicEnemy, ExplosiveEnemy
+from game_config import BULLET_SIZE
 
 
 class FakePlayer:
@@ -58,6 +62,62 @@ class EnemyStatScalingTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             enemy.apply_stat_multiplier(-1)
+
+
+class EnemyHitboxSizeTests(unittest.TestCase):
+    def test_basic_and_explosive_hit_boxes_are_eighty_pixels_wide(self):
+        self.assertEqual(SMALL_ENEMY_HITBOX_RADIUS, 40.0)
+        for enemy_type in (EnemyType.BASIC, EnemyType.EXPLOSIVE):
+            with self.subTest(enemy_type=enemy_type):
+                stats = ENEMY_STATS[enemy_type]
+                self.assertEqual(stats.hitbox_radius * 2, 80.0)
+                self.assertEqual(stats.radius, ENEMY_DEFAULT_RADIUS)
+
+    def test_other_enemy_hit_boxes_are_unchanged(self):
+        self.assertEqual(ENEMY_STATS[EnemyType.TANKER].radius, ENEMY_DEFAULT_RADIUS * 2)
+        for enemy_type in (EnemyType.ASSASSIN, EnemyType.ARCHER):
+            with self.subTest(enemy_type=enemy_type):
+                stats = ENEMY_STATS[enemy_type]
+                self.assertEqual(stats.radius, ENEMY_DEFAULT_RADIUS)
+                self.assertIsNone(stats.hitbox_radius)
+
+    def test_enemy_instances_keep_visual_size_but_use_small_hit_box(self):
+        for enemy_class in (BasicEnemy, ExplosiveEnemy):
+            with self.subTest(enemy_class=enemy_class.__name__):
+                enemy = enemy_class(0, 0)
+                self.assertEqual(enemy.radius, ENEMY_DEFAULT_RADIUS)
+                self.assertEqual(enemy.hitbox_radius, 40.0)
+
+    def test_enemy_draw_size_is_not_shrunk(self):
+        class RecordingImage:
+            def __init__(self):
+                self.draws = []
+
+            def draw(self, x, y, width=None, height=None):
+                self.draws.append((width, height))
+
+        image = RecordingImage()
+        enemy = BasicEnemy(0, 0, image=image)
+        enemy.draw_rectangle = lambda *args: None
+
+        enemy.draw()
+
+        self.assertEqual(image.draws, [(ENEMY_DEFAULT_RADIUS * 2,) * 2])
+
+    def test_bullet_collision_uses_the_hit_box_not_the_visual_size(self):
+        enemy = BasicEnemy(0, 0)
+        bullet = Bullet(
+            enemy.hitbox_radius + BULLET_SIZE / 2 + 1.0,
+            0.0,
+            0.0,
+            image=object(),
+        )
+
+        self.assertFalse(bullet.collides_with(enemy))
+
+        bullet.x -= 2.0
+
+        self.assertTrue(bullet.collides_with(enemy))
 
 
 class EnemyHpTrailTests(unittest.TestCase):

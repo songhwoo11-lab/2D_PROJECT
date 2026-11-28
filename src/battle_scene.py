@@ -1548,10 +1548,11 @@ class BattleScene:
                     enemy.y,
                 )
                 if self.show_hitboxes:
+                    # pico2d.draw_circle은 정수 반경만 지원한다.
                     self.enemy_draw_circle(
                         x,
                         y,
-                        round(enemy.radius),
+                        round(enemy.hitbox_radius),
                         0,
                         0,
                         255,
