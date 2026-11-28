@@ -6,6 +6,7 @@ from unittest import mock
 from audio import (
     BATTLE_MUSIC_FILE,
     BATTLE_PORTAL_EXIT_SOUND_FILE,
+    BOOM_SOUND_FILE,
     DEFEAT_MUSIC_FILE,
     MACHINE_GUN_SHOT_SOUND_FILE,
     OVERHEAT_SOUND_FILE,
@@ -617,6 +618,90 @@ class BattleSceneShotSoundTests(unittest.TestCase):
             audio.events[-1],
             ("play_sound", RELOAD_SOUND_FILE, scene.gun.reload_seconds),
         )
+
+
+class BattleSceneExplosionSoundTests(unittest.TestCase):
+    def tearDown(self):
+        game_world.clear()
+
+    def make_audio_scene(self, audio=None):
+        scene = make_scene(total_waves=1, spawn_rate=1000, audio=audio)
+        if audio is not None:
+            audio.events.clear()
+        return scene
+
+    def test_self_destruct_on_the_player_plays_boom_once(self):
+        audio = RecordingAudio()
+        scene = self.make_audio_scene(audio)
+        scene.spawn_enemy(
+            EnemyType.EXPLOSIVE,
+            scene.player.x,
+            scene.player.y,
+        )
+
+        scene.update(0.0)
+
+        self.assertEqual(audio.events, [("play_sound", BOOM_SOUND_FILE)])
+
+    def test_killing_an_explosive_enemy_plays_boom_once(self):
+        audio = RecordingAudio()
+        scene = self.make_audio_scene(audio)
+        enemy = scene.spawn_enemy(
+            EnemyType.EXPLOSIVE,
+            scene.player.x + 400,
+            scene.player.y + 400,
+        )
+
+        enemy.take_damage(enemy.hp)
+
+        self.assertEqual(audio.events, [("play_sound", BOOM_SOUND_FILE)])
+
+    def test_chained_explosions_play_boom_for_each_enemy(self):
+        audio = RecordingAudio()
+        scene = self.make_audio_scene(audio)
+        bomber = scene.spawn_enemy(
+            EnemyType.EXPLOSIVE,
+            scene.player.x + 400,
+            scene.player.y + 400,
+        )
+        victim = scene.spawn_enemy(
+            EnemyType.EXPLOSIVE,
+            scene.player.x + 430,
+            scene.player.y + 400,
+        )
+        victim.hp = 1
+
+        bomber.take_damage(bomber.hp)
+
+        self.assertEqual(
+            audio.events,
+            [("play_sound", BOOM_SOUND_FILE), ("play_sound", BOOM_SOUND_FILE)],
+        )
+
+    def test_non_explosive_death_is_silent(self):
+        audio = RecordingAudio()
+        scene = self.make_audio_scene(audio)
+        enemy = scene.spawn_enemy(
+            EnemyType.BASIC,
+            scene.player.x + 400,
+            scene.player.y + 400,
+        )
+
+        enemy.take_damage(enemy.hp)
+
+        self.assertEqual(audio.events, [])
+
+    def test_explosion_without_audio_is_safe(self):
+        scene = self.make_audio_scene()
+        enemy = scene.spawn_enemy(
+            EnemyType.EXPLOSIVE,
+            scene.player.x + 400,
+            scene.player.y + 400,
+        )
+
+        enemy.take_damage(enemy.hp)
+
+        self.assertFalse(enemy.is_alive)
 
 
 class BattleSceneOverheatSoundTests(unittest.TestCase):

@@ -34,6 +34,7 @@ LOBBY_PORTAL_ENTRY_SOUND_FILE = "in lobby portal.mp3"
 LOBBY_TO_BATTLE_SOUND_FILE = "lobby to portal.mp3"
 BATTLE_PORTAL_EXIT_SOUND_FILE = "out battle portal.mp3"
 OVERHEAT_SOUND_FILE = "overheat sound.mp3"
+BOOM_SOUND_FILE = "boom.wav"
 
 MUSIC_BY_SCENE = {
     "lobby": LOBBY_MUSIC_FILE,
@@ -65,6 +66,7 @@ SFX_VOLUME_FILES = frozenset(
         PISTOL_SHOT_SOUND_FILE,
         RIFLE_SHOT_SOUND_FILE,
         VICTORY_MUSIC_FILE,
+        BOOM_SOUND_FILE,
     }
 )
 

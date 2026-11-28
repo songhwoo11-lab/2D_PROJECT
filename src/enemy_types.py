@@ -419,7 +419,15 @@ class ExplosiveEnemy(Enemy):
     PLAYER_ATTACK_RADIUS = 100.0
     DEATH_EXPLOSION_RADIUS = 100.0
 
-    def __init__(self, x, y, image=None, player=None, draw_rectangle=None):
+    def __init__(
+        self,
+        x,
+        y,
+        image=None,
+        player=None,
+        draw_rectangle=None,
+        on_explode=None,
+    ):
         super().__init__(
             x,
             y,
@@ -428,6 +436,7 @@ class ExplosiveEnemy(Enemy):
             player=player,
             draw_rectangle=draw_rectangle,
         )
+        self.on_explode = on_explode
 
     def update(self, delta_time):
         if self.player is None or not self.is_alive or self.player.is_defeated:
@@ -458,10 +467,16 @@ class ExplosiveEnemy(Enemy):
                 ExplosionTarget.PLAYER_ONLY,
                 owner=self,
             ).apply(player=self.player)
+            self._notify_explosion()
             super().take_damage(
                 self.hp,
                 source=DAMAGE_SOURCE_EXPLOSION,
             )
+
+    def _notify_explosion(self):
+        """Notify listeners once for each explosion caused by this enemy."""
+        if self.on_explode is not None:
+            self.on_explode()
 
     def take_damage(self, amount, source=None):
         was_alive = self.is_alive
@@ -481,6 +496,7 @@ class ExplosiveEnemy(Enemy):
                 ExplosionTarget.ENEMIES_ONLY,
                 owner=self,
             ).apply(enemies=enemies)
+            self._notify_explosion()
         return defeated
 
 
@@ -501,6 +517,7 @@ def create_enemy(
     player,
     draw_rectangle,
     arrow_image=None,
+    on_explode=None,
 ):
     try:
         enemy_class = ENEMY_CLASSES[enemy_type]
@@ -513,4 +530,6 @@ def create_enemy(
     }
     if enemy_type is EnemyType.ARCHER:
         kwargs["arrow_image"] = arrow_image
+    if enemy_type is EnemyType.EXPLOSIVE and on_explode is not None:
+        kwargs["on_explode"] = on_explode
     return enemy_class(x, y, **kwargs)

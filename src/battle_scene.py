@@ -10,6 +10,7 @@ from arrow import Arrow
 from audio import (
     BATTLE_MUSIC_FILE,
     BATTLE_PORTAL_EXIT_SOUND_FILE,
+    BOOM_SOUND_FILE,
     DEFEAT_MUSIC_FILE,
     MACHINE_GUN_SHOT_SOUND_FILE,
     OVERHEAT_SOUND_FILE,
@@ -293,6 +294,7 @@ class BattleScene:
             self.player,
             self.enemy_draw_rectangle,
             arrow_image=self.arrow_image,
+            on_explode=self._play_boom_sound,
         )
         game_world.add_object(enemy, depth=1)
         return enemy
@@ -349,6 +351,14 @@ class BattleScene:
         play_sound = getattr(self.audio, "play_sound", None)
         if play_sound is not None:
             play_sound(BATTLE_PORTAL_EXIT_SOUND_FILE)
+
+    def _play_boom_sound(self):
+        if self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            # Explosions are effects, so they follow the SFX volume.
+            play_sound(BOOM_SOUND_FILE)
 
     def _pause_reload_sound(self):
         self._control_reload_sound("pause_sound")
