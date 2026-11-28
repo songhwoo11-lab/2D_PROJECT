@@ -84,7 +84,7 @@ STATE_PANEL_BOTTOM = 450
 STATE_PANEL_TOP = 900
 STATE_PANEL_TITLE_Y = 850
 STATE_PANEL_ROW_TOP = 790
-STATE_PANEL_ROW_GAP = 50
+STATE_PANEL_ROW_GAP = 60
 
 UPGRADE_MODAL_RECT = (180, 100, 1620, 1100)
 UPGRADE_MODAL_TITLE_Y = 1040
@@ -93,7 +93,7 @@ UPGRADE_MODAL_SIDE_TOP = 970
 UPGRADE_MODAL_LEFT_RECT = (220, 440, 850, 970)
 UPGRADE_MODAL_RIGHT_RECT = (950, 440, 1580, 970)
 UPGRADE_MODAL_SIDE_TITLE_Y = 920
-UPGRADE_MODAL_ROW_TOP = 860
+UPGRADE_MODAL_ROW_TOP = 810
 UPGRADE_MODAL_ROW_GAP = 50
 UPGRADE_MODAL_ARROW_Y = 705
 UPGRADE_MODAL_CHANCE_Y = 370
@@ -193,17 +193,22 @@ def state_available(state, gun_id):
     return True
 
 
-def stat_rows(gun_id, level):
+def stat_rows(gun_id, level, include_name=True):
     spec = weapon_stats_at_level(gun_id, level)
-    return (
-        ("NAME", spec.name.upper()),
-        ("LEVEL", str(level)),
-        ("DAMAGE", str(spec.damage)),
-        ("FIRE INTERVAL", "{:.3f}s".format(spec.fire_interval_seconds)),
-        ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
-        ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
-        ("MAGAZINE SIZE", str(spec.magazine_size)),
+    rows = []
+    if include_name:
+        rows.append(("NAME", spec.name.upper()))
+    rows.extend(
+        (
+            ("LEVEL", str(level)),
+            ("DAMAGE", str(spec.damage)),
+            ("FIRE INTERVAL", "{:.3f}s".format(spec.fire_interval_seconds)),
+            ("RELOAD TIME", "{:.1f}s".format(spec.reload_seconds)),
+            ("MAX TEMP", "{:.1f}".format(spec.temperature_limit)),
+            ("MAGAZINE SIZE", str(spec.magazine_size)),
+        )
     )
+    return tuple(rows)
 
 
 class ShopScene:
@@ -435,7 +440,7 @@ class ShopScene:
     def _state_panel_rows(self):
         gun_id = self.state_panel_gun_id
         level = self.state.upgrade_level(gun_id) if self.state is not None else 0
-        return stat_rows(gun_id, level)
+        return stat_rows(gun_id, level, include_name=False)
 
     def _draw_state_panel(self, draw_rectangle):
         if self.state_panel_gun_id is None:
@@ -504,8 +509,8 @@ class ShopScene:
         level = self.state.upgrade_level(gun_id) if self.state is not None else 0
         after_level = min(level + 1, MAX_UPGRADE_LEVEL)
         chances = upgrade_chances(level)
-        before_rows = stat_rows(gun_id, level)
-        after_rows = stat_rows(gun_id, after_level)
+        before_rows = stat_rows(gun_id, level, include_name=False)
+        after_rows = stat_rows(gun_id, after_level, include_name=False)
         changed_indices = {
             index
             for index, (before, after) in enumerate(zip(before_rows, after_rows))

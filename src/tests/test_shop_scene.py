@@ -552,7 +552,6 @@ class ShopSceneTests(unittest.TestCase):
         texts = draw_and_collect_text(scene)
         for expected in (
             "STATE - RIFLE",
-            "NAME RIFLE",
             "LEVEL 0",
             "DAMAGE {}".format(spec.damage),
             "FIRE INTERVAL {:.3f}s".format(spec.fire_interval_seconds),
@@ -563,6 +562,7 @@ class ShopSceneTests(unittest.TestCase):
             self.assertIn(expected, texts)
 
         for removed in (
+            "NAME RIFLE",
             "STARTING AMMO {}".format(spec.starting_ammo),
             "GUN ID rifle",
             "PRICE {}".format(gun_price("rifle")),
@@ -634,9 +634,29 @@ class ShopSceneTests(unittest.TestCase):
         )
         gap = last_y - shop_scene.STATE_PANEL_BOTTOM
 
-        self.assertEqual(len(rows), 7)
+        self.assertEqual(len(rows), 6)
         self.assertGreaterEqual(gap, 0)
         self.assertLessEqual(gap, HUD_FONT_SIZE)
+
+    def test_state_panel_rows_omit_the_name_row(self):
+        state = GameState(owned_guns=["pistol"], coins=100000)
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(1, STATE_ACTION))
+
+        labels = [label for label, _ in scene._state_panel_rows()]
+
+        self.assertNotIn("NAME", labels)
+        self.assertEqual(
+            labels,
+            [
+                "LEVEL",
+                "DAMAGE",
+                "FIRE INTERVAL",
+                "RELOAD TIME",
+                "MAX TEMP",
+                "MAGAZINE SIZE",
+            ],
+        )
 
     def test_state_panel_is_drawn_in_the_middle_of_the_shop(self):
         state = GameState(owned_guns=["pistol"], coins=100000)
@@ -699,13 +719,29 @@ class ShopSceneTests(unittest.TestCase):
             "->",
             "UPGRADE CHANCE 50%",
             "SUCCESS 50%  FAIL 44%  DOWN 5%  DESTROY 1%",
-            "NAME PISTOL",
             "LEVEL 5",
             "LEVEL 6",
             "UPGRADE",
             "CANCEL",
         ):
             self.assertIn(expected, texts)
+
+        self.assertNotIn("NAME PISTOL", texts)
+
+    def test_upgrade_modal_omits_the_name_row(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            upgrade_levels={"pistol": 5},
+            coins=100000,
+        )
+        scene = ShopScene(state=state, hud_font=object())
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+
+        texts = draw_and_collect_text(scene)
+
+        self.assertNotIn("NAME PISTOL", texts)
+        self.assertIn("LEVEL 5", texts)
+        self.assertIn("LEVEL 6", texts)
 
     def test_upgrade_modal_draws_both_stat_panels_and_buttons(self):
         state = GameState(owned_guns=["pistol"], coins=100)
