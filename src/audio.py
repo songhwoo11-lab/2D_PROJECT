@@ -19,6 +19,7 @@ VOLUME_STEP = 10
 MIXER_MAX_VOLUME = 128
 
 SOUND_DIRECTORY = Path(__file__).resolve().parent.parent / "sound"
+TITLE_MUSIC_FILE = "title bgm.mp3"
 LOBBY_MUSIC_FILE = "lobby bgm.mp3"
 SHOP_MUSIC_FILE = "shop bgm.mp3"
 BATTLE_MUSIC_FILE = "battle.mp3"
@@ -43,6 +44,7 @@ GUN_LEVEL_EXPLOSION_SOUND_FILE = "gun level explosion.mp3"
 BUY_UPGRADE_FAIL_SOUND_FILE = "buy,upgrade fail.mp3"
 
 MUSIC_BY_SCENE = {
+    "title": TITLE_MUSIC_FILE,
     "lobby": LOBBY_MUSIC_FILE,
     "shop": SHOP_MUSIC_FILE,
 }
@@ -53,6 +55,7 @@ MUSIC_BY_SCENE = {
 BGM_VOLUME_FILES = frozenset(
     {
         BATTLE_MUSIC_FILE,
+        TITLE_MUSIC_FILE,
         LOBBY_MUSIC_FILE,
         RECORDS_MUSIC_FILE,
         SHOP_MUSIC_FILE,

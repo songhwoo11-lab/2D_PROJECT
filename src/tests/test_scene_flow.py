@@ -11,6 +11,7 @@ from audio import (
     MAX_VOLUME,
     MIN_VOLUME,
     SHOP_MUSIC_FILE,
+    TITLE_MUSIC_FILE,
     VOLUME_STEP,
 )
 from battle_record import BattleRecord
@@ -1178,13 +1179,13 @@ class TitleFlowTests(unittest.TestCase):
         self.assertIs(self.app.scene.logo, self.app.assets["title_logo"])
         self.assertIs(self.app.scene.hud_font, self.app.assets["hud_font"])
 
-    def test_title_scene_does_not_play_any_audio(self):
+    def test_title_scene_plays_the_title_bgm_without_sound_effects(self):
         self.app.audio = Mock()
 
         self.app.switch_scene("title")
 
         self.app.audio.stop.assert_called_once_with()
-        self.app.audio.play.assert_not_called()
+        self.app.audio.play.assert_called_once_with(TITLE_MUSIC_FILE)
         self.app.audio.play_sound.assert_not_called()
 
     def test_game_start_shows_loading_before_entering_the_lobby(self):
