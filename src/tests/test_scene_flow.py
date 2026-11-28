@@ -167,6 +167,20 @@ class GameAppStartupTests(unittest.TestCase):
         )
         pico2d_module.update_canvas.assert_not_called()
 
+    def test_draw_loading_screen_can_hide_the_portal(self):
+        app = GameApp()
+        portal_image = Mock()
+        app.assets["portal_image"] = portal_image
+        pico2d_module = Mock()
+
+        with patch("main.draw_centered_text"):
+            app.draw_loading_screen(
+                pico2d_module, present=False, show_portal=False
+            )
+
+        portal_image.draw.assert_not_called()
+        pico2d_module.draw_rectangle.assert_called_once()
+
     def test_run_initializes_the_game_before_entering_the_main_loop(self):
         app = GameApp()
         app.running = False

@@ -164,7 +164,9 @@ class GameApp:
         self.settings_from_pause = False
         self.audio = AudioManager()
 
-    def draw_loading_screen(self, pico2d_module=None, present=True):
+    def draw_loading_screen(
+        self, pico2d_module=None, present=True, show_portal=True
+    ):
         pico2d_module = pico2d_module or pico2d
         if self.loading_font is None:
             self.loading_font = pico2d_module.load_font(
@@ -182,7 +184,7 @@ class GameApp:
             True,
         )
         portal_image = self.assets.get("portal_image")
-        if portal_image is not None:
+        if show_portal and portal_image is not None:
             portal_image.draw(
                 SCREEN_WIDTH / 2,
                 SCREEN_HEIGHT / 2,
@@ -860,16 +862,20 @@ class GameApp:
                             self.scene.mouse_up("left")
 
                 showing_loading = False
+                battle_loading = False
                 if not self.exit_confirmation_open:
                     self.scene.update(delta_time)
                     if not self.consume_settings_request():
                         self.handle_scene_action()
-                        showing_loading = self.tick_battle_entry_loading(
+                        battle_loading = self.tick_battle_entry_loading(delta_time)
+                        showing_loading = battle_loading or self.tick_game_start_loading(
                             delta_time
-                        ) or self.tick_game_start_loading(delta_time)
+                        )
                 pico2d.clear_canvas()
                 if showing_loading:
-                    self.draw_loading_screen(pico2d, present=False)
+                    self.draw_loading_screen(
+                        pico2d, present=False, show_portal=battle_loading
+                    )
                 else:
                     self.scene.draw(pico2d.draw_rectangle)
                 if self.exit_confirmation_open:
