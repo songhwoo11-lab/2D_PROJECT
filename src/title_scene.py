@@ -282,10 +282,10 @@ class TitleScene:
             if key in ("escape", "space", "return", "e"):
                 self.mode = "menu"
             return
-        if key in ("up", "w"):
-            self.hover_index = (self.hover_index - 1) % len(TITLE_ACTIONS)
-        elif key in ("down", "s"):
-            self.hover_index = (self.hover_index + 1) % len(TITLE_ACTIONS)
+        if key in ("up", "w", "down", "s"):
+            current = self.hover_index if self.hover_index is not None else 0
+            step = -1 if key in ("up", "w") else 1
+            self.hover_index = (current + step) % len(TITLE_ACTIONS)
         elif key in ("space", "return", "e"):
             self._activate(self.hover_index)
 

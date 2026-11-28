@@ -202,6 +202,33 @@ class TitleInputTests(unittest.TestCase):
 
         self.assertIsNone(scene.hover_index)
 
+    def test_keyboard_navigation_is_safe_after_the_mouse_leaves_the_buttons(self):
+        scene = TitleScene()
+        rect = button_rect(0)
+        center_x = (rect[0] + rect[2]) / 2
+        canvas_y = (rect[1] + rect[3]) / 2
+        scene.mouse_move(center_x, SCREEN_HEIGHT - canvas_y)
+        scene.mouse_move(1, 1)
+
+        self.assertIsNone(scene.hover_index)
+
+        scene.key_down("up")
+
+        self.assertEqual(scene.hover_index, len(TITLE_ACTIONS) - 1)
+
+        scene.key_up("up")
+        scene.mouse_move(1, 1)
+        scene.key_down("down")
+
+        self.assertEqual(scene.hover_index, 1)
+
+        scene.key_up("down")
+        scene.mouse_move(1, 1)
+        scene.key_down("return")
+
+        self.assertIsNone(scene.pending_action)
+        self.assertIsNone(scene.hover_index)
+
     def test_keyboard_can_select_and_activate_a_button(self):
         scene = TitleScene()
 
