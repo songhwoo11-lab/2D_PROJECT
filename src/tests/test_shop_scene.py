@@ -1,7 +1,13 @@
 import unittest
 from unittest import mock
 
-from audio import BUY_GUN_SOUND_FILE
+from audio import (
+    BUY_GUN_SOUND_FILE,
+    GUN_LEVEL_DOWN_SOUND_FILE,
+    GUN_LEVEL_EXPLOSION_SOUND_FILE,
+    GUN_LEVEL_FAIL_SOUND_FILE,
+    GUN_LEVEL_UP_SOUND_FILE,
+)
 from game_config import HUD_FONT_SIZE, SCREEN_HEIGHT, SCREEN_WIDTH
 from game_state import GameState
 import shop_scene
@@ -1023,7 +1029,10 @@ class ShopPurchaseSoundTests(unittest.TestCase):
             click_rect(scene, upgrade_confirm_rect())
 
         self.assertEqual(scene.last_result.result, UpgradeResult.SUCCESS)
-        audio.play_sound.assert_not_called()
+        self.assertNotIn(
+            mock.call(BUY_GUN_SOUND_FILE),
+            audio.play_sound.call_args_list,
+        )
 
     def test_purchase_without_audio_is_safe(self):
         state = GameState(owned_guns=["pistol"], coins=150000)
@@ -1032,6 +1041,87 @@ class ShopPurchaseSoundTests(unittest.TestCase):
         click_rect(scene, button_rect(1, BUY_ACTION))
 
         self.assertEqual(scene.last_result.result, PurchaseResult.PURCHASED)
+
+
+class ShopUpgradeSoundTests(unittest.TestCase):
+    def make_scene(self, level=0, coins=100000, audio=None):
+        state = GameState(
+            owned_guns=["pistol"],
+            coins=coins,
+            upgrade_levels={"pistol": level},
+        )
+        scene = ShopScene(
+            state=state,
+            audio=audio if audio is not None else mock.Mock(),
+        )
+        return state, scene, scene.audio
+
+    def confirm_upgrade(self, scene, roll):
+        click_rect(scene, button_rect(0, UPGRADE_ACTION))
+        with mock.patch("shop.random.randint", return_value=roll):
+            click_rect(scene, upgrade_confirm_rect())
+
+    def assert_upgrade_sound(
+        self, level, roll, expected_result, expected_sound
+    ):
+        state, scene, audio = self.make_scene(level=level)
+
+        self.confirm_upgrade(scene, roll)
+
+        self.assertEqual(scene.last_result.result, expected_result)
+        audio.play_sound.assert_called_once_with(expected_sound)
+
+    def test_successful_upgrade_plays_the_level_up_sound(self):
+        self.assert_upgrade_sound(
+            level=5,
+            roll=1,
+            expected_result=UpgradeResult.SUCCESS,
+            expected_sound=GUN_LEVEL_UP_SOUND_FILE,
+        )
+
+    def test_failed_upgrade_plays_the_level_fail_sound(self):
+        self.assert_upgrade_sound(
+            level=5,
+            roll=91,
+            expected_result=UpgradeResult.FAILURE,
+            expected_sound=GUN_LEVEL_FAIL_SOUND_FILE,
+        )
+
+    def test_downgrade_plays_the_level_down_sound(self):
+        self.assert_upgrade_sound(
+            level=5,
+            roll=99,
+            expected_result=UpgradeResult.DOWNGRADE,
+            expected_sound=GUN_LEVEL_DOWN_SOUND_FILE,
+        )
+
+    def test_destroy_plays_the_level_explosion_sound(self):
+        self.assert_upgrade_sound(
+            level=5,
+            roll=100,
+            expected_result=UpgradeResult.DESTROY,
+            expected_sound=GUN_LEVEL_EXPLOSION_SOUND_FILE,
+        )
+
+    def test_blocked_upgrade_does_not_play_a_sound(self):
+        state, scene, audio = self.make_scene(level=5, coins=0)
+
+        self.confirm_upgrade(scene, 1)
+
+        self.assertEqual(scene.last_result.result, UpgradeResult.INSUFFICIENT_COINS)
+        audio.play_sound.assert_not_called()
+
+    def test_upgrade_without_audio_is_safe(self):
+        state = GameState(
+            owned_guns=["pistol"],
+            coins=100000,
+            upgrade_levels={"pistol": 5},
+        )
+        scene = ShopScene(state=state)
+
+        self.confirm_upgrade(scene, 100)
+
+        self.assertEqual(scene.last_result.result, UpgradeResult.DESTROY)
 
 
 if __name__ == "__main__":

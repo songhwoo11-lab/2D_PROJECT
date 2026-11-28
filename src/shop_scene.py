@@ -1,12 +1,19 @@
 """Shop screen with horizontally arranged gun cards."""
 
-from audio import BUY_GUN_SOUND_FILE
+from audio import (
+    BUY_GUN_SOUND_FILE,
+    GUN_LEVEL_DOWN_SOUND_FILE,
+    GUN_LEVEL_EXPLOSION_SOUND_FILE,
+    GUN_LEVEL_FAIL_SOUND_FILE,
+    GUN_LEVEL_UP_SOUND_FILE,
+)
 from game_config import SCREEN_HEIGHT, SCREEN_WIDTH
 from hud import _measure_text_width as measure_text_width, draw_centered_text
 from shop import (
     GUN_SHOP_ORDER,
     MAX_UPGRADE_LEVEL,
     PurchaseResult,
+    UpgradeResult,
     gun_price,
     purchase_gun,
     purchase_result_message,
@@ -22,6 +29,13 @@ NO_ACTION = -1
 BUY_ACTION = 0
 UPGRADE_ACTION = 1
 STATE_ACTION = 2
+
+UPGRADE_SOUND_BY_RESULT = {
+    UpgradeResult.SUCCESS: GUN_LEVEL_UP_SOUND_FILE,
+    UpgradeResult.FAILURE: GUN_LEVEL_FAIL_SOUND_FILE,
+    UpgradeResult.DOWNGRADE: GUN_LEVEL_DOWN_SOUND_FILE,
+    UpgradeResult.DESTROY: GUN_LEVEL_EXPLOSION_SOUND_FILE,
+}
 
 SHOP_TITLE = "SHOP"
 BUY_LABEL = "BUY"
@@ -590,6 +604,15 @@ class ShopScene:
         else:
             return
 
+    def _play_upgrade_sound(self, result):
+        sound_file = UPGRADE_SOUND_BY_RESULT.get(result)
+        if sound_file is None or self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            # Upgrade outcomes are effects, so they follow the SFX volume.
+            play_sound(sound_file)
+
     def _confirm_upgrade(self):
         gun_id = self.upgrade_modal_gun_id
         if gun_id is None or self.state is None:
@@ -602,6 +625,7 @@ class ShopScene:
         self.gun_index = index
         self.action_index = UPGRADE_ACTION
         self.last_result = upgrade_gun(self.state, gun_id)
+        self._play_upgrade_sound(self.last_result.result)
         self._hide_upgrade_modal()
         self._select_first_available_action()
 
