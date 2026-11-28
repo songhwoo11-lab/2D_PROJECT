@@ -36,8 +36,10 @@ from hud import draw_centered_text, draw_text_at_center
 from lobby_map import LOBBY_START_KEY
 from lobby_scene import LobbyScene
 from player import Player
+from save_data import default_save_data
 from save_io import SaveDataError, load_save_data_with_report, write_save_data
 from shop_scene import ShopScene
+from title_scene import TitleScene
 from training_scene import TrainingScene
 from weapon import Gun
 
@@ -49,6 +51,7 @@ LOADING_TEXT_COLOR = (255, 220, 100)
 LOADING_PORTAL_WIDTH = 700
 LOADING_PORTAL_HEIGHT = 660
 BATTLE_ENTRY_LOADING_SECONDS = 1.0
+GAME_START_LOADING_SECONDS = 1.0
 
 EXIT_DIALOG_TITLE = "EXIT GAME?"
 EXIT_DIALOG_WIDTH = 620
@@ -168,6 +171,7 @@ class GameApp:
         self.cursor_hidden = False
         self.running = True
         self.battle_entry_loading_remaining = 0.0
+        self.game_start_loading_remaining = 0.0
         self.loading_font = None
         self.exit_confirmation_open = False
         self.exit_settings_open = False
@@ -352,7 +356,7 @@ class GameApp:
         self.draw_loading_screen(pico2d_module)
         self.load_progress()
         self.load_assets()
-        self.switch_scene("lobby")
+        self.switch_scene("title")
 
     def load_progress(self):
         """Load saved progress into the state and keep recovery guidance."""
@@ -374,6 +378,25 @@ class GameApp:
             print("저장 데이터 안내: " + message)
             return False
 
+    def reset_game(self):
+        """Clear every saved record and restore the first-run state."""
+        data = default_save_data()
+        try:
+            write_save_data(data, self.save_root)
+        except SaveDataError as error:
+            message = "게임 상태를 초기화할 수 없습니다: {}".format(error)
+            self.save_notice = message
+            print("저장 데이터 안내: " + message)
+            success = False
+        else:
+            self.save_notice = ""
+            success = True
+        self.state = GameState.from_save_data(data, dev_gun=None, coins=0)
+        self.lobby_node_key = LOBBY_START_KEY
+        self.battle_entry_loading_remaining = 0.0
+        self.game_start_loading_remaining = 0.0
+        return success
+
     def load_assets(self):
         import pico2d
 
@@ -385,6 +408,9 @@ class GameApp:
         )
         self.assets["lobby_background"] = pico2d.load_image(
             str(directory / "game_lobby.png")
+        )
+        self.assets["title_background"] = pico2d.load_image(
+            str(directory / "game_start.png")
         )
         self.assets["player_image"] = pico2d.load_image(str(directory / "boy.png"))
         self.assets["portal_image"] = pico2d.load_image(
@@ -455,6 +481,12 @@ class GameApp:
         self.audio.set_loader(pico2d.load_music)
         self.audio.set_sound_loader(pico2d.load_wav)
 
+    def create_title_scene(self):
+        return TitleScene(
+            background=self.assets.get("title_background"),
+            hud_font=self.assets.get("hud_font"),
+        )
+
     def create_lobby_scene(self):
         player = Player(
             LOBBY_PLAYER_START_X,
@@ -523,7 +555,9 @@ class GameApp:
         if self.scene is not None:
             self.scene.close()
         self.audio.stop()
-        if kind == "lobby":
+        if kind == "title":
+            self.scene = self.create_title_scene()
+        elif kind == "lobby":
             self.scene = self.create_lobby_scene()
         elif kind == "battle":
             self.scene = self.create_battle_scene(
@@ -576,6 +610,19 @@ class GameApp:
         if action is None:
             return False
         self.scene.pending_action = None
+        if action == "game_start":
+            self.battle_entry_loading_remaining = 0.0
+            self.game_start_loading_remaining = GAME_START_LOADING_SECONDS
+            return True
+        if action == "title_settings":
+            self.open_exit_settings(from_pause=True)
+            return True
+        if action == "reset_game":
+            self.reset_game()
+            return True
+        if action == "exit_game":
+            self.running = False
+            return True
         if action == "enter_shop":
             self.switch_scene("shop")
             return True
@@ -586,6 +633,7 @@ class GameApp:
             self.switch_scene("battle")
             return True
         if action == "battle_entry_loading":
+            self.game_start_loading_remaining = 0.0
             self.battle_entry_loading_remaining = BATTLE_ENTRY_LOADING_SECONDS
             self.audio.play_sound(LOBBY_TO_BATTLE_SOUND_FILE)
             return True
@@ -602,6 +650,16 @@ class GameApp:
         )
         if self.battle_entry_loading_remaining == 0.0:
             self.switch_scene("battle", portal_transition=True)
+        return True
+
+    def tick_game_start_loading(self, delta_time):
+        if self.game_start_loading_remaining <= 0.0:
+            return False
+        self.game_start_loading_remaining = max(
+            0.0, self.game_start_loading_remaining - delta_time
+        )
+        if self.game_start_loading_remaining == 0.0:
+            self.switch_scene("lobby")
         return True
 
     def handle_scene_exit(self):
@@ -688,7 +746,10 @@ class GameApp:
         if self.exit_confirmation_open:
             self.close_exit_confirmation()
             return
-        if self.battle_entry_loading_remaining > 0.0:
+        if (
+            self.battle_entry_loading_remaining > 0.0
+            or self.game_start_loading_remaining > 0.0
+        ):
             return
         if self.scene_kind == "lobby":
             if getattr(self.scene, "portal_entry_active", False):
@@ -807,16 +868,16 @@ class GameApp:
                         ):
                             self.scene.mouse_up("left")
 
-                showing_battle_loading = False
+                showing_loading = False
                 if not self.exit_confirmation_open:
                     self.scene.update(delta_time)
                     if not self.consume_settings_request():
                         self.handle_scene_action()
-                        showing_battle_loading = self.tick_battle_entry_loading(
+                        showing_loading = self.tick_battle_entry_loading(
                             delta_time
-                        )
+                        ) or self.tick_game_start_loading(delta_time)
                 pico2d.clear_canvas()
-                if showing_battle_loading:
+                if showing_loading:
                     self.draw_loading_screen(pico2d, present=False)
                 else:
                     self.scene.draw(pico2d.draw_rectangle)

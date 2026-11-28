@@ -35,6 +35,7 @@ from main import (
     EXIT_DIALOG_TITLE,
     EXIT_DIALOG_TITLE_Y,
     EXIT_DIALOG_YES_RECT,
+    GAME_START_LOADING_SECONDS,
     GameApp,
     LOADING_BACKGROUND_COLOR,
     LOADING_PORTAL_HEIGHT,
@@ -61,9 +62,10 @@ from shop import GUN_SHOP_ORDER
 from shop_scene import (
     BUY_ACTION,
     UPGRADE_ACTION,
-    button_rect,
+    button_rect as shop_button_rect,
     upgrade_confirm_rect,
 )
+from title_scene import button_rect as title_button_rect
 from weapon import PISTOL, RIFLE
 
 
@@ -71,6 +73,7 @@ def make_app(save_root=None):
     app = GameApp(save_root=save_root)
     app.assets = {
         "lobby_background": None,
+        "title_background": None,
         "battle_background": None,
         "player_image": None,
         "gun_image": None,
@@ -89,7 +92,7 @@ def make_app(save_root=None):
 
 
 class GameAppStartupTests(unittest.TestCase):
-    def test_initialize_shows_loading_before_loading_assets_and_creating_the_lobby(self):
+    def test_initialize_shows_loading_before_loading_assets_and_creating_the_title(self):
         app = GameApp()
         manager = Mock()
         with patch.object(app, "draw_loading_screen") as draw_loading_screen, patch.object(
@@ -109,7 +112,7 @@ class GameAppStartupTests(unittest.TestCase):
                 call.draw_loading_screen(None),
                 call.load_progress(),
                 call.load_assets(),
-                call.switch_scene("lobby"),
+                call.switch_scene("title"),
             ],
         )
 
@@ -171,7 +174,7 @@ class GameAppStartupTests(unittest.TestCase):
 
 
 def click_shop_button(scene, gun_id, action):
-    rect = button_rect(GUN_SHOP_ORDER.index(gun_id), action)
+    rect = shop_button_rect(GUN_SHOP_ORDER.index(gun_id), action)
     center_x = (rect[0] + rect[2]) / 2
     canvas_y = (rect[1] + rect[3]) / 2
     scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
@@ -1126,3 +1129,114 @@ class ExitConfirmationTests(unittest.TestCase):
         )
         self.assertEqual(pico2d_module.draw_rectangle.call_count, 7)
         pico2d_module.update_canvas.assert_called_once_with()
+
+
+def click_title_button(app, index):
+    rect = title_button_rect(index)
+    center_x = (rect[0] + rect[2]) / 2
+    canvas_y = (rect[1] + rect[3]) / 2
+    app.scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
+
+
+class TitleFlowTests(unittest.TestCase):
+    def setUp(self):
+        self.app = make_app()
+        self.app.switch_scene("title")
+
+    def tearDown(self):
+        if self.app.scene is not None:
+            self.app.scene.close()
+
+    def test_title_scene_uses_the_loaded_background_and_font(self):
+        self.assertEqual(self.app.scene_kind, "title")
+        self.assertIs(self.app.scene.background, self.app.assets["title_background"])
+        self.assertIs(self.app.scene.hud_font, self.app.assets["hud_font"])
+
+    def test_title_scene_does_not_play_any_audio(self):
+        self.app.audio = Mock()
+
+        self.app.switch_scene("title")
+
+        self.app.audio.stop.assert_called_once_with()
+        self.app.audio.play.assert_not_called()
+        self.app.audio.play_sound.assert_not_called()
+
+    def test_game_start_shows_loading_before_entering_the_lobby(self):
+        click_title_button(self.app, 0)
+
+        self.assertTrue(self.app.handle_scene_action())
+        self.assertIsNone(self.app.scene.pending_action)
+        self.assertEqual(self.app.scene_kind, "title")
+        self.assertAlmostEqual(
+            self.app.game_start_loading_remaining,
+            GAME_START_LOADING_SECONDS,
+        )
+
+        self.assertTrue(self.app.tick_game_start_loading(0.5))
+        self.assertEqual(self.app.scene_kind, "title")
+
+        self.assertTrue(self.app.tick_game_start_loading(0.5))
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertEqual(self.app.game_start_loading_remaining, 0.0)
+
+    def test_escape_is_ignored_while_the_game_start_loading_screen_is_shown(self):
+        self.app.game_start_loading_remaining = GAME_START_LOADING_SECONDS
+
+        self.app.handle_escape_key()
+
+        self.assertTrue(self.app.running)
+        self.assertEqual(self.app.scene_kind, "title")
+
+    def test_setting_button_opens_sound_settings_and_back_returns_to_the_title(self):
+        click_title_button(self.app, 1)
+
+        self.assertTrue(self.app.handle_scene_action())
+        self.assertTrue(self.app.exit_settings_open)
+        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertTrue(self.app.settings_from_pause)
+
+        click_exit_dialog_button(self.app, VOLUME_SETTINGS_PLUS_RECT)
+        self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME + VOLUME_STEP)
+
+        click_exit_dialog_button(self.app, VOLUME_SETTINGS_BACK_RECT)
+        self.assertFalse(self.app.exit_settings_open)
+        self.assertFalse(self.app.exit_confirmation_open)
+        self.assertEqual(self.app.scene_kind, "title")
+
+    def test_exit_game_button_stops_the_game_immediately(self):
+        click_title_button(self.app, 3)
+
+        self.assertTrue(self.app.handle_scene_action())
+
+        self.assertFalse(self.app.running)
+
+    def test_reset_game_clears_every_persisted_record(self):
+        data = SaveData(
+            acquired_guns=[True, True, True],
+            upgrade_levels=[2, 4, 6],
+            coins=9999,
+            best_log=BestLog(reached_wave=10, elapsed_time=1000.0),
+            recent_logs=[(10, 1000.0)],
+            training_records=[3, 5],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(data, temp_dir)
+            app = make_app(save_root=temp_dir)
+            with patch.dict(os.environ, {}, clear=True):
+                app.load_progress()
+            app.switch_scene("title")
+
+            click_title_button(app, 2)
+
+            self.assertTrue(app.handle_scene_action())
+            self.assertEqual(load_save_data(temp_dir), default_save_data())
+            self.assertEqual(app.state.to_save_data(), default_save_data())
+            self.assertEqual(app.state.coins, 0)
+            self.assertEqual(app.state.owned_guns, ["pistol"])
+            self.assertIsNone(app.state.dev_gun)
+            self.assertEqual(app.state.selected_gun, "pistol")
+            self.assertIsNone(app.state.best_log)
+            self.assertEqual(app.state.records, [])
+            self.assertEqual(app.state.training_records, [])
+            self.assertEqual(app.save_notice, "")
+            app.scene.close()
