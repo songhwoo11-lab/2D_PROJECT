@@ -10,6 +10,7 @@ from audio import (
     DEFAULT_VOLUME,
     DEFEAT_MUSIC_FILE,
     LOBBY_MUSIC_FILE,
+    MACHINE_GUN_SHOT_SOUND_FILE,
     MAX_VOLUME,
     RECORDS_MUSIC_FILE,
     SHOP_MUSIC_FILE,
@@ -225,6 +226,15 @@ class AudioManagerTests(unittest.TestCase):
         self.assertEqual(len(self.sound_paths), 1)
         self.assertTrue(
             self.sound_paths[0].endswith("sound\\" + RIFLE_SHOT_SOUND_FILE)
+        )
+        self.assertEqual(self.wav.play_count, 1)
+
+    def test_playing_the_machine_gun_sound_loads_the_requested_mp3(self):
+        self.assertTrue(self.manager.play_sound(MACHINE_GUN_SHOT_SOUND_FILE))
+
+        self.assertEqual(len(self.sound_paths), 1)
+        self.assertTrue(
+            self.sound_paths[0].endswith("sound\\" + MACHINE_GUN_SHOT_SOUND_FILE)
         )
         self.assertEqual(self.wav.play_count, 1)
 

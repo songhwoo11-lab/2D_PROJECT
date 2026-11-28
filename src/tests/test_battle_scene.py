@@ -7,6 +7,7 @@ from audio import (
     BATTLE_MUSIC_FILE,
     BATTLE_PORTAL_EXIT_SOUND_FILE,
     DEFEAT_MUSIC_FILE,
+    MACHINE_GUN_SHOT_SOUND_FILE,
     OVERHEAT_SOUND_FILE,
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
@@ -583,13 +584,19 @@ class BattleSceneShotSoundTests(unittest.TestCase):
             ],
         )
 
-    def test_machine_gun_shots_do_not_play_a_shot_sound(self):
+    def test_every_machine_gun_shot_plays_the_sound_once(self):
         scene, audio = self.make_audio_scene(gun_id=MACHINE_GUN_GUN_ID)
 
         self.fire_once(scene)
+        self.fire_once(scene)
 
-        self.assertGreater(scene.gun_recoil_remaining, 0.0)
-        self.assertEqual(audio.events, [])
+        self.assertEqual(
+            audio.events,
+            [
+                ("play_sound", MACHINE_GUN_SHOT_SOUND_FILE),
+                ("play_sound", MACHINE_GUN_SHOT_SOUND_FILE),
+            ],
+        )
 
     def test_rifle_auto_fire_emits_every_shot_then_the_reload_sound(self):
         scene, audio = self.make_audio_scene(gun_id=RIFLE_GUN_ID)
