@@ -412,6 +412,9 @@ class GameApp:
         self.assets["title_background"] = pico2d.load_image(
             str(directory / "game_start.png")
         )
+        self.assets["title_logo"] = pico2d.load_image(
+            str(directory / "game logo.png")
+        )
         self.assets["player_image"] = pico2d.load_image(str(directory / "boy.png"))
         self.assets["portal_image"] = pico2d.load_image(
             str(directory / "portal_image.png")
@@ -484,6 +487,7 @@ class GameApp:
     def create_title_scene(self):
         return TitleScene(
             background=self.assets.get("title_background"),
+            logo=self.assets.get("title_logo"),
             hud_font=self.assets.get("hud_font"),
         )
 

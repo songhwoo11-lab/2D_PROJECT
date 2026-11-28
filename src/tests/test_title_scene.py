@@ -10,11 +10,18 @@ from title_scene import (
     SETTINGS_ACTION,
     TITLE_ACTIONS,
     TITLE_BACKGROUND_COLOR,
+    TITLE_BUTTON_CENTER_Y,
     TITLE_BUTTON_COLOR,
+    TITLE_BUTTON_FIRST_TOP,
     TITLE_BUTTON_HOVER_COLOR,
     TITLE_BUTTON_TEXT_COLOR,
+    TITLE_BUTTON_TOP_GAP,
+    TITLE_LOGO_HEIGHT,
+    TITLE_LOGO_TOP_MARGIN,
+    TITLE_LOGO_WIDTH,
     TitleScene,
     button_rect,
+    logo_center,
 )
 
 
@@ -41,7 +48,18 @@ class TitleLayoutTests(unittest.TestCase):
             (button_rect(index)[1] + button_rect(index)[3]) / 2
             for index in range(len(TITLE_ACTIONS))
         ]
-        self.assertEqual(sum(centers) / len(centers), SCREEN_HEIGHT / 2)
+        self.assertEqual(sum(centers) / len(centers), TITLE_BUTTON_CENTER_Y)
+
+    def test_buttons_are_below_the_logo_without_overlapping_it(self):
+        _, logo_y = logo_center()
+        logo_bottom = logo_y - TITLE_LOGO_HEIGHT / 2
+        first_top = button_rect(0)[3]
+        last_bottom = button_rect(len(TITLE_ACTIONS) - 1)[1]
+
+        self.assertEqual(first_top, TITLE_BUTTON_FIRST_TOP)
+        self.assertEqual(first_top, logo_bottom - TITLE_BUTTON_TOP_GAP)
+        self.assertLess(first_top, logo_bottom)
+        self.assertGreaterEqual(last_bottom, 0)
 
     def test_draw_uses_the_background_and_draws_every_button_label(self):
         background = mock.Mock()
@@ -64,6 +82,34 @@ class TitleLayoutTests(unittest.TestCase):
         )
         for call in draw_text.call_args_list:
             self.assertEqual(call.args[4], TITLE_BUTTON_TEXT_COLOR)
+
+    def test_logo_is_drawn_at_the_top_center(self):
+        logo = mock.Mock()
+        scene = TitleScene(background=mock.Mock(), logo=logo, hud_font=object())
+        draw_rectangle = mock.Mock()
+
+        with mock.patch("title_scene.draw_text_at_center"):
+            scene.draw(draw_rectangle)
+
+        logo.draw.assert_called_once_with(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT - TITLE_LOGO_TOP_MARGIN - TITLE_LOGO_HEIGHT / 2,
+            TITLE_LOGO_WIDTH,
+            TITLE_LOGO_HEIGHT,
+        )
+        self.assertEqual(
+            logo_center(),
+            (
+                SCREEN_WIDTH / 2,
+                SCREEN_HEIGHT - TITLE_LOGO_TOP_MARGIN - TITLE_LOGO_HEIGHT / 2,
+            ),
+        )
+
+    def test_draw_without_a_logo_is_safe(self):
+        scene = TitleScene(background=mock.Mock(), hud_font=object())
+
+        with mock.patch("title_scene.draw_text_at_center"):
+            scene.draw(mock.Mock())
 
     def test_draw_falls_back_to_a_plain_background(self):
         scene = TitleScene(hud_font=None)

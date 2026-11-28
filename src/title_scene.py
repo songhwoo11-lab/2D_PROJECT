@@ -16,16 +16,23 @@ TITLE_ACTIONS = (
     ("Exit Game", EXIT_GAME_ACTION),
 )
 
+TITLE_BACKGROUND_COLOR = (18, 26, 22, 255)
+TITLE_LOGO_WIDTH = 768
+TITLE_LOGO_HEIGHT = 576
+TITLE_LOGO_TOP_MARGIN = 40
+
 TITLE_BUTTON_WIDTH = 360
 TITLE_BUTTON_HEIGHT = 78
 TITLE_BUTTON_GAP = 28
-TITLE_BUTTON_CENTER_Y = SCREEN_HEIGHT / 2
 TITLE_BUTTON_TOTAL_HEIGHT = (
     len(TITLE_ACTIONS) * TITLE_BUTTON_HEIGHT
     + (len(TITLE_ACTIONS) - 1) * TITLE_BUTTON_GAP
 )
-
-TITLE_BACKGROUND_COLOR = (18, 26, 22, 255)
+TITLE_BUTTON_TOP_GAP = 40
+TITLE_BUTTON_FIRST_TOP = (
+    SCREEN_HEIGHT - TITLE_LOGO_TOP_MARGIN - TITLE_LOGO_HEIGHT - TITLE_BUTTON_TOP_GAP
+)
+TITLE_BUTTON_CENTER_Y = TITLE_BUTTON_FIRST_TOP - TITLE_BUTTON_TOTAL_HEIGHT / 2
 TITLE_BUTTON_COLOR = (45, 80, 105, 255)
 TITLE_BUTTON_HOVER_COLOR = (70, 120, 150, 255)
 TITLE_BUTTON_TEXT_COLOR = (255, 255, 255)
@@ -34,13 +41,17 @@ TITLE_BUTTON_TEXT_COLOR = (255, 255, 255)
 def button_rect(index):
     """Return a menu button rectangle in canvas coordinates."""
     left = (SCREEN_WIDTH - TITLE_BUTTON_WIDTH) / 2
-    top = (
-        TITLE_BUTTON_CENTER_Y
-        + TITLE_BUTTON_TOTAL_HEIGHT / 2
-        - index * (TITLE_BUTTON_HEIGHT + TITLE_BUTTON_GAP)
-    )
+    top = TITLE_BUTTON_FIRST_TOP - index * (TITLE_BUTTON_HEIGHT + TITLE_BUTTON_GAP)
     bottom = top - TITLE_BUTTON_HEIGHT
     return left, bottom, left + TITLE_BUTTON_WIDTH, top
+
+
+def logo_center():
+    """Return the canvas center position of the logo near the top edge."""
+    return (
+        SCREEN_WIDTH / 2,
+        SCREEN_HEIGHT - TITLE_LOGO_TOP_MARGIN - TITLE_LOGO_HEIGHT / 2,
+    )
 
 
 def contains(rect, x, y):
@@ -53,8 +64,9 @@ def contains(rect, x, y):
 class TitleScene:
     """Menu that opens before the lobby without playing any audio."""
 
-    def __init__(self, background=None, hud_font=None):
+    def __init__(self, background=None, logo=None, hud_font=None):
         self.background = background
+        self.logo = logo
         self.hud_font = hud_font
         self.keys = set()
         self.hover_index = 0
@@ -81,6 +93,9 @@ class TitleScene:
                 *TITLE_BACKGROUND_COLOR,
                 True,
             )
+        if self.logo is not None:
+            x, y = logo_center()
+            self.logo.draw(x, y, TITLE_LOGO_WIDTH, TITLE_LOGO_HEIGHT)
         if self.hud_font is None:
             return
         for index, (label, _) in enumerate(TITLE_ACTIONS):

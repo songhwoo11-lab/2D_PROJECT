@@ -74,6 +74,7 @@ def make_app(save_root=None):
     app.assets = {
         "lobby_background": None,
         "title_background": None,
+        "title_logo": None,
         "battle_background": None,
         "player_image": None,
         "gun_image": None,
@@ -1147,9 +1148,10 @@ class TitleFlowTests(unittest.TestCase):
         if self.app.scene is not None:
             self.app.scene.close()
 
-    def test_title_scene_uses_the_loaded_background_and_font(self):
+    def test_title_scene_uses_the_loaded_background_logo_and_font(self):
         self.assertEqual(self.app.scene_kind, "title")
         self.assertIs(self.app.scene.background, self.app.assets["title_background"])
+        self.assertIs(self.app.scene.logo, self.app.assets["title_logo"])
         self.assertIs(self.app.scene.hud_font, self.app.assets["hud_font"])
 
     def test_title_scene_does_not_play_any_audio(self):
