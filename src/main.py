@@ -623,6 +623,10 @@ class GameApp:
             return True
         if action == "reset_game":
             self.reset_game()
+            if self.scene_kind == "title":
+                show_complete = getattr(self.scene, "show_reset_complete", None)
+                if show_complete is not None:
+                    show_complete()
             return True
         if action == "exit_game":
             self.running = False

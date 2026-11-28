@@ -65,7 +65,13 @@ from shop_scene import (
     button_rect as shop_button_rect,
     upgrade_confirm_rect,
 )
-from title_scene import button_rect as title_button_rect
+from title_scene import (
+    RESET_BUTTON_INDEX,
+    RESET_COMPLETE_SECONDS,
+    RESET_DIALOG_NO_RECT,
+    RESET_DIALOG_YES_RECT,
+    button_rect as title_button_rect,
+)
 from weapon import PISTOL, RIFLE
 
 
@@ -1139,6 +1145,12 @@ def click_title_button(app, index):
     app.scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
 
 
+def click_title_dialog_button(app, rect):
+    center_x = (rect[0] + rect[2]) / 2
+    canvas_y = (rect[1] + rect[3]) / 2
+    app.scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
+
+
 class TitleFlowTests(unittest.TestCase):
     def setUp(self):
         self.app = make_app()
@@ -1228,9 +1240,17 @@ class TitleFlowTests(unittest.TestCase):
                 app.load_progress()
             app.switch_scene("title")
 
-            click_title_button(app, 2)
+            click_title_button(app, RESET_BUTTON_INDEX)
+            self.assertEqual(app.scene.mode, "confirm")
+
+            click_title_dialog_button(app, RESET_DIALOG_YES_RECT)
 
             self.assertTrue(app.handle_scene_action())
+            self.assertEqual(app.scene.mode, "complete")
+            self.assertEqual(
+                app.scene.reset_complete_remaining,
+                RESET_COMPLETE_SECONDS,
+            )
             self.assertEqual(load_save_data(temp_dir), default_save_data())
             self.assertEqual(app.state.to_save_data(), default_save_data())
             self.assertEqual(app.state.coins, 0)
@@ -1241,4 +1261,33 @@ class TitleFlowTests(unittest.TestCase):
             self.assertEqual(app.state.records, [])
             self.assertEqual(app.state.training_records, [])
             self.assertEqual(app.save_notice, "")
+
+            app.scene.update(RESET_COMPLETE_SECONDS)
+            self.assertEqual(app.scene.mode, "menu")
+            self.assertEqual(app.scene_kind, "title")
+            app.scene.close()
+
+    def test_reset_no_button_keeps_the_saved_progress(self):
+        data = SaveData(
+            acquired_guns=[True, True, False],
+            upgrade_levels=[0, 4, 0],
+            coins=321,
+            best_log=BestLog(reached_wave=10, elapsed_time=250.0),
+            recent_logs=[(10, 250.0)],
+            training_records=[6],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(data, temp_dir)
+            app = make_app(save_root=temp_dir)
+            with patch.dict(os.environ, {}, clear=True):
+                app.load_progress()
+            app.switch_scene("title")
+
+            click_title_button(app, RESET_BUTTON_INDEX)
+            click_title_dialog_button(app, RESET_DIALOG_NO_RECT)
+
+            self.assertFalse(app.handle_scene_action())
+            self.assertEqual(app.scene.mode, "menu")
+            self.assertEqual(load_save_data(temp_dir), data)
+            self.assertEqual(app.state.coins, 321)
             app.scene.close()

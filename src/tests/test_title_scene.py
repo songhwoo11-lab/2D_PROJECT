@@ -6,6 +6,14 @@ import title_scene
 from title_scene import (
     EXIT_GAME_ACTION,
     GAME_START_ACTION,
+    RESET_BUTTON_INDEX,
+    RESET_COMPLETE_SECONDS,
+    RESET_COMPLETE_TITLE,
+    RESET_DIALOG_NO_RECT,
+    RESET_DIALOG_TEXT_COLOR,
+    RESET_DIALOG_TITLE,
+    RESET_DIALOG_TITLE_Y,
+    RESET_DIALOG_YES_RECT,
     RESET_GAME_ACTION,
     SETTINGS_ACTION,
     TITLE_ACTIONS,
@@ -27,6 +35,12 @@ from title_scene import (
 
 def click_button(scene, index):
     rect = button_rect(index)
+    center_x = (rect[0] + rect[2]) / 2
+    canvas_y = (rect[1] + rect[3]) / 2
+    scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
+
+
+def click_dialog_button(scene, rect):
     center_x = (rect[0] + rect[2]) / 2
     canvas_y = (rect[1] + rect[3]) / 2
     scene.mouse_down("left", center_x, SCREEN_HEIGHT - canvas_y)
@@ -158,7 +172,12 @@ class TitleInputTests(unittest.TestCase):
 
         for index, action in enumerate(expected):
             click_button(scene, index)
-            self.assertEqual(scene.pending_action, action)
+            if action == RESET_GAME_ACTION:
+                self.assertEqual(scene.mode, "confirm")
+                self.assertIsNone(scene.pending_action)
+                scene.mode = "menu"
+            else:
+                self.assertEqual(scene.pending_action, action)
             scene.pending_action = None
 
     def test_clicking_outside_the_buttons_does_nothing(self):
@@ -194,7 +213,8 @@ class TitleInputTests(unittest.TestCase):
 
         scene.key_down("return")
 
-        self.assertEqual(scene.pending_action, RESET_GAME_ACTION)
+        self.assertEqual(scene.mode, "confirm")
+        self.assertIsNone(scene.pending_action)
 
     def test_keyboard_selection_wraps_around(self):
         scene = TitleScene()
@@ -215,6 +235,123 @@ class TitleInputTests(unittest.TestCase):
         scene = TitleScene()
 
         self.assertFalse(hasattr(scene, "audio"))
+
+
+class TitleResetDialogTests(unittest.TestCase):
+    def make_dialog_scene(self):
+        return TitleScene(background=mock.Mock(), hud_font=object())
+
+    def test_reset_button_opens_the_confirmation_and_blocks_the_menu(self):
+        scene = TitleScene()
+
+        click_button(scene, RESET_BUTTON_INDEX)
+        click_button(scene, 0)
+
+        self.assertEqual(scene.mode, "confirm")
+        self.assertIsNone(scene.pending_action)
+
+    def test_confirmation_draws_the_title_and_yes_no_buttons(self):
+        scene = self.make_dialog_scene()
+        scene.logo = mock.Mock()
+        scene.mode = "confirm"
+        draw_rectangle = mock.Mock()
+
+        with mock.patch("title_scene.draw_centered_text") as centered, mock.patch(
+            "title_scene.draw_text_at_center"
+        ) as at_center:
+            scene.draw(draw_rectangle)
+
+        centered.assert_called_once_with(
+            scene.hud_font,
+            RESET_DIALOG_TITLE_Y,
+            RESET_DIALOG_TITLE,
+            RESET_DIALOG_TEXT_COLOR,
+        )
+        self.assertEqual(
+            [call.args[3] for call in at_center.call_args_list],
+            [label for label, _ in TITLE_ACTIONS] + ["YES", "NO"],
+        )
+        rects = [call.args[:4] for call in draw_rectangle.call_args_list]
+        for index in range(len(TITLE_ACTIONS)):
+            self.assertIn(button_rect(index), rects)
+        self.assertIn(RESET_DIALOG_YES_RECT, rects)
+        self.assertIn(RESET_DIALOG_NO_RECT, rects)
+        self.assertNotIn((0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), rects)
+        self.assertEqual(draw_rectangle.call_count, len(TITLE_ACTIONS) + 3)
+        scene.background.draw.assert_called_once()
+        scene.logo.draw.assert_called_once()
+
+    def test_yes_requests_the_reset_action(self):
+        scene = TitleScene()
+
+        click_button(scene, RESET_BUTTON_INDEX)
+        click_dialog_button(scene, RESET_DIALOG_YES_RECT)
+
+        self.assertEqual(scene.pending_action, RESET_GAME_ACTION)
+
+    def test_no_returns_to_the_menu(self):
+        scene = TitleScene()
+
+        click_button(scene, RESET_BUTTON_INDEX)
+        click_dialog_button(scene, RESET_DIALOG_NO_RECT)
+
+        self.assertEqual(scene.mode, "menu")
+        self.assertIsNone(scene.pending_action)
+
+    def test_escape_closes_the_confirmation(self):
+        scene = TitleScene()
+
+        click_button(scene, RESET_BUTTON_INDEX)
+        scene.key_down("escape")
+
+        self.assertEqual(scene.mode, "menu")
+        self.assertIsNone(scene.pending_action)
+
+    def test_completion_dialog_shows_a_message_then_returns_to_the_menu(self):
+        scene = self.make_dialog_scene()
+        scene.logo = mock.Mock()
+        scene.show_reset_complete()
+        draw_rectangle = mock.Mock()
+
+        with mock.patch("title_scene.draw_centered_text") as centered, mock.patch(
+            "title_scene.draw_text_at_center"
+        ) as at_center:
+            scene.draw(draw_rectangle)
+
+        self.assertEqual(scene.mode, "complete")
+        self.assertEqual(scene.reset_complete_remaining, RESET_COMPLETE_SECONDS)
+        centered.assert_called_once_with(
+            scene.hud_font,
+            RESET_DIALOG_TITLE_Y,
+            RESET_COMPLETE_TITLE,
+            RESET_DIALOG_TEXT_COLOR,
+        )
+        self.assertEqual(
+            [call.args[3] for call in at_center.call_args_list],
+            [label for label, _ in TITLE_ACTIONS],
+        )
+        rects = [call.args[:4] for call in draw_rectangle.call_args_list]
+        for index in range(len(TITLE_ACTIONS)):
+            self.assertIn(button_rect(index), rects)
+        self.assertNotIn((0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), rects)
+        self.assertEqual(draw_rectangle.call_count, len(TITLE_ACTIONS) + 1)
+        scene.background.draw.assert_called_once()
+        scene.logo.draw.assert_called_once()
+
+        scene.update(RESET_COMPLETE_SECONDS)
+
+        self.assertEqual(scene.mode, "menu")
+
+    def test_completion_dialog_can_be_dismissed_by_click_or_key(self):
+        scene = TitleScene()
+
+        scene.show_reset_complete()
+        click_dialog_button(scene, RESET_DIALOG_YES_RECT)
+        self.assertEqual(scene.mode, "menu")
+
+        scene.show_reset_complete()
+        scene.key_down("return")
+        self.assertEqual(scene.mode, "menu")
 
 
 if __name__ == "__main__":
