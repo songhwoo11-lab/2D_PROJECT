@@ -39,6 +39,7 @@ from main import (
     GAME_START_LOADING_SECONDS,
     GameApp,
     LOADING_BACKGROUND_COLOR,
+    TITLE_RETURN_LOADING_SECONDS,
     LOADING_PORTAL_HEIGHT,
     LOADING_PORTAL_WIDTH,
     LOADING_TEXT,
@@ -502,15 +503,33 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertFalse(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
 
-    def test_return_to_title_action_switches_from_the_lobby(self):
+    def test_return_to_title_action_shows_loading_before_switching(self):
         self.app.scene.pending_action = "return_to_title"
 
         self.assertTrue(self.app.handle_scene_action())
 
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertEqual(
+            self.app.title_return_loading_remaining, TITLE_RETURN_LOADING_SECONDS
+        )
+
+        self.assertTrue(self.app.tick_title_return_loading(0.5))
+        self.assertEqual(self.app.scene_kind, "lobby")
+
+        self.assertTrue(self.app.tick_title_return_loading(0.5))
+        self.assertEqual(self.app.title_return_loading_remaining, 0.0)
         self.assertEqual(self.app.scene_kind, "title")
         self.assertEqual(self.app.scene.mode, "menu")
         self.assertTrue(self.app.running)
         self.assertFalse(self.app.exit_confirmation_open)
+
+    def test_title_return_loading_does_not_repeat_without_a_new_action(self):
+        self.app.scene.pending_action = "return_to_title"
+        self.app.handle_scene_action()
+        self.app.tick_title_return_loading(TITLE_RETURN_LOADING_SECONDS)
+
+        self.assertFalse(self.app.tick_title_return_loading(1.0))
+        self.assertEqual(self.app.scene_kind, "title")
 
     def test_lobby_exit_request_opens_the_confirmation_dialog(self):
         self.app.scene.exit_requested = True
@@ -522,13 +541,30 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertFalse(self.app.scene.exit_requested)
         self.assertEqual(self.app.scene_kind, "lobby")
 
-    def test_escape_returns_from_the_lobby_to_the_title(self):
+    def test_escape_returns_from_the_lobby_through_loading(self):
         self.app.handle_escape_key()
 
+        self.assertEqual(self.app.scene.pending_action, "return_to_title")
         self.assertTrue(self.app.running)
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertFalse(self.app.exit_confirmation_open)
+
+        self.app.handle_scene_action()
+        self.app.tick_title_return_loading(TITLE_RETURN_LOADING_SECONDS)
+
         self.assertEqual(self.app.scene_kind, "title")
         self.assertEqual(self.app.scene.mode, "menu")
-        self.assertFalse(self.app.exit_confirmation_open)
+
+    def test_escape_is_ignored_while_the_title_return_loading_screen_is_shown(self):
+        self.app.title_return_loading_remaining = TITLE_RETURN_LOADING_SECONDS
+
+        self.app.handle_escape_key()
+
+        self.assertEqual(
+            self.app.title_return_loading_remaining, TITLE_RETURN_LOADING_SECONDS
+        )
+        self.assertIsNone(self.app.scene.pending_action)
+        self.assertEqual(self.app.scene_kind, "lobby")
 
     def test_escape_closes_gun_selection_instead_of_exiting_the_game(self):
         self.app.scene.open_gun_selection()

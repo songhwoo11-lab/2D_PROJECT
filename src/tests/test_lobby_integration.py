@@ -5,7 +5,7 @@ import unittest
 from battle_scene import BattleResult
 from game_config import LOBBY_PLAYER_START_X, LOBBY_PLAYER_START_Y
 from lobby_scene import LobbyScene
-from main import GameApp
+from main import TITLE_RETURN_LOADING_SECONDS, GameApp
 from player import Player
 
 
@@ -178,6 +178,15 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
 
         self.assertTrue(self.app.handle_scene_action())
 
+        self.assertEqual(self.app.scene_kind, "lobby")
+        self.assertEqual(
+            self.app.title_return_loading_remaining, TITLE_RETURN_LOADING_SECONDS
+        )
+
+        self.assertTrue(self.app.tick_title_return_loading(0.5))
+        self.assertEqual(self.app.scene_kind, "lobby")
+
+        self.assertTrue(self.app.tick_title_return_loading(0.5))
         self.assertEqual(self.app.scene_kind, "title")
         self.assertEqual(self.app.scene.mode, "menu")
         self.assertTrue(self.app.running)

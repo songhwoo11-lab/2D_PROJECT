@@ -52,6 +52,7 @@ LOADING_PORTAL_WIDTH = 700
 LOADING_PORTAL_HEIGHT = 660
 BATTLE_ENTRY_LOADING_SECONDS = 1.0
 GAME_START_LOADING_SECONDS = 1.0
+TITLE_RETURN_LOADING_SECONDS = 1.0
 
 EXIT_DIALOG_TITLE = "EXIT GAME?"
 EXIT_DIALOG_WIDTH = 620
@@ -158,6 +159,7 @@ class GameApp:
         self.running = True
         self.battle_entry_loading_remaining = 0.0
         self.game_start_loading_remaining = 0.0
+        self.title_return_loading_remaining = 0.0
         self.loading_font = None
         self.exit_confirmation_open = False
         self.exit_settings_open = False
@@ -370,6 +372,7 @@ class GameApp:
         self.lobby_node_key = LOBBY_START_KEY
         self.battle_entry_loading_remaining = 0.0
         self.game_start_loading_remaining = 0.0
+        self.title_return_loading_remaining = 0.0
         return success
 
     def load_assets(self):
@@ -593,6 +596,7 @@ class GameApp:
             self.lobby_node_key = LOBBY_START_KEY
             self.battle_entry_loading_remaining = 0.0
             self.game_start_loading_remaining = GAME_START_LOADING_SECONDS
+            self.title_return_loading_remaining = 0.0
             return True
         if action == "title_settings":
             self.open_exit_settings(from_pause=True)
@@ -621,6 +625,7 @@ class GameApp:
             return True
         if action == "battle_entry_loading":
             self.game_start_loading_remaining = 0.0
+            self.title_return_loading_remaining = 0.0
             self.battle_entry_loading_remaining = BATTLE_ENTRY_LOADING_SECONDS
             self.audio.play_sound(LOBBY_TO_BATTLE_SOUND_FILE)
             return True
@@ -628,7 +633,9 @@ class GameApp:
             self.switch_scene("lobby")
             return True
         if action == "return_to_title":
-            self.switch_scene("title")
+            self.battle_entry_loading_remaining = 0.0
+            self.game_start_loading_remaining = 0.0
+            self.title_return_loading_remaining = TITLE_RETURN_LOADING_SECONDS
             return True
         raise ValueError("unknown scene action: {}".format(action))
 
@@ -650,6 +657,16 @@ class GameApp:
         )
         if self.game_start_loading_remaining == 0.0:
             self.switch_scene("lobby")
+        return True
+
+    def tick_title_return_loading(self, delta_time):
+        if self.title_return_loading_remaining <= 0.0:
+            return False
+        self.title_return_loading_remaining = max(
+            0.0, self.title_return_loading_remaining - delta_time
+        )
+        if self.title_return_loading_remaining == 0.0:
+            self.switch_scene("title")
         return True
 
     def handle_scene_exit(self):
@@ -736,6 +753,7 @@ class GameApp:
         if (
             self.battle_entry_loading_remaining > 0.0
             or self.game_start_loading_remaining > 0.0
+            or self.title_return_loading_remaining > 0.0
         ):
             return
         if self.scene_kind == "title":
@@ -750,7 +768,7 @@ class GameApp:
             if getattr(self.scene, "panel", None) in ("gun_select", "records"):
                 self.scene.key_down("escape")
                 return
-            self.switch_scene("title")
+            self.scene.pending_action = "return_to_title"
             return
         self.scene.key_down("escape")
 
@@ -868,8 +886,14 @@ class GameApp:
                     if not self.consume_settings_request():
                         self.handle_scene_action()
                         battle_loading = self.tick_battle_entry_loading(delta_time)
-                        showing_loading = battle_loading or self.tick_game_start_loading(
+                        game_start_loading = self.tick_game_start_loading(delta_time)
+                        title_return_loading = self.tick_title_return_loading(
                             delta_time
+                        )
+                        showing_loading = (
+                            battle_loading
+                            or game_start_loading
+                            or title_return_loading
                         )
                 pico2d.clear_canvas()
                 if showing_loading:
