@@ -89,20 +89,6 @@ EXIT_DIALOG_YES_COLOR = (150, 60, 55, 255)
 EXIT_DIALOG_NO_COLOR = (60, 100, 150, 255)
 EXIT_DIALOG_TEXT_COLOR = (255, 255, 255)
 
-EXIT_DIALOG_SETTINGS_WIDTH = 220
-EXIT_DIALOG_SETTINGS_HEIGHT = 64
-EXIT_DIALOG_SETTINGS_BOTTOM = (
-    EXIT_DIALOG_BUTTON_BOTTOM + EXIT_DIALOG_BUTTON_HEIGHT + 24
-)
-EXIT_DIALOG_SETTINGS_RECT = (
-    SCREEN_WIDTH / 2 - EXIT_DIALOG_SETTINGS_WIDTH / 2,
-    EXIT_DIALOG_SETTINGS_BOTTOM,
-    SCREEN_WIDTH / 2 + EXIT_DIALOG_SETTINGS_WIDTH / 2,
-    EXIT_DIALOG_SETTINGS_BOTTOM + EXIT_DIALOG_SETTINGS_HEIGHT,
-)
-EXIT_DIALOG_SETTINGS_COLOR = (60, 120, 90, 255)
-EXIT_DIALOG_SETTINGS_TEXT = "SETTINGS"
-
 VOLUME_SETTINGS_TITLE = "SETTINGS"
 VOLUME_SETTINGS_TITLE_Y = EXIT_DIALOG_TOP - 50
 VOLUME_SETTINGS_LABEL_Y = EXIT_DIALOG_BOTTOM + 240
@@ -243,11 +229,6 @@ class GameApp:
             *EXIT_DIALOG_NO_COLOR,
             True,
         )
-        pico2d_module.draw_rectangle(
-            *EXIT_DIALOG_SETTINGS_RECT,
-            *EXIT_DIALOG_SETTINGS_COLOR,
-            True,
-        )
         font = self.assets.get("hud_font")
         if font is not None:
             draw_centered_text(
@@ -268,14 +249,6 @@ class GameApp:
                 (EXIT_DIALOG_NO_RECT[0] + EXIT_DIALOG_NO_RECT[2]) / 2,
                 EXIT_DIALOG_BUTTON_TEXT_Y,
                 "NO",
-                EXIT_DIALOG_TEXT_COLOR,
-            )
-            settings_x, settings_y = rect_center(EXIT_DIALOG_SETTINGS_RECT)
-            draw_text_at_center(
-                font,
-                settings_x,
-                settings_y,
-                EXIT_DIALOG_SETTINGS_TEXT,
                 EXIT_DIALOG_TEXT_COLOR,
             )
         if present:
@@ -615,6 +588,7 @@ class GameApp:
             return False
         self.scene.pending_action = None
         if action == "game_start":
+            self.lobby_node_key = LOBBY_START_KEY
             self.battle_entry_loading_remaining = 0.0
             self.game_start_loading_remaining = GAME_START_LOADING_SECONDS
             return True
@@ -629,7 +603,10 @@ class GameApp:
                     show_complete()
             return True
         if action == "exit_game":
-            self.running = False
+            if self.scene_kind == "title":
+                self.open_exit_confirmation()
+            else:
+                self.running = False
             return True
         if action == "enter_shop":
             self.switch_scene("shop")
@@ -647,6 +624,9 @@ class GameApp:
             return True
         if action == "return_to_lobby":
             self.switch_scene("lobby")
+            return True
+        if action == "return_to_title":
+            self.switch_scene("title")
             return True
         raise ValueError("unknown scene action: {}".format(action))
 
@@ -738,9 +718,6 @@ class GameApp:
             elif point_in_rect(VOLUME_SETTINGS_BACK_RECT, screen_x, canvas_y):
                 self.close_exit_settings()
             return
-        if point_in_rect(EXIT_DIALOG_SETTINGS_RECT, screen_x, canvas_y):
-            self.open_exit_settings()
-            return
         if point_in_rect(EXIT_DIALOG_YES_RECT, screen_x, canvas_y):
             self.running = False
             return
@@ -759,13 +736,19 @@ class GameApp:
             or self.game_start_loading_remaining > 0.0
         ):
             return
+        if self.scene_kind == "title":
+            if getattr(self.scene, "mode", "menu") != "menu":
+                self.scene.key_down("escape")
+                return
+            self.open_exit_confirmation()
+            return
         if self.scene_kind == "lobby":
             if getattr(self.scene, "portal_entry_active", False):
                 return
             if getattr(self.scene, "panel", None) in ("gun_select", "records"):
                 self.scene.key_down("escape")
                 return
-            self.open_exit_confirmation()
+            self.switch_scene("title")
             return
         self.scene.key_down("escape")
 

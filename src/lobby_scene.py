@@ -750,7 +750,7 @@ class LobbyScene:
         if action is None:
             return
         if action == "exit_game":
-            self.exit_requested = True
+            self.pending_action = "return_to_title"
             return
         if action == "show_records":
             self.open_records()

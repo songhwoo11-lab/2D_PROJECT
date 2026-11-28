@@ -23,14 +23,14 @@ from game_config import (
     SCREEN_WIDTH,
 )
 from game_state import GameState
-from lobby_map import LOBBY_NODE_BY_KEY
+from lobby_map import LOBBY_NODE_BY_KEY, LOBBY_START_KEY
 from main import (
     ASSET_DIRECTORY,
     BATTLE_ENTRY_LOADING_SECONDS,
+    EXIT_DIALOG_BUTTON_BOTTOM,
+    EXIT_DIALOG_BUTTON_HEIGHT,
     EXIT_DIALOG_BUTTON_TEXT_Y,
     EXIT_DIALOG_NO_RECT,
-    EXIT_DIALOG_SETTINGS_RECT,
-    EXIT_DIALOG_SETTINGS_TEXT,
     EXIT_DIALOG_TEXT_COLOR,
     EXIT_DIALOG_TITLE,
     EXIT_DIALOG_TITLE_Y,
@@ -487,6 +487,16 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertFalse(self.app.handle_scene_action())
         self.assertEqual(self.app.scene_kind, "lobby")
 
+    def test_return_to_title_action_switches_from_the_lobby(self):
+        self.app.scene.pending_action = "return_to_title"
+
+        self.assertTrue(self.app.handle_scene_action())
+
+        self.assertEqual(self.app.scene_kind, "title")
+        self.assertEqual(self.app.scene.mode, "menu")
+        self.assertTrue(self.app.running)
+        self.assertFalse(self.app.exit_confirmation_open)
+
     def test_lobby_exit_request_opens_the_confirmation_dialog(self):
         self.app.scene.exit_requested = True
 
@@ -497,11 +507,13 @@ class SceneSwitchTests(unittest.TestCase):
         self.assertFalse(self.app.scene.exit_requested)
         self.assertEqual(self.app.scene_kind, "lobby")
 
-    def test_escape_opens_the_confirmation_dialog_from_the_lobby(self):
+    def test_escape_returns_from_the_lobby_to_the_title(self):
         self.app.handle_escape_key()
 
         self.assertTrue(self.app.running)
-        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertEqual(self.app.scene_kind, "title")
+        self.assertEqual(self.app.scene.mode, "menu")
+        self.assertFalse(self.app.exit_confirmation_open)
 
     def test_escape_closes_gun_selection_instead_of_exiting_the_game(self):
         self.app.scene.open_gun_selection()
@@ -892,17 +904,11 @@ class ExitConfirmationTests(unittest.TestCase):
         self.assertTrue(self.app.running)
         self.assertTrue(self.app.exit_confirmation_open)
 
-    def test_draw_confirmation_shows_the_title_and_all_three_buttons(self):
+    def test_draw_confirmation_shows_the_title_and_only_yes_no_buttons(self):
         self.app.assets["hud_font"] = object()
         pico2d_module = Mock()
         yes_center_x = (EXIT_DIALOG_YES_RECT[0] + EXIT_DIALOG_YES_RECT[2]) / 2
         no_center_x = (EXIT_DIALOG_NO_RECT[0] + EXIT_DIALOG_NO_RECT[2]) / 2
-        settings_center_x = (
-            EXIT_DIALOG_SETTINGS_RECT[0] + EXIT_DIALOG_SETTINGS_RECT[2]
-        ) / 2
-        settings_center_y = (
-            EXIT_DIALOG_SETTINGS_RECT[1] + EXIT_DIALOG_SETTINGS_RECT[3]
-        ) / 2
 
         with patch("main.draw_centered_text") as centered_text, patch(
             "main.draw_text_at_center"
@@ -932,31 +938,26 @@ class ExitConfirmationTests(unittest.TestCase):
                     "NO",
                     EXIT_DIALOG_TEXT_COLOR,
                 ),
-                call(
-                    self.app.assets["hud_font"],
-                    settings_center_x,
-                    settings_center_y,
-                    EXIT_DIALOG_SETTINGS_TEXT,
-                    EXIT_DIALOG_TEXT_COLOR,
-                ),
             ],
         )
-        self.assertEqual(pico2d_module.draw_rectangle.call_count, 5)
+        self.assertEqual(pico2d_module.draw_rectangle.call_count, 4)
         pico2d_module.update_canvas.assert_called_once_with()
 
-    def test_settings_button_opens_the_volume_settings(self):
+    def test_exit_dialog_has_no_settings_button(self):
         self.app.open_exit_confirmation()
+        old_settings_center_y = (
+            EXIT_DIALOG_BUTTON_BOTTOM + EXIT_DIALOG_BUTTON_HEIGHT + 24 + 32
+        )
 
-        click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
+        self.app.handle_exit_confirmation_mouse_down(
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT - old_settings_center_y
+        )
 
         self.assertTrue(self.app.exit_confirmation_open)
-        self.assertTrue(self.app.exit_settings_open)
-        self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME)
-        self.assertEqual(self.app.audio.sound_volume, DEFAULT_VOLUME)
+        self.assertFalse(self.app.exit_settings_open)
 
     def test_music_volume_buttons_adjust_only_music(self):
-        self.app.open_exit_confirmation()
-        click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
+        self.app.open_exit_settings()
 
         click_exit_dialog_button(self.app, VOLUME_SETTINGS_PLUS_RECT)
         self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME + VOLUME_STEP)
@@ -975,8 +976,7 @@ class ExitConfirmationTests(unittest.TestCase):
         self.assertEqual(self.app.audio.sound_volume, DEFAULT_VOLUME)
 
     def test_sfx_volume_buttons_adjust_only_effects(self):
-        self.app.open_exit_confirmation()
-        click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
+        self.app.open_exit_settings()
 
         click_exit_dialog_button(self.app, VOLUME_SETTINGS_SFX_PLUS_RECT)
         self.assertEqual(self.app.audio.sound_volume, DEFAULT_VOLUME + VOLUME_STEP)
@@ -994,13 +994,12 @@ class ExitConfirmationTests(unittest.TestCase):
         self.assertEqual(self.app.audio.sound_volume, MAX_VOLUME)
         self.assertEqual(self.app.audio.music_volume, DEFAULT_VOLUME)
 
-    def test_back_button_returns_to_the_exit_dialog(self):
-        self.app.open_exit_confirmation()
-        click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
+    def test_back_button_closes_the_volume_settings(self):
+        self.app.open_exit_settings()
 
         click_exit_dialog_button(self.app, VOLUME_SETTINGS_BACK_RECT)
 
-        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertFalse(self.app.exit_confirmation_open)
         self.assertFalse(self.app.exit_settings_open)
         self.assertFalse(self.app.settings_from_pause)
 
@@ -1039,7 +1038,7 @@ class ExitConfirmationTests(unittest.TestCase):
 
     def test_escape_closes_settings_before_closing_the_dialog(self):
         self.app.open_exit_confirmation()
-        click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
+        self.app.open_exit_settings()
 
         self.app.handle_escape_key()
         self.assertTrue(self.app.exit_confirmation_open)
@@ -1050,8 +1049,7 @@ class ExitConfirmationTests(unittest.TestCase):
 
     def test_draw_settings_shows_both_volume_rows_and_controls(self):
         self.app.assets["hud_font"] = object()
-        self.app.open_exit_confirmation()
-        click_exit_dialog_button(self.app, EXIT_DIALOG_SETTINGS_RECT)
+        self.app.open_exit_settings()
         pico2d_module = Mock()
 
         def center(rect):
@@ -1193,6 +1191,16 @@ class TitleFlowTests(unittest.TestCase):
         self.assertEqual(self.app.scene_kind, "lobby")
         self.assertEqual(self.app.game_start_loading_remaining, 0.0)
 
+    def test_game_start_always_enters_the_lobby_at_center(self):
+        self.app.lobby_node_key = "shop"
+
+        click_title_button(self.app, 0)
+        self.assertTrue(self.app.handle_scene_action())
+
+        self.assertEqual(self.app.lobby_node_key, LOBBY_START_KEY)
+        self.assertTrue(self.app.tick_game_start_loading(GAME_START_LOADING_SECONDS))
+        self.assertEqual(self.app.scene.current_node, LOBBY_START_KEY)
+
     def test_escape_is_ignored_while_the_game_start_loading_screen_is_shown(self):
         self.app.game_start_loading_remaining = GAME_START_LOADING_SECONDS
 
@@ -1217,12 +1225,49 @@ class TitleFlowTests(unittest.TestCase):
         self.assertFalse(self.app.exit_confirmation_open)
         self.assertEqual(self.app.scene_kind, "title")
 
-    def test_exit_game_button_stops_the_game_immediately(self):
+    def test_exit_game_button_opens_the_exit_confirmation_dialog(self):
         click_title_button(self.app, 3)
 
         self.assertTrue(self.app.handle_scene_action())
 
+        self.assertTrue(self.app.running)
+        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertFalse(self.app.exit_settings_open)
+        self.assertEqual(self.app.scene_kind, "title")
+
+    def test_title_exit_confirmation_yes_closes_the_game(self):
+        click_title_button(self.app, 3)
+        self.assertTrue(self.app.handle_scene_action())
+
+        click_exit_dialog_button(self.app, EXIT_DIALOG_YES_RECT)
+
         self.assertFalse(self.app.running)
+
+    def test_title_exit_confirmation_no_returns_to_the_title(self):
+        click_title_button(self.app, 3)
+        self.assertTrue(self.app.handle_scene_action())
+
+        click_exit_dialog_button(self.app, EXIT_DIALOG_NO_RECT)
+
+        self.assertTrue(self.app.running)
+        self.assertFalse(self.app.exit_confirmation_open)
+        self.assertEqual(self.app.scene_kind, "title")
+
+    def test_escape_opens_the_exit_confirmation_from_the_title(self):
+        self.app.handle_escape_key()
+
+        self.assertTrue(self.app.running)
+        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertEqual(self.app.scene_kind, "title")
+
+    def test_escape_closes_the_reset_dialog_instead_of_opening_exit_confirmation(self):
+        click_title_button(self.app, RESET_BUTTON_INDEX)
+
+        self.app.handle_escape_key()
+
+        self.assertEqual(self.app.scene.mode, "menu")
+        self.assertFalse(self.app.exit_confirmation_open)
+        self.assertTrue(self.app.running)
 
     def test_reset_game_clears_every_persisted_record(self):
         data = SaveData(

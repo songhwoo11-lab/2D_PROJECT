@@ -165,7 +165,7 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
         self.assertEqual(len(self.app.state.records), 2)
         self.assertEqual(self.app.state.coins, 20)
 
-    def test_walking_to_the_stairs_then_pressing_enter_exits_the_game(self):
+    def test_walking_to_the_stairs_then_pressing_space_returns_to_the_title(self):
         press(self.app, "s")
 
         self.assertEqual(self.app.scene.current_node, "stairs")
@@ -173,12 +173,15 @@ class LobbyPlaceIntegrationTests(unittest.TestCase):
 
         press(self.app, "space")
 
-        self.assertTrue(self.app.scene.exit_requested)
+        self.assertEqual(self.app.scene.pending_action, "return_to_title")
+        self.assertFalse(self.app.scene.exit_requested)
 
-        self.app.handle_scene_exit()
+        self.assertTrue(self.app.handle_scene_action())
 
+        self.assertEqual(self.app.scene_kind, "title")
+        self.assertEqual(self.app.scene.mode, "menu")
         self.assertTrue(self.app.running)
-        self.assertTrue(self.app.exit_confirmation_open)
+        self.assertFalse(self.app.exit_confirmation_open)
         self.assertFalse(self.app.scene.exit_requested)
 
     def _make_record(self, result, reached_wave, elapsed_time):

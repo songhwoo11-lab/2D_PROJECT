@@ -1079,12 +1079,13 @@ class LobbyStairsExitTests(unittest.TestCase):
         self.assertEqual(self.scene.current_node, "stairs")
         self.assertFalse(self.scene.exit_requested)
 
-    def test_enter_at_the_stairs_requests_the_game_exit(self):
+    def test_enter_at_the_stairs_requests_the_title_screen(self):
         press(self.scene, "s")
 
         press(self.scene, "space")
 
-        self.assertTrue(self.scene.exit_requested)
+        self.assertEqual(self.scene.pending_action, "return_to_title")
+        self.assertFalse(self.scene.exit_requested)
 
 
 class LobbyRecordsImageTests(unittest.TestCase):
