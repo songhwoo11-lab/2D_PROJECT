@@ -10,6 +10,7 @@ from audio import (
     OVERHEAT_SOUND_FILE,
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
+    RIFLE_SHOT_SOUND_FILE,
     VICTORY_MUSIC_FILE,
 )
 from battle_scene import BattleResult, BattleScene
@@ -568,13 +569,47 @@ class BattleSceneShotSoundTests(unittest.TestCase):
             ],
         )
 
-    def test_other_guns_do_not_play_the_pistol_sound(self):
+    def test_every_rifle_shot_plays_the_sound_once(self):
         scene, audio = self.make_audio_scene(gun_id=RIFLE_GUN_ID)
+
+        self.fire_once(scene)
+        self.fire_once(scene)
+
+        self.assertEqual(
+            audio.events,
+            [
+                ("play_sound", RIFLE_SHOT_SOUND_FILE),
+                ("play_sound", RIFLE_SHOT_SOUND_FILE),
+            ],
+        )
+
+    def test_machine_gun_shots_do_not_play_a_shot_sound(self):
+        scene, audio = self.make_audio_scene(gun_id=MACHINE_GUN_GUN_ID)
 
         self.fire_once(scene)
 
         self.assertGreater(scene.gun_recoil_remaining, 0.0)
         self.assertEqual(audio.events, [])
+
+    def test_rifle_auto_fire_emits_every_shot_then_the_reload_sound(self):
+        scene, audio = self.make_audio_scene(gun_id=RIFLE_GUN_ID)
+        scene.start_countdown_remaining = 0.0
+        scene.key_down("e")
+        scene.mouse_down("left")
+
+        for _ in range(scene.gun.magazine_size):
+            scene.update(scene.gun.fire_interval_seconds + 0.001)
+        scene.update(scene.gun.fire_interval_seconds + 0.001)
+
+        shot_events = audio.events[:-1]
+        self.assertEqual(
+            shot_events,
+            [("play_sound", RIFLE_SHOT_SOUND_FILE)] * scene.gun.magazine_size,
+        )
+        self.assertEqual(
+            audio.events[-1],
+            ("play_sound", RELOAD_SOUND_FILE, scene.gun.reload_seconds),
+        )
 
 
 class BattleSceneOverheatSoundTests(unittest.TestCase):

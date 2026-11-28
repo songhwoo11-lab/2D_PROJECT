@@ -16,6 +16,7 @@ from audio import (
     MIN_VOLUME,
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
+    RIFLE_SHOT_SOUND_FILE,
     TRAINING_MUSIC_FILE,
     VICTORY_MUSIC_FILE,
     MUSIC_BY_SCENE,
@@ -77,12 +78,16 @@ class FakeChannelWav:
 
 
 class FakeChannelControls:
-    def __init__(self):
+    def __init__(self, max_channels=None):
         self.events = []
         self.playing = set()
         self.next_channel = 3
+        self.max_channels = max_channels
 
     def play(self, sound):
+        if self.max_channels is not None and len(self.playing) >= self.max_channels:
+            self.events.append(("play_failed",))
+            return -1
         channel = self.next_channel
         self.next_channel += 1
         self.events.append(("play", channel))
@@ -213,6 +218,15 @@ class AudioManagerTests(unittest.TestCase):
             self.sound_paths[0].endswith("sound\\" + PISTOL_SHOT_SOUND_FILE)
         )
         self.assertEqual(self.wav.play_count, 2)
+
+    def test_playing_the_rifle_sound_loads_the_requested_mp3(self):
+        self.assertTrue(self.manager.play_sound(RIFLE_SHOT_SOUND_FILE))
+
+        self.assertEqual(len(self.sound_paths), 1)
+        self.assertTrue(
+            self.sound_paths[0].endswith("sound\\" + RIFLE_SHOT_SOUND_FILE)
+        )
+        self.assertEqual(self.wav.play_count, 1)
 
     def test_playing_the_reload_sound_loads_the_requested_file(self):
         self.assertTrue(self.manager.play_sound(RELOAD_SOUND_FILE))
@@ -382,7 +396,7 @@ class SoundChannelTests(unittest.TestCase):
         self.assertFalse(self.manager.stop_sound(RELOAD_SOUND_FILE))
         self.assertEqual(self.controls.events, [])
 
-    def test_playing_the_sound_twice_tracks_both_channels(self):
+    def test_replaying_a_sound_replaces_the_previous_channel(self):
         self.manager.play_sound(RELOAD_SOUND_FILE)
         self.manager.play_sound(RELOAD_SOUND_FILE)
 
@@ -390,8 +404,29 @@ class SoundChannelTests(unittest.TestCase):
 
         self.assertEqual(
             self.controls.events,
-            [("play", 3), ("play", 4), ("pause", 3), ("pause", 4)],
+            [("play", 3), ("stop", 3), ("play", 4), ("pause", 4)],
         )
+
+    def test_rapid_replays_never_exhaust_the_channel_pool(self):
+        controls = FakeChannelControls(max_channels=1)
+        manager = AudioManager(channel_controls=controls)
+        manager.set_sound_loader(lambda path: FakeChannelWav())
+
+        for _ in range(10):
+            self.assertTrue(manager.play_sound(RIFLE_SHOT_SOUND_FILE))
+
+        self.assertEqual(len(controls.playing), 1)
+        self.assertNotIn(("play_failed",), controls.events)
+        manager.close()
+
+    def test_channel_reused_by_another_sound_is_not_controlled(self):
+        self.manager.play_sound(RELOAD_SOUND_FILE)
+        self.controls.next_channel = 3
+        self.manager.play_sound(PISTOL_SHOT_SOUND_FILE)
+
+        self.assertFalse(self.manager.pause_sound(RELOAD_SOUND_FILE))
+        self.assertFalse(self.manager.stop_sound(RELOAD_SOUND_FILE))
+        self.assertEqual(self.controls.events, [("play", 3), ("play", 3)])
 
     def test_finished_channels_are_dropped(self):
         self.manager.play_sound(RELOAD_SOUND_FILE)

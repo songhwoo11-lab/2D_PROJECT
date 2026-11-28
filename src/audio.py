@@ -27,6 +27,7 @@ DEFEAT_MUSIC_FILE = "lose game.mp3"
 VICTORY_MUSIC_FILE = "win game.mp3"
 RECORDS_MUSIC_FILE = "log check bgm.mp3"
 PISTOL_SHOT_SOUND_FILE = "pistol shot sound.wav"
+RIFLE_SHOT_SOUND_FILE = "rifle shot sound.mp3"
 RELOAD_SOUND_FILE = "gun reload sound.wav"
 LOBBY_PORTAL_ENTRY_SOUND_FILE = "in lobby portal.mp3"
 LOBBY_TO_BATTLE_SOUND_FILE = "lobby to portal.mp3"
@@ -110,6 +111,7 @@ class AudioManager:
         self._music_cache = {}
         self._sound_cache = {}
         self._sound_channels = {}
+        self._channel_owners = {}
         self._sound_temp_dir = None
         self._current_music = None
         self._current_name = None
@@ -138,8 +140,10 @@ class AudioManager:
         if loader is self.sound_loader:
             return
         self.sound_loader = loader
+        self._stop_all_sound_channels()
         self._sound_cache.clear()
         self._sound_channels.clear()
+        self._channel_owners.clear()
 
     def set_volume(self, volume):
         """Apply a new 0..100 volume to every loaded and playing track."""
@@ -189,10 +193,15 @@ class AudioManager:
             return False
         try:
             if hasattr(sound, "wav"):
+                # Keep one active channel per sound. Without this, automatic
+                # fire can exhaust SDL_mixer's small channel pool and silence
+                # both later shots and the reload sound.
+                self._stop_tracked_sound(name)
                 channel = self.channel_controls.play(sound)
                 if channel is None or channel < 0:
                     return False
                 self._sound_channels.setdefault(name, []).append(channel)
+                self._channel_owners[channel] = name
             else:
                 sound.play()
         except (OSError, RuntimeError):
@@ -212,6 +221,7 @@ class AudioManager:
                 self.channel_controls.stop(channel)
             except (OSError, RuntimeError):
                 pass
+            self._channel_owners.pop(channel, None)
         self._sound_channels[name] = []
         return bool(channels)
 
@@ -283,17 +293,40 @@ class AudioManager:
     def _active_sound_channels(self, name):
         active = []
         for channel in self._sound_channels.get(name, []):
+            if self._channel_owners.get(channel) != name:
+                # SDL_mixer may have reused the channel for another sound.
+                # Leave its new owner intact and only drop the stale mapping.
+                continue
             try:
-                if self.channel_controls.is_playing(channel):
-                    active.append(channel)
+                playing = self.channel_controls.is_playing(channel)
             except (OSError, RuntimeError):
-                pass
+                playing = False
+            if playing:
+                active.append(channel)
+            else:
+                self._channel_owners.pop(channel, None)
         self._sound_channels[name] = active
         return active
 
+    def _stop_tracked_sound(self, name):
+        """Stop every channel still owned by this sound, including paused ones."""
+        channels = []
+        for channel in self._sound_channels.get(name, []):
+            if self._channel_owners.get(channel) == name:
+                channels.append(channel)
+        for channel in channels:
+            try:
+                self.channel_controls.stop(channel)
+            except (OSError, RuntimeError):
+                pass
+            self._channel_owners.pop(channel, None)
+        self._sound_channels[name] = []
+        return bool(channels)
+
     def _stop_all_sound_channels(self):
         for name in list(self._sound_channels):
-            self.stop_sound(name)
+            self._stop_tracked_sound(name)
+        self._channel_owners.clear()
 
     @staticmethod
     def _sound_key(name, target_duration):

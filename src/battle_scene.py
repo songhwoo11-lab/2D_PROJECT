@@ -14,6 +14,7 @@ from audio import (
     OVERHEAT_SOUND_FILE,
     PISTOL_SHOT_SOUND_FILE,
     RELOAD_SOUND_FILE,
+    RIFLE_SHOT_SOUND_FILE,
     VICTORY_MUSIC_FILE,
 )
 import battle_record
@@ -105,6 +106,10 @@ GUN_PIVOT_LEFT_OFFSETS = {
     DEFAULT_GUN_ID: 0.0,
     RIFLE_GUN_ID: 0.0,
     MACHINE_GUN_GUN_ID: 0.0,
+}
+SHOT_SOUND_BY_GUN_ID = {
+    DEFAULT_GUN_ID: PISTOL_SHOT_SOUND_FILE,
+    RIFLE_GUN_ID: RIFLE_SHOT_SOUND_FILE,
 }
 
 PAUSE_MENU_ITEMS = ("RESUME", "QUIT TO LOBBY")
@@ -310,14 +315,15 @@ class BattleScene:
         if play_once is not None:
             play_once(name)
 
-    def _play_pistol_shot_sound(self):
+    def _play_shot_sound(self):
         if self.audio is None:
             return
-        if getattr(self.gun, "gun_id", None) != DEFAULT_GUN_ID:
+        sound_file = SHOT_SOUND_BY_GUN_ID.get(getattr(self.gun, "gun_id", None))
+        if sound_file is None:
             return
         play_sound = getattr(self.audio, "play_sound", None)
         if play_sound is not None:
-            play_sound(PISTOL_SHOT_SOUND_FILE)
+            play_sound(sound_file)
 
     def _play_reload_sound(self):
         if self.audio is None:
@@ -977,7 +983,7 @@ class BattleScene:
         self._mouse_pressed = False
         if fired:
             self.gun_recoil_remaining = GUN_RECOIL_RECOVERY_SECONDS
-            self._play_pistol_shot_sound()
+            self._play_shot_sound()
             if self.bullet_image is not None:
                 muzzle_offset = PLAYER_RADIUS + 28
                 game_world.add_object(
