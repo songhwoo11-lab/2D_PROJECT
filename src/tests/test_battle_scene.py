@@ -18,6 +18,7 @@ from audio import (
 from battle_scene import BattleResult, BattleScene
 import battle_scene
 from enemy import Enemy, EnemyType
+from enemy_types import BasicEnemy, ExplosiveEnemy
 from game_config import (
     AIM_CURSOR_RADIUS,
     PICKUP_DRAW_SIZE,
@@ -1743,6 +1744,85 @@ class BattleSceneDebugTests(unittest.TestCase):
 
         labels = [call.args[2] for call in draw.call_args_list]
         self.assertIn("+10000 Coins", labels)
+
+    def test_debug_menu_has_explosion_radii_item(self):
+        self.assertIn(
+            ("toggle_explosion_radii", "Explosion Radii: OFF"),
+            battle_scene.DEBUG_MENU_ITEMS,
+        )
+
+    def test_explosion_radii_label_shows_current_toggle_state(self):
+        self.scene.show_explosion_radii = True
+
+        labels = [label for _, label in self.scene._debug_menu_items()]
+
+        self.assertIn("Explosion Radii: ON", labels)
+
+    def test_debug_menu_click_toggles_explosion_radii(self):
+        self.scene.key_down("f1")
+        index = [
+            action for action, _ in battle_scene.DEBUG_MENU_ITEMS
+        ].index("toggle_explosion_radii")
+        left, top, right, bottom = self.scene._debug_button_bounds(index)
+
+        self.scene.mouse_down("left", (left + right) / 2, (top + bottom) / 2)
+
+        self.assertTrue(self.scene.show_explosion_radii)
+
+    def test_reset_map_turns_explosion_radii_off(self):
+        self.scene.show_explosion_radii = True
+
+        self.scene.reset_map()
+
+        self.assertFalse(self.scene.show_explosion_radii)
+
+    def test_explosion_radii_are_drawn_for_explosive_enemies(self):
+        enemy = ExplosiveEnemy(0.0, 0.0)
+        enemy._screen_position = (500.0, 600.0)
+        game_world.add_object(enemy)
+        circles = []
+        self.scene.enemy_draw_circle = lambda *args: circles.append(args)
+        self.scene.show_explosion_radii = True
+
+        self.scene._draw_enemy_debug_circles()
+
+        explosion_circles = [
+            circle
+            for circle in circles
+            if circle[2]
+            in (
+                ExplosiveEnemy.PLAYER_ATTACK_RADIUS,
+                ExplosiveEnemy.DEATH_EXPLOSION_RADIUS,
+            )
+        ]
+        self.assertEqual(
+            [circle[2] for circle in explosion_circles],
+            [
+                ExplosiveEnemy.PLAYER_ATTACK_RADIUS,
+                ExplosiveEnemy.DEATH_EXPLOSION_RADIUS,
+            ],
+        )
+        self.assertEqual(
+            [circle[3:7] for circle in explosion_circles],
+            [
+                battle_scene.DEBUG_PLAYER_EXPLOSION_COLOR,
+                battle_scene.DEBUG_DEATH_EXPLOSION_COLOR,
+            ],
+        )
+        for circle in explosion_circles:
+            self.assertEqual(circle[0:2], (500.0, 600.0))
+
+    def test_explosion_radii_are_not_drawn_for_other_enemies(self):
+        enemy = BasicEnemy(0.0, 0.0)
+        enemy._screen_position = (500.0, 600.0)
+        game_world.add_object(enemy)
+        circles = []
+        self.scene.enemy_draw_circle = lambda *args: circles.append(args)
+        self.scene.show_explosion_radii = True
+
+        self.scene._draw_enemy_debug_circles()
+
+        self.assertEqual(circles, [])
 
 
 class BattleSceneAimCursorTests(unittest.TestCase):

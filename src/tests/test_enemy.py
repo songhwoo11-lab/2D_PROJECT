@@ -8,7 +8,7 @@ from enemy import (
     Enemy,
     EnemyType,
 )
-from enemy_types import AssassinEnemy, BasicEnemy
+from enemy_types import AssassinEnemy, BasicEnemy, ExplosiveEnemy
 
 
 class FakePlayer:
@@ -421,6 +421,69 @@ class EnemyCollisionTests(unittest.TestCase):
         basic = BasicEnemy(0, 0, player=FakePlayer())
 
         self.assertTrue(assassin.collides_with(basic))
+
+
+class FakeExplosion:
+    calls = []
+
+    def __init__(self, x, y, radius, damage, target, owner=None):
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.damage = damage
+        self.target = target
+        self.owner = owner
+        FakeExplosion.calls.append(self)
+
+    def apply(self, player=None, enemies=()):
+        self.player = player
+        self.enemies = tuple(enemies)
+        return ()
+
+
+class ExplosiveEnemyRadiusTests(unittest.TestCase):
+    def setUp(self):
+        game_world.clear()
+        FakeExplosion.calls.clear()
+        self.player = FakePlayer()
+
+    def tearDown(self):
+        game_world.clear()
+
+    def test_both_explosion_radii_are_200_px(self):
+        self.assertEqual(ExplosiveEnemy.PLAYER_ATTACK_RADIUS, 200.0)
+        self.assertEqual(ExplosiveEnemy.DEATH_EXPLOSION_RADIUS, 200.0)
+
+    def test_player_attack_uses_the_new_radius(self):
+        enemy = ExplosiveEnemy(
+            self.player.x,
+            self.player.y,
+            player=self.player,
+        )
+
+        with patch("enemy_types.Explosion", FakeExplosion):
+            enemy.update(0.0)
+
+        self.assertEqual(len(FakeExplosion.calls), 1)
+        explosion = FakeExplosion.calls[0]
+        self.assertEqual(explosion.radius, 200.0)
+        self.assertEqual(explosion.target.value, "player")
+        self.assertFalse(enemy.is_alive)
+
+    def test_death_explosion_uses_the_new_radius(self):
+        enemy = ExplosiveEnemy(
+            self.player.x + 400,
+            self.player.y,
+            player=self.player,
+        )
+
+        with patch("enemy_types.Explosion", FakeExplosion):
+            enemy.take_damage(enemy.hp)
+
+        self.assertEqual(len(FakeExplosion.calls), 1)
+        explosion = FakeExplosion.calls[0]
+        self.assertEqual(explosion.radius, 200.0)
+        self.assertEqual(explosion.target.value, "enemies")
 
 
 if __name__ == "__main__":

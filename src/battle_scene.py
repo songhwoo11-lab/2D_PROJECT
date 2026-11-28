@@ -27,7 +27,7 @@ from enemy import (
     Enemy,
     EnemyType,
 )
-from enemy_types import AssassinEnemy, create_enemy
+from enemy_types import AssassinEnemy, ExplosiveEnemy, create_enemy
 import game_world
 from game_camera import Camera
 from game_config import (
@@ -136,6 +136,8 @@ DEBUG_BUTTON_TEXT_Y_OFFSET = 10
 DEBUG_FONT_SIZE = 30
 DEBUG_COIN_AMOUNT = 10000
 DEBUG_ADD_COINS_LABEL = "+10000 Coins"
+DEBUG_PLAYER_EXPLOSION_COLOR = (255, 160, 0, 255)
+DEBUG_DEATH_EXPLOSION_COLOR = (255, 0, 255, 255)
 DEBUG_MENU_ITEMS = (
     ("spawn_basic", "Basic Enemy"),
     ("spawn_explosive", "Explosive Enemy"),
@@ -147,6 +149,7 @@ DEBUG_MENU_ITEMS = (
     ("reset_map", "Reset Map"),
     ("add_coins", DEBUG_ADD_COINS_LABEL),
     ("toggle_attack_ranges", "Attack Ranges: OFF"),
+    ("toggle_explosion_radii", "Explosion Radii: OFF"),
     ("toggle_hitboxes", "Hitboxes: OFF"),
     ("toggle_assassin_reveal_range", "Assassin Reveal: OFF"),
 )
@@ -230,6 +233,7 @@ class BattleScene:
         self.gun_recoil_remaining = 0.0
         self.debug_mode = False
         self.show_attack_ranges = False
+        self.show_explosion_radii = False
         self.show_hitboxes = False
         self.show_assassin_reveal_range = False
         self.shot_feedbacks = []
@@ -749,6 +753,8 @@ class BattleScene:
             self.coins += DEBUG_COIN_AMOUNT
         elif action == "toggle_attack_ranges":
             self.show_attack_ranges = not self.show_attack_ranges
+        elif action == "toggle_explosion_radii":
+            self.show_explosion_radii = not self.show_explosion_radii
         elif action == "toggle_hitboxes":
             self.show_hitboxes = not self.show_hitboxes
         elif action == "toggle_assassin_reveal_range":
@@ -790,6 +796,7 @@ class BattleScene:
         self._mouse_pressed = False
         self.gun_recoil_remaining = 0.0
         self.show_attack_ranges = False
+        self.show_explosion_radii = False
         self.show_hitboxes = False
         self.show_assassin_reveal_range = False
         self.wave_director = self._create_wave_director()
@@ -1154,6 +1161,7 @@ class BattleScene:
             self._draw_aim_cursor(draw_rectangle)
         if (
             self.show_attack_ranges
+            or self.show_explosion_radii
             or self.show_hitboxes
             or self.show_assassin_reveal_range
         ):
@@ -1465,6 +1473,7 @@ class BattleScene:
     def _debug_menu_items(self):
         toggle_states = {
             "toggle_attack_ranges": self.show_attack_ranges,
+            "toggle_explosion_radii": self.show_explosion_radii,
             "toggle_hitboxes": self.show_hitboxes,
             "toggle_assassin_reveal_range": self.show_assassin_reveal_range,
         }
@@ -1561,6 +1570,19 @@ class BattleScene:
                         0,
                         0,
                         255,
+                    )
+                if self.show_explosion_radii and isinstance(enemy, ExplosiveEnemy):
+                    self.enemy_draw_circle(
+                        x,
+                        y,
+                        round(ExplosiveEnemy.PLAYER_ATTACK_RADIUS),
+                        *DEBUG_PLAYER_EXPLOSION_COLOR,
+                    )
+                    self.enemy_draw_circle(
+                        x,
+                        y,
+                        round(ExplosiveEnemy.DEATH_EXPLOSION_RADIUS),
+                        *DEBUG_DEATH_EXPLOSION_COLOR,
                     )
         if self.show_hitboxes:
             player_x, player_y = self.camera.world_to_screen(

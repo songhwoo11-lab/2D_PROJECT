@@ -416,8 +416,8 @@ class ArcherEnemy(Enemy):
 
 
 class ExplosiveEnemy(Enemy):
-    PLAYER_ATTACK_RADIUS = 100.0
-    DEATH_EXPLOSION_RADIUS = 100.0
+    PLAYER_ATTACK_RADIUS = 200.0
+    DEATH_EXPLOSION_RADIUS = 200.0
 
     def __init__(
         self,
