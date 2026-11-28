@@ -3,6 +3,7 @@ from unittest import mock
 
 from audio import (
     BUY_GUN_SOUND_FILE,
+    BUY_UPGRADE_FAIL_SOUND_FILE,
     GUN_LEVEL_DOWN_SOUND_FILE,
     GUN_LEVEL_EXPLOSION_SOUND_FILE,
     GUN_LEVEL_FAIL_SOUND_FILE,
@@ -1013,13 +1014,17 @@ class ShopPurchaseSoundTests(unittest.TestCase):
         self.assertEqual(scene.last_result.result, PurchaseResult.PURCHASED)
         audio.play_sound.assert_called_once_with(BUY_GUN_SOUND_FILE)
 
-    def test_failed_purchase_does_not_play_the_buy_sound(self):
+    def test_insufficient_funds_purchase_plays_the_failure_sound(self):
         state, scene, audio = self.make_scene(coins=99)
 
         click_rect(scene, button_rect(1, BUY_ACTION))
 
         self.assertEqual(scene.last_result.result, PurchaseResult.INSUFFICIENT_COINS)
-        audio.play_sound.assert_not_called()
+        audio.play_sound.assert_called_once_with(BUY_UPGRADE_FAIL_SOUND_FILE)
+        self.assertNotIn(
+            mock.call(BUY_GUN_SOUND_FILE),
+            audio.play_sound.call_args_list,
+        )
 
     def test_upgrade_does_not_play_the_buy_sound(self):
         state, scene, audio = self.make_scene()
@@ -1103,13 +1108,13 @@ class ShopUpgradeSoundTests(unittest.TestCase):
             expected_sound=GUN_LEVEL_EXPLOSION_SOUND_FILE,
         )
 
-    def test_blocked_upgrade_does_not_play_a_sound(self):
+    def test_insufficient_funds_upgrade_plays_the_failure_sound(self):
         state, scene, audio = self.make_scene(level=5, coins=0)
 
         self.confirm_upgrade(scene, 1)
 
         self.assertEqual(scene.last_result.result, UpgradeResult.INSUFFICIENT_COINS)
-        audio.play_sound.assert_not_called()
+        audio.play_sound.assert_called_once_with(BUY_UPGRADE_FAIL_SOUND_FILE)
 
     def test_upgrade_without_audio_is_safe(self):
         state = GameState(

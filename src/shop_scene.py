@@ -2,6 +2,7 @@
 
 from audio import (
     BUY_GUN_SOUND_FILE,
+    BUY_UPGRADE_FAIL_SOUND_FILE,
     GUN_LEVEL_DOWN_SOUND_FILE,
     GUN_LEVEL_EXPLOSION_SOUND_FILE,
     GUN_LEVEL_FAIL_SOUND_FILE,
@@ -585,6 +586,14 @@ class ShopScene:
             # Purchases are effects, so they follow the SFX volume.
             play_sound(BUY_GUN_SOUND_FILE)
 
+    def _play_insufficient_funds_sound(self):
+        if self.audio is None:
+            return
+        play_sound = getattr(self.audio, "play_sound", None)
+        if play_sound is not None:
+            # Failed purchases/upgrades are effects, so they follow SFX volume.
+            play_sound(BUY_UPGRADE_FAIL_SOUND_FILE)
+
     def _execute_action(self):
         if self.state is None or self.action_index == NO_ACTION:
             return
@@ -596,6 +605,8 @@ class ShopScene:
             self.last_result = purchase_gun(self.state, gun_id)
             if self.last_result.result is PurchaseResult.PURCHASED:
                 self._play_buy_sound()
+            elif self.last_result.result is PurchaseResult.INSUFFICIENT_COINS:
+                self._play_insufficient_funds_sound()
             self._hide_state_panel()
             self._select_first_available_action()
         elif self.action_index == UPGRADE_ACTION:
@@ -626,6 +637,8 @@ class ShopScene:
         self.action_index = UPGRADE_ACTION
         self.last_result = upgrade_gun(self.state, gun_id)
         self._play_upgrade_sound(self.last_result.result)
+        if self.last_result.result is UpgradeResult.INSUFFICIENT_COINS:
+            self._play_insufficient_funds_sound()
         self._hide_upgrade_modal()
         self._select_first_available_action()
 

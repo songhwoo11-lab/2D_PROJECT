@@ -40,6 +40,7 @@ GUN_LEVEL_UP_SOUND_FILE = "gun level up.mp3"
 GUN_LEVEL_DOWN_SOUND_FILE = "gun level down.mp3"
 GUN_LEVEL_FAIL_SOUND_FILE = "gun level fail.mp3"
 GUN_LEVEL_EXPLOSION_SOUND_FILE = "gun level explosion.mp3"
+BUY_UPGRADE_FAIL_SOUND_FILE = "buy,upgrade fail.mp3"
 
 MUSIC_BY_SCENE = {
     "lobby": LOBBY_MUSIC_FILE,
@@ -77,6 +78,7 @@ SFX_VOLUME_FILES = frozenset(
         GUN_LEVEL_DOWN_SOUND_FILE,
         GUN_LEVEL_FAIL_SOUND_FILE,
         GUN_LEVEL_EXPLOSION_SOUND_FILE,
+        BUY_UPGRADE_FAIL_SOUND_FILE,
     }
 )
 
