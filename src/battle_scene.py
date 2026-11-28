@@ -38,6 +38,7 @@ from game_config import (
     AIM_CURSOR_THICKNESS,
     COOLING_DROP_CHANCE,
     COOLING_PICKUP_LIMIT,
+    DEFAULT_DIFFICULTY,
     HEALTH_PICKUP_LIMIT,
     MAGAZINE_PICKUP_AMMO,
     PICKUP_DRAW_SIZE,
@@ -46,6 +47,7 @@ from game_config import (
     SCREEN_WIDTH,
     WORLD_HEIGHT,
     WORLD_WIDTH,
+    normalize_difficulty,
 )
 from hud import draw_centered_text, draw_hud
 from player import Player
@@ -177,6 +179,7 @@ class BattleScene:
         random_source=None,
         total_waves=None,
         wave_spawn_rate=None,
+        difficulty=None,
         gun_images=None,
         portal_image=None,
         portal_transition=False,
@@ -240,6 +243,11 @@ class BattleScene:
         self.random_source = random_source or random.Random()
         self.total_waves_setting = total_waves
         self.wave_spawn_rate_setting = wave_spawn_rate
+        self.difficulty = (
+            normalize_difficulty(difficulty)
+            if difficulty is not None
+            else DEFAULT_DIFFICULTY
+        )
         self.wave_director = self._create_wave_director()
         self.spawn_warnings = []
         self.wave_banner_text = ""
@@ -404,7 +412,9 @@ class BattleScene:
     def _spawn_wave_enemy(self, enemy_type, x, y):
         enemy = self.spawn_enemy(enemy_type, x, y)
         enemy.apply_stat_multiplier(
-            wave_stat_multiplier(self.wave_director.current_wave)
+            wave_stat_multiplier(
+                self.wave_director.current_wave, self.difficulty
+            )
         )
         return enemy
 

@@ -21,6 +21,9 @@ from enemy import Enemy, EnemyType
 from enemy_types import BasicEnemy, ExplosiveEnemy
 from game_config import (
     AIM_CURSOR_RADIUS,
+    DIFFICULTY_EASY,
+    DIFFICULTY_HARD,
+    DIFFICULTY_NORMAL,
     PICKUP_DRAW_SIZE,
     PLAYER_RADIUS,
     SCREEN_HEIGHT,
@@ -134,7 +137,9 @@ class SequenceStubRandom(StubRandom):
         return self.roll
 
 
-def make_scene(total_waves, spawn_rate, skip_countdown=True, audio=None):
+def make_scene(
+    total_waves, spawn_rate, skip_countdown=True, audio=None, difficulty=None
+):
     scene = BattleScene(
         Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
         Gun(),
@@ -144,6 +149,7 @@ def make_scene(total_waves, spawn_rate, skip_countdown=True, audio=None):
         enemy_draw_rectangle=lambda *args: None,
         enemy_draw_circle=lambda *args: None,
         random_source=random.Random(0),
+        difficulty=difficulty,
         audio=audio,
     )
     scene.wave_director = WaveDirector(
@@ -238,17 +244,53 @@ class BattleSceneWaveTests(unittest.TestCase):
         self.assertEqual(scene.reached_wave, 2)
         self.assertEqual(scene.wave_banner_text, "WAVE 2")
 
-    def test_wave_enemies_use_the_wave_stat_multiplier(self):
-        self.scene.wave_director.current_wave = 10
+    def test_wave_enemies_use_the_difficulty_stat_multiplier(self):
+        expected = {
+            DIFFICULTY_EASY: (40, 16),
+            DIFFICULTY_NORMAL: (80, 32),
+            DIFFICULTY_HARD: (120, 48),
+        }
+        for difficulty, (max_hp, attack_damage) in expected.items():
+            with self.subTest(difficulty=difficulty):
+                scene = make_scene(
+                    total_waves=1, spawn_rate=1000, difficulty=difficulty
+                )
+                scene.wave_director.current_wave = 10
 
-        enemy = self.scene._spawn_wave_enemy(
-            EnemyType.BASIC,
-            self.scene.player.x + 500,
-            self.scene.player.y,
-        )
+                enemy = scene._spawn_wave_enemy(
+                    EnemyType.BASIC,
+                    scene.player.x + 500,
+                    scene.player.y,
+                )
 
-        self.assertEqual(enemy.max_hp, 40)
-        self.assertEqual(enemy.attack_damage, 16)
+                self.assertEqual(enemy.max_hp, max_hp)
+                self.assertEqual(enemy.attack_damage, attack_damage)
+                scene.close()
+
+    def test_wave_enemies_use_the_early_wave_multiplier(self):
+        expected = {
+            DIFFICULTY_EASY: (20, 8),
+            DIFFICULTY_NORMAL: (40, 16),
+            DIFFICULTY_HARD: (80, 32),
+        }
+        for difficulty, (max_hp, attack_damage) in expected.items():
+            with self.subTest(difficulty=difficulty):
+                scene = make_scene(
+                    total_waves=1, spawn_rate=1000, difficulty=difficulty
+                )
+
+                enemy = scene._spawn_wave_enemy(
+                    EnemyType.BASIC,
+                    scene.player.x + 500,
+                    scene.player.y,
+                )
+
+                self.assertEqual(enemy.max_hp, max_hp)
+                self.assertEqual(enemy.attack_damage, attack_damage)
+                scene.close()
+
+    def test_default_battle_difficulty_is_normal(self):
+        self.assertEqual(self.scene.difficulty, DIFFICULTY_NORMAL)
 
     def test_remaining_enemy_count_includes_queued_warnings_and_alive(self):
         total = self.scene.wave_director.total_to_spawn

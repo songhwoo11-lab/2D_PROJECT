@@ -6,11 +6,13 @@ import random
 
 from enemy import EnemyType
 from game_config import (
+    DEFAULT_DIFFICULTY,
+    DIFFICULTY_WAVE_STAT_MULTIPLIERS,
     TOTAL_WAVES,
     WAVE_ENEMIES_PER_WAVE,
     WAVE_SPAWN_RATE_PER_SECOND,
     WAVE_STAT_MULTIPLIER_EVERY,
-    WAVE_STAT_MULTIPLIER_FACTOR,
+    normalize_difficulty,
 )
 
 
@@ -120,9 +122,16 @@ def build_wave_spawn_order(wave, random_source=None):
     return order
 
 
-def wave_stat_multiplier(wave):
+def wave_stat_multiplier(wave, difficulty=DEFAULT_DIFFICULTY):
+    """Return the enemy stat multiplier for the wave and difficulty."""
     validate_wave(wave)
-    return WAVE_STAT_MULTIPLIER_FACTOR ** (wave // WAVE_STAT_MULTIPLIER_EVERY)
+    difficulty = normalize_difficulty(difficulty)
+    early_multiplier, final_multiplier = DIFFICULTY_WAVE_STAT_MULTIPLIERS[
+        difficulty
+    ]
+    if wave >= WAVE_STAT_MULTIPLIER_EVERY:
+        return final_multiplier
+    return early_multiplier
 
 
 def spawn_radius_range(enemy_type):

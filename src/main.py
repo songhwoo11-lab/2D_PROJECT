@@ -526,6 +526,7 @@ class GameApp:
             portal_transition=portal_transition,
             total_waves=development_total_waves(),
             wave_spawn_rate=development_spawn_rate(),
+            difficulty=self.state.difficulty,
             audio=self.audio,
         )
 

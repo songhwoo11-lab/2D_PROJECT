@@ -3,7 +3,12 @@ import unittest
 from collections import Counter
 
 from enemy import EnemyType
-from game_config import TOTAL_WAVES
+from game_config import (
+    DIFFICULTY_EASY,
+    DIFFICULTY_HARD,
+    DIFFICULTY_NORMAL,
+    TOTAL_WAVES,
+)
 from waves import (
     SPAWN_RADIUS_RANGES,
     WaveDirector,
@@ -79,12 +84,43 @@ class SpawnOrderTests(unittest.TestCase):
 
 
 class WaveStatMultiplierTests(unittest.TestCase):
-    def test_first_block_uses_base_stats(self):
-        self.assertEqual(wave_stat_multiplier(1), 1)
-        self.assertEqual(wave_stat_multiplier(9), 1)
+    def test_easy_uses_one_and_two_multipliers(self):
+        for wave in range(1, 10):
+            with self.subTest(wave=wave):
+                self.assertEqual(
+                    wave_stat_multiplier(wave, DIFFICULTY_EASY), 1
+                )
+        self.assertEqual(
+            wave_stat_multiplier(TOTAL_WAVES, DIFFICULTY_EASY), 2
+        )
 
-    def test_final_wave_doubles_stats(self):
-        self.assertEqual(wave_stat_multiplier(TOTAL_WAVES), 2)
+    def test_normal_uses_two_and_four_multipliers(self):
+        for wave in range(1, 10):
+            with self.subTest(wave=wave):
+                self.assertEqual(
+                    wave_stat_multiplier(wave, DIFFICULTY_NORMAL), 2
+                )
+        self.assertEqual(
+            wave_stat_multiplier(TOTAL_WAVES, DIFFICULTY_NORMAL), 4
+        )
+
+    def test_hard_uses_four_and_six_multipliers(self):
+        for wave in range(1, 10):
+            with self.subTest(wave=wave):
+                self.assertEqual(
+                    wave_stat_multiplier(wave, DIFFICULTY_HARD), 4
+                )
+        self.assertEqual(
+            wave_stat_multiplier(TOTAL_WAVES, DIFFICULTY_HARD), 6
+        )
+
+    def test_default_difficulty_is_normal(self):
+        self.assertEqual(wave_stat_multiplier(1), 2)
+        self.assertEqual(wave_stat_multiplier(TOTAL_WAVES), 4)
+
+    def test_unknown_difficulty_is_rejected(self):
+        with self.assertRaises(ValueError):
+            wave_stat_multiplier(1, "NIGHTMARE")
 
 
 class WaveDirectorTests(unittest.TestCase):

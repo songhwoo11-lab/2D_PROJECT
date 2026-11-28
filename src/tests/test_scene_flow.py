@@ -267,6 +267,13 @@ class SceneSwitchTests(unittest.TestCase):
 
         self.assertIs(self.app.scene.audio, self.app.audio)
 
+    def test_battle_scene_receives_the_selected_difficulty(self):
+        self.app.state.set_difficulty(DIFFICULTY_HARD)
+
+        self.app.switch_scene("battle")
+
+        self.assertEqual(self.app.scene.difficulty, DIFFICULTY_HARD)
+
     def test_lobby_scene_receives_the_audio_manager(self):
         self.app.switch_scene("lobby")
 
