@@ -7,9 +7,15 @@ from pathlib import Path
 from unittest.mock import patch
 
 from battle_record import BattleRecord, TrainingRecord, VICTORY
-from game_config import DIFFICULTY_HARD
+from game_config import DIFFICULTY_EASY, DIFFICULTY_HARD, DIFFICULTY_NORMAL
 from game_state import GameState
-from save_data import BestLog, RECENT_LOG_LIMIT, SaveData, default_save_data
+from save_data import (
+    BestLog,
+    RECENT_LOG_LIMIT,
+    SaveData,
+    default_save_data,
+    empty_records_by_difficulty,
+)
 from save_io import load_save_data, load_save_data_with_report, write_save_data
 from save_paths import gamefile_paths
 
@@ -45,6 +51,56 @@ class SaveIntegrationTests(unittest.TestCase):
             with patch.dict(os.environ, {}, clear=True):
                 state = GameState.from_save_data(reloaded)
                 self.assertEqual(state.to_save_data(), data)
+
+    def test_records_are_saved_separately_for_each_difficulty(self):
+        data = default_save_data()
+        data.records_by_difficulty = empty_records_by_difficulty()
+        data.records_by_difficulty[DIFFICULTY_EASY] = [
+            BattleRecord(
+                "defeat",
+                reached_wave=10,
+                elapsed_time=210.5,
+                clear_time=210.5,
+                gun_id="rifle",
+                cleared_wave=9,
+                difficulty=DIFFICULTY_EASY,
+            )
+        ]
+        data.records_by_difficulty[DIFFICULTY_HARD] = [
+            BattleRecord(
+                VICTORY,
+                reached_wave=10,
+                elapsed_time=880.0,
+                clear_time=880.0,
+                gun_id="pistol",
+                cleared_wave=10,
+                difficulty=DIFFICULTY_HARD,
+            )
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_save_data(data, temp_dir)
+            paths = gamefile_paths(temp_dir)
+            self.assertEqual(
+                paths["records_EASY"].read_text(encoding="utf-8").strip(),
+                "record = [[rifle, 9, 210.5]]",
+            )
+            self.assertEqual(
+                paths["records_NORMAL"].read_text(encoding="utf-8").strip(),
+                "record = []",
+            )
+            self.assertEqual(
+                paths["records_HARD"].read_text(encoding="utf-8").strip(),
+                "record = [[pistol, 10, 880]]",
+            )
+
+            reloaded = load_save_data(temp_dir)
+            self.assertEqual(reloaded, data)
+            with patch.dict(os.environ, {}, clear=True):
+                state = GameState.from_save_data(reloaded)
+            self.assertEqual(len(state.records_for_difficulty(DIFFICULTY_EASY)), 1)
+            self.assertEqual(state.records_for_difficulty(DIFFICULTY_NORMAL), [])
+            self.assertEqual(len(state.records_for_difficulty(DIFFICULTY_HARD)), 1)
 
     def test_damaged_save_is_recovered_with_guidance(self):
         with tempfile.TemporaryDirectory() as temp_dir:

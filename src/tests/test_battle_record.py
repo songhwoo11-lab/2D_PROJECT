@@ -1,6 +1,9 @@
 import unittest
 
 from battle_record import (
+    BattleRecord,
+    battle_record_text,
+    complete_battle_record,
     format_elapsed_time,
     result_record_text,
     training_record_text,
@@ -28,6 +31,55 @@ class FormatElapsedTimeTests(unittest.TestCase):
 class TrainingRecordTextTests(unittest.TestCase):
     def test_shows_the_destroyed_target_count(self):
         self.assertEqual(training_record_text(7), "TARGETS 7")
+
+
+class BattleRecordTests(unittest.TestCase):
+    def test_defeat_uses_the_previously_cleared_wave_and_time(self):
+        record = BattleRecord(
+            "defeat",
+            reached_wave=10,
+            elapsed_time=250.0,
+            clear_time=210.5,
+            gun_id="rifle",
+        )
+
+        completed = complete_battle_record(record)
+
+        self.assertEqual(completed.cleared_wave, 9)
+        self.assertAlmostEqual(completed.clear_time, 210.5)
+        self.assertEqual(completed.gun_id, "rifle")
+
+    def test_first_wave_death_is_not_a_stored_record(self):
+        record = BattleRecord("defeat", reached_wave=1, elapsed_time=12.0)
+
+        self.assertIsNone(complete_battle_record(record))
+
+    def test_victory_records_all_waves_with_the_clear_time(self):
+        record = BattleRecord(
+            "victory",
+            reached_wave=10,
+            elapsed_time=900.0,
+            clear_time=880.0,
+        )
+
+        completed = complete_battle_record(record)
+
+        self.assertEqual(completed.cleared_wave, 10)
+        self.assertAlmostEqual(completed.clear_time, 880.0)
+
+    def test_book_text_shows_gun_cleared_wave_and_clear_time(self):
+        record = BattleRecord(
+            "defeat",
+            reached_wave=10,
+            elapsed_time=250.0,
+            clear_time=210.5,
+            gun_id="rifle",
+        )
+
+        self.assertEqual(
+            battle_record_text(complete_battle_record(record)),
+            "RIFLE WAVE 9 TIME 3:30.5",
+        )
 
 
 class ResultRecordTextTests(unittest.TestCase):

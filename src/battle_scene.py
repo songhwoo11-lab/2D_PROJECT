@@ -256,6 +256,7 @@ class BattleScene:
         self.waves_cleared = False
         self.elapsed_time = 0.0
         self.reached_wave = 1
+        self.cleared_wave = 0
         self.clear_time = None
         self.coins = 0
         self.pickups = []
@@ -557,9 +558,13 @@ class BattleScene:
             and self._alive_enemy_count() == 0
         ):
             if self.wave_director.advance():
+                self.cleared_wave = self.wave_director.current_wave - 1
+                self.clear_time = self.elapsed_time
                 self.reached_wave = self.wave_director.current_wave
                 self._announce_wave()
             else:
+                self.cleared_wave = self.wave_director.current_wave
+                self.clear_time = self.elapsed_time
                 self.waves_cleared = True
                 self.wave_banner_text = "ALL WAVES CLEARED"
                 self.wave_banner_remaining = WAVE_STRENGTH_BANNER_SECONDS
@@ -630,7 +635,8 @@ class BattleScene:
             self._play_result_music(DEFEAT_MUSIC_FILE)
         elif result is BattleResult.VICTORY:
             self._play_result_music(VICTORY_MUSIC_FILE)
-            self.clear_time = self.elapsed_time
+            if self.clear_time is None:
+                self.clear_time = self.elapsed_time
 
     def key_up(self, key):
         self.keys.discard(key.lower())
@@ -817,6 +823,7 @@ class BattleScene:
         self.waves_cleared = False
         self.elapsed_time = 0.0
         self.reached_wave = 1
+        self.cleared_wave = 0
         self.clear_time = None
         self.coins = 0
         self.pickups = []

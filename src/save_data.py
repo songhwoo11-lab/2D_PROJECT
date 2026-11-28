@@ -1,13 +1,42 @@
 """Save data model and defaults for the game file storage."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from game_config import DEFAULT_DIFFICULTY
+from battle_record import BattleRecord, complete_battle_record
+from game_config import DEFAULT_DIFFICULTY, DIFFICULTIES, normalize_difficulty
 from shop import GUN_SHOP_ORDER
 
 
 RECENT_LOG_LIMIT = 10
+
+
+def empty_records_by_difficulty():
+    """Return an independent record bucket for every difficulty."""
+    return {difficulty: [] for difficulty in DIFFICULTIES}
+
+
+def normalize_records_by_difficulty(records):
+    """Group completed records into one bucket per difficulty."""
+    result = empty_records_by_difficulty()
+    if records is None:
+        return result
+    if isinstance(records, dict):
+        for difficulty, entries in records.items():
+            canonical = normalize_difficulty(difficulty)
+            result[canonical] = []
+            for record in entries or []:
+                completed = complete_battle_record(record, canonical)
+                if completed is not None:
+                    result[canonical].append(completed)
+        return result
+    for record in records:
+        difficulty = getattr(record, "difficulty", DEFAULT_DIFFICULTY)
+        canonical = normalize_difficulty(difficulty)
+        completed = complete_battle_record(record, canonical)
+        if completed is not None:
+            result[canonical].append(completed)
+    return result
 
 
 @dataclass(frozen=True)
@@ -29,6 +58,9 @@ class SaveData:
     recent_logs: List[Tuple[int, float]] = field(default_factory=list)
     training_records: List[int] = field(default_factory=list)
     difficulty: str = DEFAULT_DIFFICULTY
+    records_by_difficulty: Dict[str, List[BattleRecord]] = field(
+        default_factory=empty_records_by_difficulty
+    )
 
 
 def _as_log_pair(entry):
@@ -80,4 +112,5 @@ def default_save_data():
         recent_logs=[],
         training_records=[],
         difficulty=DEFAULT_DIFFICULTY,
+        records_by_difficulty=empty_records_by_difficulty(),
     )

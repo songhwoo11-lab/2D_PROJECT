@@ -9,7 +9,7 @@ from audio import (
     LOBBY_PORTAL_ENTRY_SOUND_FILE,
     RECORDS_MUSIC_FILE,
 )
-from battle_record import result_record_text, training_record_text
+from battle_record import battle_record_text, training_record_text
 from game_config import (
     DIFFICULTIES,
     DIFFICULTY_EASY,
@@ -104,6 +104,19 @@ RECORDS_FIRST_ROW_Y_OFFSET = 150
 RECORDS_ROW_GAP = 70
 RECORDS_LEFT_PAGE_CENTER_X = 585
 RECORDS_RIGHT_PAGE_CENTER_X = 1215
+# 기록 확인 화면 왼쪽의 난이도 선택 버튼.
+RECORDS_DIFFICULTY_BUTTON_WIDTH = 140
+RECORDS_DIFFICULTY_BUTTON_HEIGHT = 70
+RECORDS_DIFFICULTY_BUTTON_GAP = 24
+RECORDS_DIFFICULTY_BUTTON_LEFT = 30
+RECORDS_DIFFICULTY_BUTTON_BOTTOM = 180
+# 기록 화면에서만 HARD와 EASY 위치를 서로 바꾼다.
+RECORDS_DIFFICULTY_ORDER = (
+    DIFFICULTY_HARD,
+    DIFFICULTY_NORMAL,
+    DIFFICULTY_EASY,
+)
+RECORDS_DIFFICULTY_LABEL_X_OFFSET = 10
 GUN_SELECT_HOVER_OUTLINE_COLOR = (120, 170, 230, 255)
 
 GUN_SELECT_IMAGE_SIZES = {
@@ -140,6 +153,25 @@ def gun_select_difficulty_button_rect(index):
         GUN_SELECT_DIFFICULTY_BUTTON_BOTTOM
         + GUN_SELECT_DIFFICULTY_BUTTON_HEIGHT,
     )
+
+
+def records_difficulty_button_rect(index):
+    bottom = (
+        RECORDS_DIFFICULTY_BUTTON_BOTTOM
+        + index
+        * (RECORDS_DIFFICULTY_BUTTON_HEIGHT + RECORDS_DIFFICULTY_BUTTON_GAP)
+    )
+    return (
+        RECORDS_DIFFICULTY_BUTTON_LEFT,
+        bottom,
+        RECORDS_DIFFICULTY_BUTTON_LEFT + RECORDS_DIFFICULTY_BUTTON_WIDTH,
+        bottom + RECORDS_DIFFICULTY_BUTTON_HEIGHT,
+    )
+
+
+def records_difficulty_button_index(difficulty):
+    """Return the records-screen button slot for a difficulty."""
+    return RECORDS_DIFFICULTY_ORDER.index(normalize_difficulty(difficulty))
 
 
 def records_exit_button_rect():
@@ -230,6 +262,8 @@ class LobbyScene:
         self.gun_select_hover_index = None
         self.gun_select_difficulty = DEFAULT_DIFFICULTY
         self.gun_select_difficulty_hover_index = None
+        self.records_difficulty = DEFAULT_DIFFICULTY
+        self.records_difficulty_hover_index = None
         self.records_hover_exit = False
         self._place_player_at_current_node()
 
@@ -712,6 +746,7 @@ class LobbyScene:
                 True,
             )
 
+        self._draw_records_difficulty_buttons(draw_rectangle)
         if self.hud_font is None:
             return
         paper_top_y = SCREEN_HEIGHT - (
@@ -723,7 +758,11 @@ class LobbyScene:
         title_y = paper_top_y - RECORDS_TITLE_Y_OFFSET
         first_row_y = paper_top_y - RECORDS_FIRST_ROW_Y_OFFSET
         text_color = (40, 30, 20)
-        battle_records = self.state.records if self.state is not None else []
+        battle_records = (
+            self.state.records_for_difficulty(self.records_difficulty)
+            if self.state is not None
+            else []
+        )
         training_records = (
             self.state.training_records if self.state is not None else []
         )
@@ -731,7 +770,7 @@ class LobbyScene:
             self.hud_font,
             RECORDS_LEFT_PAGE_CENTER_X,
             title_y,
-            "BATTLE RECORDS",
+            "BATTLE RECORDS - {}".format(self.records_difficulty),
             text_color,
         )
         draw_text_at_center(
@@ -743,13 +782,7 @@ class LobbyScene:
         )
         if battle_records:
             for index, record in enumerate(battle_records):
-                text = result_record_text(
-                    record.result,
-                    record.reached_wave,
-                    TOTAL_WAVES,
-                    record.elapsed_time,
-                    record.clear_time,
-                )
+                text = battle_record_text(record)
                 row_y = first_row_y - index * RECORDS_ROW_GAP
                 if row_y < paper_bottom_y:
                     break
@@ -789,6 +822,48 @@ class LobbyScene:
                 text_color,
             )
         self._draw_records_exit_button(draw_rectangle)
+
+    def _draw_records_difficulty_buttons(self, draw_rectangle):
+        """Draw the difficulty filter buttons on the left of the records book."""
+        if self.hud_font is not None:
+            first_rect = records_difficulty_button_rect(0)
+            last_rect = records_difficulty_button_rect(
+                len(RECORDS_DIFFICULTY_ORDER) - 1
+            )
+            draw_text_at_center(
+                self.hud_font,
+                (first_rect[0] + last_rect[2]) / 2
+                + RECORDS_DIFFICULTY_LABEL_X_OFFSET,
+                last_rect[3] + 45,
+                "DIFFICULTY",
+                GUN_SELECT_DIFFICULTY_LABEL_COLOR,
+            )
+        for index, difficulty in enumerate(RECORDS_DIFFICULTY_ORDER):
+            left, bottom, right, top = records_difficulty_button_rect(index)
+            selected = difficulty == self.records_difficulty
+            color = (
+                GUN_SELECT_DIFFICULTY_SELECTED_COLOR
+                if selected
+                else GUN_SELECT_DIFFICULTY_UNSELECTED_COLOR
+            )
+            draw_rectangle(left, bottom, right, top, *color, True)
+            if index == self.records_difficulty_hover_index:
+                draw_rectangle(
+                    left,
+                    bottom,
+                    right,
+                    top,
+                    *GUN_SELECT_HOVER_OUTLINE_COLOR,
+                    False,
+                )
+            if self.hud_font is not None:
+                draw_text_at_center(
+                    self.hud_font,
+                    (left + right) / 2,
+                    (bottom + top) / 2,
+                    difficulty,
+                    GUN_SELECT_DIFFICULTY_TEXT_COLORS[difficulty],
+                )
 
     def _draw_records_exit_button(self, draw_rectangle):
         left, bottom, right, top = records_exit_button_rect()
@@ -943,6 +1018,12 @@ class LobbyScene:
         if self.panel == "records":
             return
         self.panel = "records"
+        self.records_difficulty = (
+            normalize_difficulty(self.state.difficulty)
+            if self.state is not None
+            else DEFAULT_DIFFICULTY
+        )
+        self.records_difficulty_hover_index = None
         self.records_hover_exit = False
         self._play_records_music()
 
@@ -954,6 +1035,7 @@ class LobbyScene:
         self.gun_select_hover_target = None
         self.gun_select_hover_index = None
         self.gun_select_difficulty_hover_index = None
+        self.records_difficulty_hover_index = None
         self.records_hover_exit = False
         if was_records_panel:
             self._restore_lobby_music()
@@ -985,6 +1067,13 @@ class LobbyScene:
             self.gun_select_hover_target = None
             self.gun_select_hover_index = None
             self.gun_select_difficulty_hover_index = None
+            self.records_difficulty_hover_index = None
+            for index in range(len(RECORDS_DIFFICULTY_ORDER)):
+                if rect_contains(
+                    records_difficulty_button_rect(index), screen_x, canvas_y
+                ):
+                    self.records_difficulty_hover_index = index
+                    break
             self.records_hover_exit = rect_contains(
                 records_exit_button_rect(), screen_x, canvas_y
             )
@@ -993,6 +1082,7 @@ class LobbyScene:
             self.gun_select_hover_target = None
             self.gun_select_hover_index = None
             self.gun_select_difficulty_hover_index = None
+            self.records_difficulty_hover_index = None
             self.records_hover_exit = False
             return
         self.records_hover_exit = False
@@ -1019,6 +1109,12 @@ class LobbyScene:
             return None
         if self.panel == "records":
             canvas_y = SCREEN_HEIGHT - screen_y
+            for index, difficulty in enumerate(RECORDS_DIFFICULTY_ORDER):
+                if rect_contains(
+                    records_difficulty_button_rect(index), screen_x, canvas_y
+                ):
+                    self.records_difficulty = difficulty
+                    return None
             if rect_contains(records_exit_button_rect(), screen_x, canvas_y):
                 self.close_panel()
             return None

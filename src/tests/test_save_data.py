@@ -20,6 +20,7 @@ from save_io import (
     read_best_log,
     read_coins,
     read_difficulty,
+    read_difficulty_records,
     read_guns,
     read_recent_logs,
     read_training_records,
@@ -29,6 +30,7 @@ from save_io import (
     write_best_log,
     write_coins,
     write_difficulty,
+    write_difficulty_records,
     write_guns,
     write_recent_logs,
     write_save_data,
@@ -218,6 +220,76 @@ class DifficultyFileTests(unittest.TestCase):
 
             with self.assertRaises(SaveDataError):
                 read_difficulty(path)
+
+
+class DifficultyRecordFileTests(unittest.TestCase):
+    def test_round_trip_keeps_gun_wave_and_clear_time(self):
+        records = [
+            BattleRecord(
+                "defeat",
+                reached_wave=10,
+                elapsed_time=250.0,
+                clear_time=210.5,
+                gun_id="rifle",
+                cleared_wave=9,
+                difficulty=DIFFICULTY_HARD,
+            ),
+            BattleRecord(
+                "victory",
+                reached_wave=10,
+                elapsed_time=900.0,
+                clear_time=880.0,
+                gun_id="pistol",
+                cleared_wave=10,
+                difficulty=DIFFICULTY_HARD,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "records_HARD.txt"
+
+            write_difficulty_records(records, DIFFICULTY_HARD, path)
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8").strip(),
+                "record = [[rifle, 9, 210.5], [pistol, 10, 880]]",
+            )
+            loaded = read_difficulty_records(DIFFICULTY_HARD, path)
+            self.assertEqual(
+                [
+                    (r.gun_id, r.cleared_wave, r.clear_time, r.difficulty)
+                    for r in loaded
+                ],
+                [
+                    ("rifle", 9, 210.5, DIFFICULTY_HARD),
+                    ("pistol", 10, 880.0, DIFFICULTY_HARD),
+                ],
+            )
+
+    def test_empty_records_use_an_empty_list(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "records_EASY.txt"
+
+            write_difficulty_records([], DIFFICULTY_EASY, path)
+
+            self.assertEqual(path.read_text(encoding="utf-8").strip(), "record = []")
+            self.assertEqual(read_difficulty_records(DIFFICULTY_EASY, path), [])
+
+    def test_uncleared_first_wave_is_not_written(self):
+        record = BattleRecord("defeat", reached_wave=1, elapsed_time=9.0)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "records_NORMAL.txt"
+
+            write_difficulty_records([record], DIFFICULTY_NORMAL, path)
+
+            self.assertEqual(path.read_text(encoding="utf-8").strip(), "record = []")
+
+    def test_invalid_record_file_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "records_NORMAL.txt"
+            path.write_text("record = [[pistol, 0, 1.0]]\n", encoding="utf-8")
+
+            with self.assertRaises(SaveDataError):
+                read_difficulty_records(DIFFICULTY_NORMAL, path)
 
 
 class BestLogFileTests(unittest.TestCase):
@@ -631,6 +703,13 @@ class SavePathsTests(unittest.TestCase):
                 "recent_logs",
                 "training_records",
                 "difficulty",
+                "records_EASY",
+                "records_NORMAL",
+                "records_HARD",
             },
+        )
+        self.assertEqual(
+            paths["records_EASY"],
+            Path("custom") / "playlog" / "records_EASY.txt",
         )
 

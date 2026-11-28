@@ -28,6 +28,7 @@ from game_config import (
     LOBBY_PLAYER_START_Y,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    TOTAL_WAVES,
     WORLD_HEIGHT,
     WORLD_WIDTH,
 )
@@ -41,7 +42,7 @@ from save_io import SaveDataError, load_save_data_with_report, write_save_data
 from shop_scene import ShopScene
 from title_scene import TitleScene
 from training_scene import TrainingScene
-from weapon import Gun
+from weapon import DEFAULT_GUN_ID, Gun
 
 
 ASSET_DIRECTORY = Path(__file__).resolve().parent.parent / "image"
@@ -793,13 +794,28 @@ class GameApp:
         battle = self.scene
         self.state.coins += battle.coins
         abandoned = battle.result is None or battle.result is BattleResult.QUIT
-        if not abandoned:
+        if abandoned:
+            self.save_progress()
+            self.switch_scene("lobby")
+            return
+        cleared_wave = getattr(battle, "cleared_wave", 0)
+        if battle.result is BattleResult.VICTORY and cleared_wave < 1:
+            cleared_wave = TOTAL_WAVES
+        elif cleared_wave < 1:
+            cleared_wave = max(0, battle.reached_wave - 1)
+        if cleared_wave >= 1:
+            clear_time = battle.clear_time
+            if clear_time is None:
+                clear_time = battle.elapsed_time
             self.state.add_record(
                 BattleRecord(
                     result=battle.result.value,
                     reached_wave=battle.reached_wave,
                     elapsed_time=battle.elapsed_time,
-                    clear_time=battle.clear_time,
+                    clear_time=clear_time,
+                    gun_id=getattr(battle.gun, "gun_id", DEFAULT_GUN_ID),
+                    cleared_wave=cleared_wave,
+                    difficulty=battle.difficulty,
                 )
             )
         self.save_progress()

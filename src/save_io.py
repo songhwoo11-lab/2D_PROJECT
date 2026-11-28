@@ -3,13 +3,16 @@
 import math
 import re
 
-from game_config import TOTAL_WAVES, normalize_difficulty
+from battle_record import BattleRecord, complete_battle_record
+from game_config import TOTAL_WAVES, DIFFICULTIES, normalize_difficulty
 from save_data import (
     BestLog,
     SaveData,
+    RECENT_LOG_LIMIT,
     SaveLoadResult,
     default_save_data,
     limit_recent_logs,
+    normalize_records_by_difficulty,
 )
 from save_paths import (
     BEST_LOG_PATH,
@@ -17,6 +20,7 @@ from save_paths import (
     DIFFICULTY_PATH,
     GUNS_PATH,
     RECENT_LOG_PATH,
+    RECORDS_PATHS,
     TRAINING_LOG_PATH,
     UPGRADE_PATH,
     ensure_gamefile_directories,
@@ -312,6 +316,94 @@ def read_difficulty(path=None):
         raise SaveDataError(str(error)) from error
 
 
+_RECORD_ENTRY_PATTERN = re.compile(
+    r"\[\s*([^,\[\]]+?)\s*,\s*([^,\[\]]+?)\s*,\s*([^,\[\]]+?)\s*\]"
+)
+
+
+def _parse_record_entries(text):
+    """Parse the nested record entries used by records_<difficulty>.txt."""
+    match = re.fullmatch(r"\s*record\s*=\s*\[(.*)\]\s*", text, flags=re.DOTALL)
+    if match is None:
+        raise SaveDataError("invalid record format")
+    inner = match.group(1).strip()
+    if not inner:
+        return []
+    entries = _RECORD_ENTRY_PATTERN.findall(inner)
+    rebuilt = ", ".join(
+        "[{}, {}, {}]".format(*(value.strip() for value in entry))
+        for entry in entries
+    )
+    if re.sub(r"\s+", "", rebuilt) != re.sub(r"\s+", "", inner):
+        raise SaveDataError("invalid record entry format")
+    return entries
+
+
+def _validate_record_values(difficulty, gun_id, cleared_wave, clear_time):
+    """Validate one stored record and return its normalized values."""
+    try:
+        difficulty = normalize_difficulty(difficulty)
+    except ValueError as error:
+        raise SaveDataError(str(error)) from error
+    gun_id = str(gun_id).strip()
+    if gun_id not in GUN_SHOP_ORDER:
+        raise SaveDataError("unknown gun in record: {}".format(gun_id))
+    wave = _parse_int(cleared_wave, "cleared wave")
+    if wave < 1 or wave > TOTAL_WAVES:
+        raise SaveDataError(
+            "cleared wave must be between 1 and {}: {}".format(TOTAL_WAVES, wave)
+        )
+    time = _parse_float(clear_time, "clear time")
+    if time < 0:
+        raise SaveDataError("clear time must be non-negative")
+    return difficulty, gun_id, wave, time
+
+
+def _record_from_values(difficulty, gun_id, cleared_wave, clear_time):
+    return BattleRecord(
+        result="victory" if cleared_wave == TOTAL_WAVES else "defeat",
+        reached_wave=min(TOTAL_WAVES, cleared_wave + 1),
+        elapsed_time=clear_time,
+        clear_time=clear_time,
+        gun_id=gun_id,
+        cleared_wave=cleared_wave,
+        difficulty=difficulty,
+    )
+
+
+def write_difficulty_records(records, difficulty, path=None):
+    """Write one difficulty's cleared-wave records to its own game file."""
+    difficulty = normalize_difficulty(difficulty)
+    entries = []
+    for record in list(records or [])[:RECENT_LOG_LIMIT]:
+        completed = complete_battle_record(record, difficulty)
+        if completed is None:
+            continue
+        _, gun_id, wave, time = _validate_record_values(
+            difficulty,
+            completed.gun_id,
+            completed.cleared_wave,
+            completed.clear_time,
+        )
+        entries.append("[{}, {}, {}]".format(gun_id, wave, _format_number(time)))
+    _write_text(
+        path or RECORDS_PATHS[difficulty],
+        "record = [{}]".format(", ".join(entries)),
+    )
+
+
+def read_difficulty_records(difficulty, path=None):
+    """Read one difficulty's cleared-wave records from its own game file."""
+    difficulty = normalize_difficulty(difficulty)
+    records = []
+    for gun_id, wave, time in _parse_record_entries(
+        _read_text(path or RECORDS_PATHS[difficulty])
+    ):
+        normalized = _validate_record_values(difficulty, gun_id, wave, time)
+        records.append(_record_from_values(*normalized))
+    return records
+
+
 def _require_fields(data, field_names):
     values = getattr(data, "__dict__", None)
     for name in field_names:
@@ -360,6 +452,7 @@ def validate_save_data(data):
         "recent_logs",
         "training_records",
         "difficulty",
+        "records_by_difficulty",
     )
     _require_fields(data, field_names)
     expected_count = len(GUN_SHOP_ORDER)
@@ -398,6 +491,27 @@ def validate_save_data(data):
         normalize_difficulty(data.difficulty)
     except ValueError as error:
         raise SaveDataError(str(error)) from error
+
+    if not isinstance(data.records_by_difficulty, dict):
+        raise SaveDataError("records_by_difficulty must be a dictionary")
+    if set(data.records_by_difficulty) != set(DIFFICULTIES):
+        raise SaveDataError("records_by_difficulty must contain every difficulty")
+    for difficulty in DIFFICULTIES:
+        entries = data.records_by_difficulty[difficulty]
+        _require_list(entries, "{} records".format(difficulty))
+        for record in entries:
+            try:
+                completed = complete_battle_record(record, difficulty)
+            except (TypeError, ValueError) as error:
+                raise SaveDataError(str(error)) from error
+            if completed is None:
+                continue
+            _validate_record_values(
+                difficulty,
+                completed.gun_id,
+                completed.cleared_wave,
+                completed.clear_time,
+            )
     return True
 
 
@@ -424,6 +538,12 @@ def write_save_data(data, root=None):
     write_recent_logs(limit_recent_logs(data.recent_logs), paths["recent_logs"])
     write_training_records(data.training_records, paths["training_records"])
     write_difficulty(data.difficulty, paths["difficulty"])
+    for difficulty in DIFFICULTIES:
+        write_difficulty_records(
+            data.records_by_difficulty[difficulty],
+            difficulty,
+            paths["records_{}".format(difficulty)],
+        )
 
 
 def _new_default_data():
@@ -437,6 +557,9 @@ def _new_default_data():
         recent_logs=list(defaults.recent_logs),
         training_records=list(defaults.training_records),
         difficulty=defaults.difficulty,
+        records_by_difficulty=normalize_records_by_difficulty(
+            defaults.records_by_difficulty
+        ),
     )
 
 
@@ -453,6 +576,12 @@ def _write_missing_files(data, paths, missing_paths):
         ),
         "difficulty": lambda path: write_difficulty(data.difficulty, path),
     }
+    for difficulty in DIFFICULTIES:
+        writers["records_{}".format(difficulty)] = (
+            lambda path, key=difficulty: write_difficulty_records(
+                data.records_by_difficulty[key], key, path
+            )
+        )
     for key in paths:
         if paths[key] in missing_paths:
             writers[key](paths[key])
@@ -473,6 +602,23 @@ def load_save_data_with_report(root=None):
             continue
         try:
             setattr(data, field_name, reader(path))
+        except (SaveDataError, OSError, ValueError) as error:
+            messages.append(
+                "저장 파일을 읽을 수 없어 기본값으로 복구했습니다: {} ({})".format(
+                    path.name, error
+                )
+            )
+            recovered = True
+    for difficulty in DIFFICULTIES:
+        key = "records_{}".format(difficulty)
+        path = paths[key]
+        if not path.exists():
+            missing.append(path)
+            continue
+        try:
+            data.records_by_difficulty[difficulty] = read_difficulty_records(
+                difficulty, path
+            )
         except (SaveDataError, OSError, ValueError) as error:
             messages.append(
                 "저장 파일을 읽을 수 없어 기본값으로 복구했습니다: {} ({})".format(

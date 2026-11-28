@@ -17,6 +17,7 @@ from audio import (
 from battle_record import BattleRecord
 from battle_scene import BattleResult
 from game_config import (
+    DIFFICULTY_EASY,
     DIFFICULTY_HARD,
     HUD_FONT_SIZE,
     LOBBY_PLAYER_START_X,
@@ -704,6 +705,55 @@ class BattleReturnTests(unittest.TestCase):
         self.assertEqual(record.result, BattleResult.DEFEAT.value)
         self.assertEqual(record.reached_wave, 5)
         self.assertAlmostEqual(record.elapsed_time, 120.5)
+
+    def test_reaching_the_final_wave_then_dying_records_wave_nine(self):
+        self.app.switch_scene("battle")
+        battle = self.app.scene
+        battle.result = BattleResult.DEFEAT
+        battle.reached_wave = 10
+        battle.cleared_wave = 9
+        battle.elapsed_time = 300.0
+        battle.clear_time = 240.5
+
+        self.app.handle_battle_exit()
+
+        record = self.app.state.records[0]
+        self.assertEqual(record.cleared_wave, 9)
+        self.assertAlmostEqual(record.clear_time, 240.5)
+        self.assertEqual(len(self.app.state.records_for_difficulty("NORMAL")), 1)
+
+    def test_first_wave_death_does_not_create_a_record(self):
+        self.app.switch_scene("battle")
+        battle = self.app.scene
+        battle.result = BattleResult.DEFEAT
+        battle.reached_wave = 1
+        battle.cleared_wave = 0
+        battle.elapsed_time = 5.0
+
+        self.app.handle_battle_exit()
+
+        self.assertEqual(self.app.state.records, [])
+        for difficulty in ("EASY", "NORMAL", "HARD"):
+            self.assertEqual(self.app.state.records_for_difficulty(difficulty), [])
+
+    def test_record_keeps_the_battle_gun_and_difficulty(self):
+        self.app.state.difficulty = DIFFICULTY_EASY
+        self.app.state.select_gun("pistol")
+        self.app.switch_scene("battle")
+        battle = self.app.scene
+        battle.result = BattleResult.DEFEAT
+        battle.reached_wave = 3
+        battle.cleared_wave = 2
+        battle.elapsed_time = 30.0
+        battle.clear_time = 20.0
+
+        self.app.handle_battle_exit()
+
+        record = self.app.state.records[0]
+        self.assertEqual(record.gun_id, "pistol")
+        self.assertEqual(record.difficulty, DIFFICULTY_EASY)
+        self.assertEqual(len(self.app.state.records_for_difficulty(DIFFICULTY_EASY)), 1)
+        self.assertEqual(len(self.app.state.records_for_difficulty("NORMAL")), 0)
 
     def test_victory_record_keeps_the_clear_time(self):
         self.app.switch_scene("battle")

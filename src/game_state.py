@@ -1,14 +1,40 @@
 """Progress that is kept for the whole game session."""
 
-from battle_record import BattleRecord, TrainingRecord, VICTORY
+from battle_record import (
+    BattleRecord,
+    TrainingRecord,
+    VICTORY,
+    complete_battle_record,
+)
 from dev_settings import development_coins, development_gun
-from game_config import DEFAULT_DIFFICULTY, TOTAL_WAVES, normalize_difficulty
-from save_data import SaveData, limit_recent_logs, select_best_log
+from game_config import (
+    DEFAULT_DIFFICULTY,
+    DIFFICULTIES,
+    TOTAL_WAVES,
+    normalize_difficulty,
+)
+from save_data import (
+    SaveData,
+    limit_recent_logs,
+    normalize_records_by_difficulty,
+    select_best_log,
+)
 from shop import GUN_SHOP_ORDER
 from weapon import WEAPON_SPECS
 
 
 DEFAULT_OWNED_GUNS = ("pistol",)
+
+
+def _group_records(records_by_difficulty, records):
+    if records_by_difficulty is not None:
+        return normalize_records_by_difficulty(records_by_difficulty)
+    grouped = {difficulty: [] for difficulty in DIFFICULTIES}
+    for record in records or []:
+        completed = complete_battle_record(record)
+        if completed is not None:
+            grouped[completed.difficulty].append(completed)
+    return grouped
 
 
 def _record_from_log(wave, elapsed_time):
@@ -34,6 +60,7 @@ class GameState:
         dev_gun=None,
         upgrade_levels=None,
         difficulty=DEFAULT_DIFFICULTY,
+        records_by_difficulty=None,
     ):
         self.owned_guns = list(owned_guns)
         self.upgrade_levels = {
@@ -51,6 +78,9 @@ class GameState:
             self.owned_guns[0] if self.owned_guns else None
         )
         self.difficulty = normalize_difficulty(difficulty)
+        self.records_by_difficulty = _group_records(
+            records_by_difficulty, self.records
+        )
 
     @classmethod
     def from_save_data(cls, data, dev_gun=None, coins=None):
@@ -82,6 +112,7 @@ class GameState:
             dev_gun=dev_gun if dev_gun is not None else development_gun(),
             upgrade_levels=upgrade_levels,
             difficulty=data.difficulty,
+            records_by_difficulty=data.records_by_difficulty,
         )
 
     def to_save_data(self):
@@ -106,11 +137,20 @@ class GameState:
                 record.targets_destroyed for record in self.training_records
             ],
             difficulty=self.difficulty,
+            records_by_difficulty=self.records_by_difficulty,
         )
 
     def add_record(self, record):
         """Store the newest battle record in front of the older ones."""
         self.records.insert(0, record)
+        completed = complete_battle_record(record)
+        if completed is not None:
+            self.records_by_difficulty[completed.difficulty].insert(0, completed)
+
+    def records_for_difficulty(self, difficulty):
+        """Return the records shown for one difficulty in the records book."""
+        difficulty = normalize_difficulty(difficulty)
+        return list(self.records_by_difficulty.get(difficulty, []))
 
     def add_training_record(self, record):
         """Store the newest training record in front of the older ones."""

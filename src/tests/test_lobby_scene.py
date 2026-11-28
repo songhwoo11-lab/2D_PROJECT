@@ -46,11 +46,14 @@ from lobby_scene import (
     RECORDS_BOOK_HEIGHT,
     RECORDS_BOOK_PAPER_BOTTOM_IMAGE_Y,
     RECORDS_BOOK_PAPER_TOP_IMAGE_Y,
+    RECORDS_DIFFICULTY_LABEL_X_OFFSET,
+    RECORDS_DIFFICULTY_ORDER,
     gun_select_card_rect,
     gun_select_difficulty_button_rect,
     gun_select_exit_button_rect,
     gun_select_stat_row_y,
     gun_select_stat_rows,
+    records_difficulty_button_rect,
     records_exit_button_rect,
 )
 from player import Player
@@ -1299,6 +1302,109 @@ class LobbyRecordsImageTests(unittest.TestCase):
         left, bottom, right, top = records_exit_button_rect()
         return (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2
 
+    def difficulty_button_screen_center(self, difficulty):
+        index = RECORDS_DIFFICULTY_ORDER.index(difficulty)
+        left, bottom, right, top = records_difficulty_button_rect(index)
+        return (left + right) / 2, SCREEN_HEIGHT - (bottom + top) / 2
+
+    def test_difficulty_label_is_above_all_difficulty_buttons(self):
+        rectangles = []
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: rectangles.append(args))
+
+        button_rects = {
+            records_difficulty_button_rect(index) for index in range(3)
+        }
+        drawn_buttons = {
+            tuple(args[:4]) for args in rectangles if tuple(args[:4]) in button_rects
+        }
+        self.assertEqual(len(drawn_buttons), len(button_rects))
+        label = next(
+            entry for entry in text_draw.call_args_list
+            if entry.args[3] == "DIFFICULTY"
+        )
+        label_x, label_y = label.args[1], label.args[2]
+        first_rect = records_difficulty_button_rect(0)
+        last_rect = records_difficulty_button_rect(
+            len(RECORDS_DIFFICULTY_ORDER) - 1
+        )
+        center_x = (first_rect[0] + last_rect[2]) / 2
+
+        self.assertGreater(label_y, max(rect[3] for rect in drawn_buttons))
+        self.assertEqual(
+            label_x, center_x + RECORDS_DIFFICULTY_LABEL_X_OFFSET
+        )
+
+    def test_hard_and_easy_buttons_are_swapped(self):
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: None)
+
+        positions = {
+            entry.args[3]: (entry.args[1], entry.args[2])
+            for entry in text_draw.call_args_list
+        }
+        expected_order = (
+            DIFFICULTY_HARD,
+            DIFFICULTY_NORMAL,
+            DIFFICULTY_EASY,
+        )
+        self.assertEqual(RECORDS_DIFFICULTY_ORDER, expected_order)
+        for index, difficulty in enumerate(expected_order):
+            left, bottom, right, top = records_difficulty_button_rect(index)
+            self.assertEqual(
+                positions[difficulty], ((left + right) / 2, (bottom + top) / 2)
+            )
+
+    def test_opening_records_starts_with_the_recent_difficulty(self):
+        self.scene.close_panel()
+        self.state.difficulty = DIFFICULTY_HARD
+
+        self.scene.open_records()
+
+        self.assertEqual(self.scene.records_difficulty, DIFFICULTY_HARD)
+
+    def test_clicking_a_difficulty_button_filters_the_book_text(self):
+        self.state.add_record(
+            BattleRecord(
+                "defeat",
+                reached_wave=10,
+                elapsed_time=210.5,
+                clear_time=210.5,
+                gun_id="rifle",
+                cleared_wave=9,
+                difficulty=DIFFICULTY_EASY,
+            )
+        )
+        self.state.add_record(
+            BattleRecord(
+                "victory",
+                reached_wave=10,
+                elapsed_time=880.0,
+                clear_time=880.0,
+                gun_id="pistol",
+                cleared_wave=10,
+                difficulty=DIFFICULTY_HARD,
+            )
+        )
+        screen_x, screen_y = self.difficulty_button_screen_center(DIFFICULTY_HARD)
+
+        self.scene.mouse_move(screen_x, screen_y)
+        self.scene.mouse_down("left", screen_x, screen_y)
+
+        self.assertEqual(self.scene.records_difficulty, DIFFICULTY_HARD)
+        with patch("lobby_scene.draw_centered_text"), patch(
+            "lobby_scene.draw_text_at_center"
+        ) as text_draw:
+            self.scene.draw(lambda *args: None)
+        labels = [entry.args[3] for entry in text_draw.call_args_list]
+        self.assertIn("BATTLE RECORDS - HARD", labels)
+        self.assertIn("PISTOL WAVE 10 TIME 14:40.0", labels)
+        self.assertNotIn("RIFLE WAVE 9 TIME 3:30.5", labels)
+
     def test_draws_table_background_and_book_image(self):
         with patch("lobby_scene.draw_centered_text"), patch(
             "lobby_scene.draw_text_at_center"
@@ -1390,7 +1496,7 @@ class LobbyRecordsImageTests(unittest.TestCase):
 
         labels = {entry.args[3]: entry.args[1] for entry in text_draw.call_args_list}
         self.assertLess(
-            labels["BATTLE RECORDS"], SCREEN_WIDTH / 2
+            labels["BATTLE RECORDS - NORMAL"], SCREEN_WIDTH / 2
         )
         self.assertGreater(
             labels["TRAINING RECORDS"], SCREEN_WIDTH / 2
